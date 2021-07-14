@@ -13,3 +13,11 @@
     oder GoogleMaps/Earth Daten zu Vehrkehrsmittel, Straßen etc.
 * Oder wie oben, nur mit Straßen.
 * Autonomes RC-Auto.
+* Texturengenerator z.B. für Holz.
+* Pseudo Mandelbrot Zoom: Wir trainieren eine AI mithilfe der Mandelbrot Menge 
+    (oder einem anderem Fraktal) das Bild "erdenkt". Es sollte relativ realistisch
+    aussehen, aber würde nicht mehr Performance brauchen, wenn man weiter hineinzoomt.
+    Man müsste quasi prozedurell das Bild um die Sicht herum generieren und vermeiden,
+    dass Abschnitte mehrmals generiert werden. (weil sie dann vielleicht anders aussehen
+    als vorher?)
+* Ein Blatt-Generator
