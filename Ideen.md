@@ -21,3 +21,4 @@
     dass Abschnitte mehrmals generiert werden. (weil sie dann vielleicht anders aussehen
     als vorher?)
 * Ein Blatt-Generator
+* Eine AI, die erkennen kann, wie groß ein Objekt in einem Bild ist
