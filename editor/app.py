@@ -2,6 +2,9 @@ import tkinter
 import enum
 import logging
 import itertools
+import math
+from input_parser import InputParser
+from street_data import *
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -31,45 +34,42 @@ class Toolbox(tkinter.Frame):
     def __init__(self, master):
         super().__init__(master)
 
-class Street:
-    def __init__(self):
-        self.points = []
-        self.point_items = []
-        self.arc = None
-    
+
         
 class StreetView(tkinter.Canvas):
     def __init__(self, master):
         super().__init__(master, width=800, height=500)
-        self.bind("<Button-1>", self.parse_mouse_left)
-        self.bind("<Button-2>", self.parse_mouse_right)
-        self.selected = Street()
+        self.street_data = StreetData()
+        self.street_data.streets.append(Street())
+        self.input_parser = InputParser(self.street_data)
+
+        # Register events
+        self.input_parser.bind("add_street_segment", self.add_waypoint,
+                self.expand_street_arc)
+        self.input_parser.bind("remove_street_segment", lambda *x, **y: None),
+        self.input_parser.bind("select_street", lambda *x, **y: None),
+        self.input_parser.bind("unselect_street", lambda *x, **y: None)
     
-    def add_waypoint(self, x, y):
+        self.bind("<Button-1>", self.input_parser.parse_mouse_left)
+        self.bind("<Button-2>", self.input_parser.parse_mouse_right)
+    def add_waypoint(self, street, x, y):
         oval_size = 10 
-        return self.create_oval(
+        street.points.extend((x, y))
+        street.point_items.append(self.create_oval(
             x - oval_size/2, y - oval_size/2,
             x + oval_size/2, y + oval_size/2,
             fill="red"
-        )
+        ))
+    def expand_street_arc(self, street, x, y):
+        if not len(street.points) >= 4: return
 
-    
-    def parse_mouse_left(self, event):
-        if isinstance(self.selected, Street):
-            p = self.add_waypoint(event.x, event.y)
-            self.selected.points.extend((event.x, event.y))
-            self.selected.point_items.append(p)
-            if not self.selected.arc:
-                self.selected.arc = self.create_line(*self.selected.points)
-            else:
-                self.coords(self.selected.arc,
-                    *self.selected.points
-                )
-            
-            logging.debug("Added waypoint")
-    def parse_mouse_right(self, event):
-        if isinstance(self.selected, Street):
-            pass
+        if not street.arc:
+            street.arc = self.create_line(*street.points)
+        else:
+            self.coords(street.arc,
+                *street.points
+            )
+
         
         
         
