@@ -6,7 +6,9 @@ import math
 from input_parser import InputParser
 from street_data import *
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s (%(levelname)-2s) %(message)s',
+                    datefmt='[%d.%m.%Y %H:%M:%S]')
 
 
 class App(tkinter.Tk):
@@ -44,11 +46,8 @@ class StreetView(tkinter.Canvas):
         self.input_parser = InputParser(self.street_data)
 
         # Register events
-        self.input_parser.bind("add_street_segment", self.add_waypoint,
-                self.expand_street_arc)
-        self.input_parser.bind("remove_street_segment", lambda *x, **y: None),
-        self.input_parser.bind("select_street", lambda *x, **y: None),
-        self.input_parser.bind("unselect_street", lambda *x, **y: None)
+        self.input_parser.add_street_segment += self.add_waypoint
+        self.input_parser.add_street_segment += self.expand_street_arc
     
         self.bind("<Button-1>", self.input_parser.parse_mouse_left)
         self.bind("<Button-2>", self.input_parser.parse_mouse_right)
