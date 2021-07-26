@@ -3,9 +3,10 @@ import math
 
 class Street:
     def __init__(self):
-        self.points = []
+        self._points = []
         self.point_items = []
         self.arc = None
+    
     
 class StreetData:
     def __init__(self):
