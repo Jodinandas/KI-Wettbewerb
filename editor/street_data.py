@@ -30,6 +30,15 @@ class Crossing:
         for i, pos in enumerate(self._position):
             pos.set(new[i])
 
+    @property
+    def traffic_lights(self):
+        return self._traffic_lights.get()
+
+    @traffic_lights.setter
+    def traffic_lights(self, new: bool):
+        self._traffic_lights.set(new)
+
+
     def connect(self, other: Crossing, lanes: int):
         """Connects two Crossings, but only one way. if exists, adds lanes"""
         if not self.is_connected(other):
@@ -94,8 +103,7 @@ class StreetData:
             if min_dist_sqr is None or dist_sqr < min_dist_sqr:
                 nearest_crossing = c
                 min_dist_sqr = dist_sqr
-        else:
-            return nearest_crossing
+        return nearest_crossing
 
 
 if __name__ == "__main__":
