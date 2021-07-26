@@ -5,6 +5,7 @@ import itertools
 import math
 from input_parser import InputParser
 from street_data import *
+from toolbar import Toolbar
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s (%(levelname)-2s) %(message)s',
@@ -16,41 +17,30 @@ class App(tkinter.Tk):
         super().__init__()
         # create widgets
         # TODO: make canvas size dynamic
-        self.canvas = StreetView(self)
-        self.toolbox = Toolbox(self)
-        
-        for i in range(5):
-            placeholder = tkinter.Button(self.toolbox, text=str(i), font=("Computer Modern", 20))
-            placeholder.grid(column=0, row=i, sticky="W")
+        self.street_view = StreetView(self)
+        self.toolbox = Toolbar(self)
         
         # place widgets
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
-        self.canvas.grid(row=0, column=0)
+        self.street_view.grid(row=0, column=0)
         self.toolbox.grid(row=0, column=1, sticky="W")
+        self.input_parser = InputParser(self.street_view.street_data)
+
+        # Register events
+        self.input_parser.add_street_segment += self.street_view.add_waypoint
+        self.input_parser.add_street_segment += self.street_view.expand_street_arc
+        self.toolbox.tool_changed += self.input_parser.on_tool_change
     
+        self.street_view.bind("<Button-1>", self.input_parser.parse_mouse_left)
+        self.street_view.bind("<Button-2>", self.input_parser.parse_mouse_right)
 
-    
-class Toolbox(tkinter.Frame):
-    """A toolbox to store things like making a new road"""
-    def __init__(self, master):
-        super().__init__(master)
-
-
-        
 class StreetView(tkinter.Canvas):
     def __init__(self, master):
         super().__init__(master, width=800, height=500)
         self.street_data = StreetData()
         self.street_data.streets.append(Street())
-        self.input_parser = InputParser(self.street_data)
-
-        # Register events
-        self.input_parser.add_street_segment += self.add_waypoint
-        self.input_parser.add_street_segment += self.expand_street_arc
     
-        self.bind("<Button-1>", self.input_parser.parse_mouse_left)
-        self.bind("<Button-2>", self.input_parser.parse_mouse_right)
     def add_waypoint(self, street, x, y):
         oval_size = 10 
         street.points.extend((x, y))

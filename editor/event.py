@@ -1,6 +1,8 @@
 import logging
 
 class Event:
+    """A simple class to implement a (kind of) Observer pattern"""
+
     def __init__(self, log=True, name=None):
         self._observer_funcs = []
         self._log = log 
@@ -35,6 +37,8 @@ class Event:
         return self
     
     def notify(self, *args, **kwargs):
+        """Calls all observer functions"""
+
         for f in self._observer_funcs:
             f(*args, **kwargs)
             if self._log:
