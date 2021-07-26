@@ -10,16 +10,11 @@ class Crossing:
         list in the form of [[crossing, number_of_lanes], [...]]
         """
         #TODO use custom list for connected
-        self._position = [IntVar(), IntVar()]
-        self._position[0].set(position[0])
-        self._position[1].set(position[1])
+        self._position = [IntVar(value=position[0]), IntVar(value=position[1])]
         self._connected = []
         for c, n in connected:
-            var = IntVar()
-            var.set(n)
-            self._connected.append([c, var])
-        self._traffic_lights = BooleanVar()
-        self._traffic_lights.set(traffic_lights)
+            self._connected.append([c, IntVar(n)])
+        self._traffic_lights = BooleanVar(value=traffic_lights)
 
     @property
     def position(self):
@@ -42,9 +37,7 @@ class Crossing:
     def connect(self, other: Crossing, lanes: int):
         """Connects two Crossings, but only one way. if exists, adds lanes"""
         if not self.is_connected(other):
-            l = IntVar()
-            l.set(lanes)
-            self._connected.append([other, l])
+            self._connected.append([other, IntVar(value=lanes)])
         else:
             for c, n in self._connected:
                 if c == other:
@@ -57,17 +50,11 @@ class Crossing:
         if isinstance(lanes, list):
             if (not isinstance(lanes[0], int)) or (not isinstance(lanes[1], int)):
                 raise ValueError("Connect_both_ways: Number needs to be of the type list [int, int] or int.")
-            l1 = IntVar()
-            l1.set(lanes[0])
-            l2 = IntVar()
-            l2.set(lanes[1])
-            self._connected.append([other, l1])
-            other._connected.append([self, l2])
+            self._connected.append([other, IntVar(value=lanes[0])])
+            other._connected.append([self, IntVar(value=lanes[1])])
         elif isinstance(lanes, int):
-            l = IntVar()
-            l.set(lanes)
-            self._connected.append([other, l])
-            other._connected.append([self, l])
+            self._connected.append([other, IntVar(value=lanes)])
+            other._connected.append([self, IntVar(value=lanes)])
         else:
             raise ValueError("Connect_both_ways: Number needs to be of the type list [int, int] or int.")
 
