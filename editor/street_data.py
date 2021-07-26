@@ -111,7 +111,7 @@ class StreetData:
             if min_dist_sqr is None or dist_sqr < min_dist_sqr:
                 nearest_crossing = c
                 min_dist_sqr = dist_sqr
-        return nearest_crossing
+        return dist_sqr, nearest_crossing
 
 
 

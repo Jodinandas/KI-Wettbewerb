@@ -41,6 +41,8 @@ class App(tkinter.Tk):
     
         self.street_view.bind("<Button-1>", self.input_parser.parse_mouse_left)
         self.street_view.bind("<Button-2>", self.input_parser.parse_mouse_right)
+        self.street_view.bind("<Motion>", self.input_parser.on_mouse_move)
+        self.street_view.bind("<ButtonRelease-1>", self.input_parser.on_left_release)
 
 class StreetView(tkinter.Canvas):
     def __init__(self, master):

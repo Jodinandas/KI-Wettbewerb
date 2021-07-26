@@ -9,6 +9,7 @@ class InputParser:
         self.add_crossing = Event(name="add_crossing")
         self.add_street = Event(name="add_street")
         self.remove_crossing = Event(name="remove_crossing")
+        self.move_crossing = Event(name="move_crossing")
         self.select_crossing = Event(name="select_crossing")
         self.unselect_crossing = Event(name="unselect_crossing")
         # TODO: Find a better way to synchronise this with the
@@ -18,6 +19,7 @@ class InputParser:
         #  to change the default Tool in toolbar.py
         self.selected_tool = Tool.SELECTION
         self.selected = None
+        self.dragging = None
     
     def parse_mouse_left(self, event):
         if self.selected_tool == Tool.ADD:
@@ -28,20 +30,21 @@ class InputParser:
                 self.add_street.notify(self.selected, c)
             self.select_crossing.notify(c)
             self.selected = c
-            return 
-            if self.selected is None:
-                # select the nearest element
-                dist, sel = self.street_data.get_nearest(event.x, event.y)
-                if dist is None:
-                    s = Crossing([event.x, event.y])
-                    self.selected = s
-                    self.add_street.notify(s)
-                else:
-                    self.selected = sel
-                self.select_street.notify(self.selected)
-                self.add_street_segment.notify(self.selected, event.x, event.y)
-            elif isinstance(self.selected, Crossing):
-                self.add_street_segment.notify(self.selected, event.x, event.y)
+        elif self.selected_tool == Tool.SELECTION:
+            dist, sel = self.street_data.get_nearest(event.x, event.y)
+            if dist <= 50:
+                self.unselect_crossing.notify(self.selected)
+                self.select_crossing.notify(sel)
+                self.dragging = sel
+                self.selected = sel
+    def on_left_release(self, event):
+        self.dragging = None
+            
+    
+    def on_mouse_move(self, event):
+        if self.dragging:
+            self.selected.position = [event.x, event.y]
+            self.move_crossing.notify(self.dragging, event.x, event.y)
 
     def parse_mouse_right(self, event):
         pass
