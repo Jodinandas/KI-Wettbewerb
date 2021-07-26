@@ -1,20 +1,35 @@
 from __future__ import annotations
 import logging
 import math
+from editable import EditableList, Editable
 from tkinter import StringVar, IntVar, DoubleVar, BooleanVar
+import event
 
 
-class Crossing:
-    def __init__(self, position: list, connected: list, traffic_lights: bool):
+class Crossing(Editable):
+    def __init__(self, position: list, connected: list=[], traffic_lights: bool=False, on_pos_change=None):
         """class for saving of crossings. connected has to be a
         list in the form of [[crossing, number_of_lanes], [...]]
         """
+        Editable.__init__(self)
         #TODO use custom list for connected
-        self._position = [IntVar(value=position[0]), IntVar(value=position[1])]
-        self._connected = []
+        self._position = EditableList(IntVar(value=position[0]), IntVar(value=position[1]))
+        self.on_pos_change = on_pos_change
+        self._position[0].trace("w", lambda *_: self.on_pos_change.notify(self))
+        self._position[1].trace("w", lambda *_: self.on_pos_change.notify(self))
+        self._connected = EditableList()
+
+        self.graphic_object = None
+        self.street_connections = {}
+
         for c, n in connected:
             self._connected.append([c, IntVar(n)])
         self._traffic_lights = BooleanVar(value=traffic_lights)
+        
+        # Mark for the editor
+        self.mark_editable(self._position, name="position: ", range_=(0, 1500))
+        self.mark_editable(self._connected, name="connected: ", range_=(0, 1500))
+        self.mark_editable(self._traffic_lights, name="has traffic lights: ")
 
     @property
     def position(self):
@@ -37,7 +52,7 @@ class Crossing:
     def connect(self, other: Crossing, lanes: int):
         """Connects two Crossings, but only one way. if exists, adds lanes"""
         if not self.is_connected(other):
-            self._connected.append([other, IntVar(value=lanes)])
+            self._connected.append(EditableList(other, IntVar(value=lanes)))
         else:
             for c, n in self._connected:
                 if c == other:
@@ -50,11 +65,11 @@ class Crossing:
         if isinstance(lanes, list):
             if (not isinstance(lanes[0], int)) or (not isinstance(lanes[1], int)):
                 raise ValueError("Connect_both_ways: Number needs to be of the type list [int, int] or int.")
-            self._connected.append([other, IntVar(value=lanes[0])])
-            other._connected.append([self, IntVar(value=lanes[1])])
+            self._connected.append(EditableList(other, IntVar(value=lanes[0])))
+            other._connected.append(EditableList(self, IntVar(value=lanes[1])))
         elif isinstance(lanes, int):
-            self._connected.append([other, IntVar(value=lanes)])
-            other._connected.append([self, IntVar(value=lanes)])
+            self._connected.append(EditableList(other, IntVar(value=lanes)))
+            other._connected.append(EditableList(self, IntVar(value=lanes)))
         else:
             raise ValueError("Connect_both_ways: Number needs to be of the type list [int, int] or int.")
 
@@ -81,6 +96,12 @@ class Crossing:
 class StreetData:
     def __init__(self):
         self.crossings = []
+        self.on_pos_change = event.Event(name="on_pos_change", log=False)
+    
+
+    def add(self, c: Crossing):
+        c.on_pos_change = self.on_pos_change
+        self.crossings.append(c)
 
     def get_nearest(self, x, y):
         nearest_crossing = None
@@ -91,6 +112,7 @@ class StreetData:
                 nearest_crossing = c
                 min_dist_sqr = dist_sqr
         return nearest_crossing
+
 
 
 if __name__ == "__main__":

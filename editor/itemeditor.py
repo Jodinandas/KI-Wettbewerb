@@ -1,6 +1,6 @@
 import tkinter
 import enum
-from editable import Editable, EditableField
+from editable import Editable, EditableField, EditableList
 
 class ItemEditor(tkinter.LabelFrame):
     """An editor for editing e.g. Crossings
@@ -18,6 +18,14 @@ class ItemEditor(tkinter.LabelFrame):
         self._last_row = 0
         self._parents = _parents
         self._name = name
+
+    def on_list_change(self, nlist):
+        """Is called when the ItemEditor is displaying a list and the list changes"""
+        
+        self.clear()
+        new_editable_fields = EditableField.from_list(nlist)
+        self.display(new_editable_fields)
+
     
     def display(self, item):
         """Creates widgets for all the marked fields in the editable"""
@@ -33,7 +41,6 @@ class ItemEditor(tkinter.LabelFrame):
             widgets = self._generate_widget(field)
             start = self._last_row
             for i, w in enumerate(widgets):
-                print(w, type(w))
                 if isinstance(w, ItemEditor):
                     self._displayed_items.append(w)
                     w.grid(row=start+i, column=0, columnspan=2)
@@ -78,7 +85,8 @@ class ItemEditor(tkinter.LabelFrame):
                 to=field.range[1],
                 variable=field.var,
                 resolution=field.step if field.step else 1,
-                orient=tkinter.HORIZONTAL
+                orient=tkinter.HORIZONTAL,
+                length=500
             ))
         elif isinstance(field.var, tkinter.StringVar):
             new_widgets.append(tkinter.Entry(
@@ -93,12 +101,12 @@ class ItemEditor(tkinter.LabelFrame):
                 to=field.range[1],
                 resolution=field.step if field.step else 0.01,
                 variable=field.var,
-                orient=tkinter.HORIZONTAL
+                orient=tkinter.HORIZONTAL,
+                length=100
             ))
         elif isinstance(field.var, tkinter.BooleanVar):
             # Nice hacky code 
             
-            print(field.readonly)
             check = tkinter.Checkbutton(
                 self,
                 fg="green",
@@ -107,12 +115,14 @@ class ItemEditor(tkinter.LabelFrame):
             )
 
             new_widgets.append(check)
-        elif isinstance(field.var, list):
+        elif isinstance(field.var, EditableList):
             new_widgets.append(ItemEditor(
                 self,
                 name=field.name,
                 _parents=self._parents
             ))
+            # Bind update event from EditableList to rerender
+            field.var.event += new_widgets[-1].on_list_change
             new_widgets[-1].display(field.var)
         else:
             new_widgets.append(tkinter.Label(
@@ -137,7 +147,7 @@ if __name__ == "__main__":
             self.a.set(3)
             self.b = tkinter.StringVar()
             self.b.set(6)
-            self.c = []
+            self.c = EditableList() 
             self.d = tkinter.BooleanVar()
             self.d.set(True)
             self.e = tkinter.DoubleVar()
