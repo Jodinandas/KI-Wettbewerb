@@ -4,6 +4,7 @@ class Event:
     """A simple class to implement a (kind of) Observer pattern"""
 
     def __init__(self, log=True, name=None):
+        assert isinstance(log, bool)
         self._observer_funcs = []
         self._log = log 
         self.name = name if name else self

@@ -19,6 +19,7 @@ class EditableField:
     @staticmethod
     def from_list(items: list, *args, **kwargs):
         """Recursively turns all list items into EditableField"""
+        print("regenerating: ", items)
 
         new_items = EditableList()
         nargs = [arg for arg in args if arg != "name"]
@@ -26,8 +27,8 @@ class EditableField:
         
         for i, item in enumerate(items):
             if isinstance(item, EditableList):
-                new_items.append(EditableField(
-                    EditableField.from_list(item),
+                new_items.append(
+                    EditableField.from_list(item,
                     name=f"# {i}",
                     *nargs,
                     **nkwargs
@@ -44,27 +45,35 @@ class EditableField:
 
         return EditableField(new_items, *args, **kwargs)
 
-def _on_change_wrapper(func):
-    def notify(self, *args, **kwargs):
-        if self.event:
-            self.event.notify(self)
-        return func(self, *args, **kwargs) 
-    return notify
 
+n = 0
 class EditableList(list):
-    extend = _on_change_wrapper(list.extend)
-    append = _on_change_wrapper(list.append)
-    remove = _on_change_wrapper(list.remove)
-    pop = _on_change_wrapper(list.pop)
-    __delitem__ = _on_change_wrapper(list.__delitem__)
-    __setitem__ = _on_change_wrapper(list.__setitem__)
-    __iadd__ = _on_change_wrapper(list.__iadd__)
-    __imul__ = _on_change_wrapper(list.__imul__)
 
 
     def __init__(self, *args, event=None):
+        global n
         list.__init__(self, args)
-        self.event = event if event else Event('on_list_edit')
+        self.event = event if event else Event(name=f'on_list_edit{n}')
+        def _on_change_wrapper(self, func):
+            def notify(*args, **kwargs):
+                print(args, kwargs)
+                result = func(self, *args, **kwargs) 
+
+                if self.event:
+                    print(self.event.name, "exisitert",
+                    self.event._observer_funcs)
+                    self.event.notify(self)
+                return result
+            return notify
+        self.extend = _on_change_wrapper(self, list.extend)
+        self.append = _on_change_wrapper(self, list.append)
+        self.remove = _on_change_wrapper(self, list.remove)
+        self.pop = _on_change_wrapper(self, list.pop)
+        self.__delitem__ = _on_change_wrapper(self, list.__delitem__)
+        self.__setitem__ = _on_change_wrapper(self, list.__setitem__)
+        self.__iadd__ = _on_change_wrapper(self, list.__iadd__)
+        self.__imul__ = _on_change_wrapper(self, list.__imul__)
+        n += 1
 
     def __getitem__(self,item):
         if isinstance(item,slice):

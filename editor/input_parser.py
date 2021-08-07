@@ -23,20 +23,35 @@ class InputParser:
     
     def parse_mouse_left(self, event):
         if self.selected_tool == Tool.ADD:
-            c = Crossing([event.x, event.y])
-            self.add_crossing.notify(c)
-            if self.selected:
+            dist, sel = self.street_data.get_nearest(event.x, event.y)
+            if dist and dist <= 50:
                 self.unselect_crossing.notify(self.selected)
-                self.add_street.notify(self.selected, c)
-            self.select_crossing.notify(c)
-            self.selected = c
+                self.add_street.notify(self.selected, sel)
+                self.selected = sel
+                self.select_crossing.notify(sel)
+            else:
+                c = Crossing([event.x, event.y])
+                self.add_crossing.notify(c)
+                if self.selected:
+                    self.unselect_crossing.notify(self.selected)
+                    self.add_street.notify(self.selected, c)
+                self.select_crossing.notify(c)
+                self.selected = c
         elif self.selected_tool == Tool.SELECTION:
             dist, sel = self.street_data.get_nearest(event.x, event.y)
-            if dist <= 50:
+            if dist and dist <= 50:
                 self.unselect_crossing.notify(self.selected)
                 self.select_crossing.notify(sel)
                 self.dragging = sel
                 self.selected = sel
+        elif self.selected_tool == Tool.DELETION:
+            dist, sel = self.street_data.get_nearest(event.x, event.y)
+            if dist and dist <= 50:
+                self.unselect_crossing.notify(self.selected)
+                self.select_crossing.notify(sel)
+                self.dragging = sel
+                self.selected = sel
+            
     def on_left_release(self, event):
         self.dragging = None
             

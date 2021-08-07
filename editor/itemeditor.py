@@ -1,6 +1,7 @@
 import tkinter
 import enum
 from editable import Editable, EditableField, EditableList
+import logging
 
 class ItemEditor(tkinter.LabelFrame):
     """An editor for editing e.g. Crossings
@@ -22,6 +23,7 @@ class ItemEditor(tkinter.LabelFrame):
     def on_list_change(self, nlist):
         """Is called when the ItemEditor is displaying a list and the list changes"""
         
+        print("redrawing: ", nlist)
         self.clear()
         new_editable_fields = EditableField.from_list(nlist)
         self.display(new_editable_fields)
@@ -32,9 +34,9 @@ class ItemEditor(tkinter.LabelFrame):
         
         if isinstance(item, Editable):
             marked_fields = item.marked_fields
+            self._parents.append(type(item))
         else:
             marked_fields = item
-        self._parents.append(type(item))
         self.config(text=self._name)
 
         for field in marked_fields:
@@ -116,13 +118,15 @@ class ItemEditor(tkinter.LabelFrame):
 
             new_widgets.append(check)
         elif isinstance(field.var, EditableList):
+            print("makedy dakedy list", field.name)
             new_widgets.append(ItemEditor(
                 self,
                 name=field.name,
                 _parents=self._parents
             ))
             # Bind update event from EditableList to rerender
-            field.var.event += new_widgets[-1].on_list_change
+            field.var.event += self.on_list_change# new_widgets[-1].on_list_change
+            print("Bindingingigngingingingigng")
             new_widgets[-1].display(field.var)
         else:
             new_widgets.append(tkinter.Label(
@@ -135,6 +139,9 @@ class ItemEditor(tkinter.LabelFrame):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(asctime)s (%(levelname)-2s) %(message)s',
+                        datefmt='[%d.%m.%Y %H:%M:%S]')
     class Epp(tkinter.Tk, Editable):
         def __init__(self):
             tkinter.Tk.__init__(self)
@@ -151,16 +158,17 @@ if __name__ == "__main__":
             self.d = tkinter.BooleanVar()
             self.d.set(True)
             self.e = tkinter.DoubleVar()
-            self.a.trace("w", lambda *_: print(self.a.get()))
-            self.b.trace("w", lambda *_: print(self.b.get()))
-            self.d.trace("w", lambda *_: print(self.d.get()))
-            self.e.trace("w", lambda *_: print(self.e.get()))
             for i in range(10):
                 var = tkinter.IntVar()
                 var.set(i+1)
-                def _temp(v, _, m): print(self.c[i], i)
-                var.trace("w", _temp)
-                self.c.append(var)
+                var2 = tkinter.IntVar()
+                var2.set(i+2)
+                self.c.append(EditableList(var, var2))
+            
+            def on_check(*args, **kwargs):
+                self.c.append(EditableList(tkinter.IntVar(), tkinter.IntVar()))
+                print("C ---------------------", len(self.c))
+            self.d.trace("w", on_check)
 
             self.mark_editable(self.a, name="Toller Slider:", range_=(10, 100))
             self.mark_editable(self.b, name="tolles entry")

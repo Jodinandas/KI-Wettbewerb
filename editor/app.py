@@ -8,9 +8,6 @@ from street_data import *
 from toolbar import Toolbar
 from itemeditor import ItemEditor
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s (%(levelname)-2s) %(message)s',
-                    datefmt='[%d.%m.%Y %H:%M:%S]')
 
 
 class App(tkinter.Tk):

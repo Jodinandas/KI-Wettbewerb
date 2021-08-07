@@ -28,7 +28,7 @@ class Crossing(Editable):
         
         # Mark for the editor
         self.mark_editable(self._position, name="position: ", range_=(0, 1500))
-        self.mark_editable(self._connected, name="connected: ", range_=(0, 1500))
+        self.mark_editable(self._connected, name="connected: ")
         self.mark_editable(self._traffic_lights, name="has traffic lights: ")
 
     @property
@@ -111,7 +111,7 @@ class StreetData:
             if min_dist_sqr is None or dist_sqr < min_dist_sqr:
                 nearest_crossing = c
                 min_dist_sqr = dist_sqr
-        return dist_sqr, nearest_crossing
+        return min_dist_sqr, nearest_crossing
 
 
 

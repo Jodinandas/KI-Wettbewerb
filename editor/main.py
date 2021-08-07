@@ -1,5 +1,9 @@
 from app import *
 
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s (%(levelname)-2s) %(message)s',
+                    datefmt='[%d.%m.%Y %H:%M:%S]')
+
 application = App()
 application.mainloop()
 
