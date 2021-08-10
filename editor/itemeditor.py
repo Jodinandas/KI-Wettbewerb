@@ -40,7 +40,7 @@ class ItemEditor(tkinter.LabelFrame):
         
         if isinstance(item, Editable):
             marked_fields = item.marked_fields
-            # self._parents.append(type(item))
+            self._parents.append(type(item))
         else:
             marked_fields = item
 
