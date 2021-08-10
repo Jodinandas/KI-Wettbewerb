@@ -40,10 +40,11 @@ class InputParser:
         elif self.selected_tool == Tool.SELECTION:
             dist, sel = self.street_data.get_nearest(event.x, event.y)
             if dist and dist <= 50:
-                self.unselect_crossing.notify(self.selected)
-                self.select_crossing.notify(sel)
+                if sel != self.selected:
+                    self.unselect_crossing.notify(self.selected)
+                    self.select_crossing.notify(sel)
+                    self.selected = sel
                 self.dragging = sel
-                self.selected = sel
         elif self.selected_tool == Tool.DELETION:
             dist, sel = self.street_data.get_nearest(event.x, event.y)
             if dist and dist <= 50:

@@ -29,8 +29,12 @@ class App(tkinter.Tk):
 
         # Register events
         self.input_parser.add_crossing += self.street_view.on_new_crossing
+        def connect_streets(c1, c2):
+            c1.connect_both_ways(c2, 1)
+            print("connected streets", c1._connected, c2._connected)
+
+        self.input_parser.add_street += connect_streets
         self.input_parser.add_street += self.street_view.draw_connection_both_ways
-        self.input_parser.add_street += lambda c1, c2: c1.connect_both_ways(c2, 1)
         # self.input_parser.add_crossing += self.street_view.expand_street_arc
         self.input_parser.select_crossing += lambda crossing: self.item_editor.display(crossing)
         self.input_parser.unselect_crossing += lambda *_: self.item_editor.clear()

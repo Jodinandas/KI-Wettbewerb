@@ -42,6 +42,17 @@ class EditableField:
                         **nkwargs
                     )
                 )
+        def generate_new_child(new, delete):
+            if not delete:
+                if isinstance(new, list):
+                    new_items.append(EditableField.from_list(new))
+                else:
+                    new_items.append(new)
+        
+        items.event += generate_new_child
+        # if isinstance(items, EditableList):
+        #     new_items.event = items.event
+        
 
         return EditableField(new_items, *args, **kwargs)
 
@@ -54,26 +65,58 @@ class EditableList(list):
         global n
         list.__init__(self, args)
         self.event = event if event else Event(name=f'on_list_edit{n}')
+                
+        # Make sure to call the event if something changes
         def _on_change_wrapper(self, func):
             def notify(*args, **kwargs):
-                print(args, kwargs)
+                # print(args, kwargs)
                 result = func(self, *args, **kwargs) 
 
                 if self.event:
                     print(self.event.name, "exisitert",
-                    self.event._observer_funcs)
+                    self.event._observer_funcs, func.__name__)
                     self.event.notify(self)
                 return result
             return notify
-        self.extend = _on_change_wrapper(self, list.extend)
-        self.append = _on_change_wrapper(self, list.append)
-        self.remove = _on_change_wrapper(self, list.remove)
-        self.pop = _on_change_wrapper(self, list.pop)
-        self.__delitem__ = _on_change_wrapper(self, list.__delitem__)
-        self.__setitem__ = _on_change_wrapper(self, list.__setitem__)
-        self.__iadd__ = _on_change_wrapper(self, list.__iadd__)
-        self.__imul__ = _on_change_wrapper(self, list.__imul__)
+        # Bind functions 
+        # TODO: Make special wrappers for iadd, imul etc.
+        # self.extend = _on_change_wrapper(self, list.extend)
+        # self.append = _on_change_wrapper(self, list.append)
+        # self.remove = _on_change_wrapper(self, list.remove)
+        # self.pop = _on_change_wrapper(self, list.pop)
+        # self.__delitem__ = _on_change_wrapper(self, list.__delitem__)
+        # self.__setitem__ = _on_change_wrapper(self, list.__setitem__)
+        # self.__iadd__ = _on_change_wrapper(self, list.__iadd__)
+        # self.__imul__ = _on_change_wrapper(self, list.__imul__)
         n += 1
+
+    def extend(self, n_elements):
+        """special wrapper for extend
+        
+        When extend is called, the list has to check if the new elements are editable lists 
+        as well to make sure the callback is invoked if necessary"""
+        
+        # for el in n_elements:
+        #     if isinstance(el, EditableList):
+        #         el.event += lambda c_els: self.event.notify(self)
+
+        list.extend(self, n_elements) 
+        for el in n_elements:
+            self.event.notify(el, delete=False)
+    
+    def append(self, n_element):
+        """special wrapper for append 
+        
+        When append is called, the list has to check if the new element is an editable list 
+        to make sure the callback is invoked if necessary"""
+        
+        # if isinstance(n_element, EditableList):
+        #     n_element.event += lambda c_els: self.event.notify(self)
+        print("appppppending^")
+
+        list.append(self, n_element) 
+        self.event.notify(n_element, delete=False)
+
 
     def __getitem__(self,item):
         if isinstance(item,slice):
@@ -102,6 +145,19 @@ class Editable:
     @property
     def marked_fields(self):
         return self._marked_fields
+    
+if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+    l = EditableList(1, 2, 3, 4)
+    l.event += print
+    l.append(5)
+    l.extend([6, 7])
+    l.remove(7)
+    l.pop(-1)
+    l.append(EditableList(EditableList(123, 124, 125), 1043))
+    l[-1].append(4)
+    l[-1][0].extend([1, 2, 3])
     
 
 
