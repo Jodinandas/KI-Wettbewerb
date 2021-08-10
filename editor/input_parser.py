@@ -8,7 +8,7 @@ class InputParser:
         self.street_data = street_data
         self.add_crossing = Event(name="add_crossing")
         self.add_street = Event(name="add_street")
-        self.remove_crossing = Event(name="remove_crossing")
+        self.delete_crossing = Event(name="delete_crossing")
         self.move_crossing = Event(name="move_crossing")
         self.select_crossing = Event(name="select_crossing")
         self.unselect_crossing = Event(name="unselect_crossing")
@@ -46,12 +46,14 @@ class InputParser:
                     self.selected = sel
                 self.dragging = sel
         elif self.selected_tool == Tool.DELETION:
-            dist, sel = self.street_data.get_nearest(event.x, event.y)
+            dist, crossing = self.street_data.get_nearest(event.x, event.y)
             if dist and dist <= 50:
-                self.unselect_crossing.notify(self.selected)
-                self.select_crossing.notify(sel)
-                self.dragging = sel
-                self.selected = sel
+                if self.selected == crossing:
+                    self.selected = None
+                    self.unselect_crossing.notify(crossing)
+                self.delete_crossing.notify(crossing)
+
+                    
             
     def on_left_release(self, event):
         self.dragging = None

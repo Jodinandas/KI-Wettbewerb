@@ -22,6 +22,7 @@ class ItemEditor(tkinter.LabelFrame):
         self._name = name
         self._empty_placeholder = tkinter.Label(self, text="No widgets") 
         self._empty_placeholder.grid(row=0, column=0)
+        self._on_clear = Event(name="on_clear")
 
     def on_list_change(self, nlist):
         """Is called when the ItemEditor is displaying a list and the list changes"""
@@ -70,6 +71,7 @@ class ItemEditor(tkinter.LabelFrame):
         self._displayed_items.clear()
         self._parents.clear()
         self._last_row = 0
+        self._on_clear.notify()
 
     def _generate_widget(self, field: EditableField):
         new_widgets = [] 
@@ -134,14 +136,21 @@ class ItemEditor(tkinter.LabelFrame):
             )
             new_widgets.append(s)
             # Bind update event from EditableList to rerender
-            def add_el_of_list(el, delete):
-                print("el", el)
-                if isinstance(el, EditableList):
-                    field = EditableField.from_list(el)
+            def change_el_of_list(el, delete):
+                if delete:
+                    s.remove_field(el)
                 else:
-                    field = EditableField(el) 
-                s.add_field(field)
-            field.var.event += add_el_of_list
+                    if isinstance(el, EditableList):
+                        field = EditableField.from_list(el)
+                    else:
+                        field = EditableField(el) 
+                    s.add_field(field)
+            def remove_callback():
+                field.var.event -= change_el_of_list
+                self._on_clear -= remove_callback
+            field.var.event += change_el_of_list
+            self._on_clear += remove_callback
+
             s.display(field.var)
             self.update()
         else:
@@ -167,7 +176,11 @@ class ItemEditor(tkinter.LabelFrame):
     
     def remove_field(self, i):
         w = self._displayed_items.pop(i)
-        w.grid_forget()
+        if isinstance(w, tuple):
+            for el in w:
+                el.grid_forget()
+        else:
+            w.grid_forget()
         if not self._displayed_items:
             self._empty_placeholder.grid(row=0, column=0)
 

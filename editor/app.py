@@ -29,12 +29,12 @@ class App(tkinter.Tk):
 
         # Register events
         self.input_parser.add_crossing += self.street_view.on_new_crossing
+        self.input_parser.delete_crossing += self.street_view.street_data.delete
         def connect_streets(c1, c2):
             c1.connect_both_ways(c2, 1)
             print("connected streets", c1._connected, c2._connected)
 
         self.input_parser.add_street += connect_streets
-        self.input_parser.add_street += self.street_view.draw_connection_both_ways
         # self.input_parser.add_crossing += self.street_view.expand_street_arc
         self.input_parser.select_crossing += lambda crossing: self.item_editor.display(crossing)
         self.input_parser.unselect_crossing += lambda *_: self.item_editor.clear()
@@ -49,8 +49,16 @@ class StreetView(tkinter.Canvas):
     def __init__(self, master):
         super().__init__(master, width=800, height=500)
         self.street_data = StreetData()
-        self.street_data.on_pos_change += self.draw_crossing
-        self.street_data.on_pos_change += self.connection_update
+        self.street_data.draw_crossing += self.draw_crossing
+        self.street_data.delete_crossing += self.delete_crossing
+        self.street_data.draw_street += self.draw_street
+        self.street_data.delete_street += self.delete_street
+
+        # A dictionary that hold everything that is drawn on the screen
+        # is used to later delete/redraw streets, crossings etc. 
+        # crossings are used as keys themselves
+        # streets are saved in the format (c1, c2)
+        self._graphics_objects = {}
     
     def expand_street_arc(self, street, x, y):
         if not len(street.points) >= 4: return
@@ -71,41 +79,42 @@ class StreetView(tkinter.Canvas):
     def draw_crossing(self, crossing):
         x, y = crossing.position
         oval_size = 10 
-        if crossing.graphic_object:
-            self.coords(crossing.graphic_object,
+        color = "green" if crossing.is_io_node else "red" 
+        if crossing in self._graphics_objects:
+            self.coords(self._graphics_objects[crossing],
                 x - oval_size/2, y - oval_size/2,
                 x + oval_size/2, y + oval_size/2,
             )
+            self.itemconfig(self._graphics_objects[crossing],
+                fill=color)
         else:
-            crossing.graphic_object = self.create_oval(
+            self._graphics_objects[crossing] = self.create_oval(
                 x - oval_size/2, y - oval_size/2,
                 x + oval_size/2, y + oval_size/2,
-                fill="red"
-            )
+                fill= color            )
     
-    def connection_update(self, crossing):
-        for c in self.street_data.crossings:
-            self.draw_connection(c, crossing, _update=True)
-        for street in crossing.street_connections:
-            self.draw_connection(crossing, street, _update=True)
-
-    def draw_connection_both_ways(self, c1, c2):
-        # TODO: Add distinction between roads with different lane number
-        if c1 in c2.street_connections:
-            self.draw_connection(c2, c1)
-        elif c2 in c1.street_connections:
-            self.draw_connection(c1, c2)
-        else:
-            self.draw_connection(c1, c2)
-
-    def draw_connection(self, c1: Crossing, c2: Crossing, _update=False):
-        if c2 in c1.street_connections:
-            line = c1.street_connections[c2]  
+    def delete_crossing(self, crossing):
+        g_obj = self._graphics_objects.pop(crossing)
+        self.delete(g_obj)
+    
+    def draw_street(self, c1, c2, lanes):
+        # Ignore lanes for now
+        if (c1, c2) in self._graphics_objects:
+            line = self._graphics_objects[(c1, c2)]
             self.coords(line, *c1.position, *c2.position)
         else:
-            if not _update:
-                line = self.create_line(*c1.position, *c2.position)
-                c1.street_connections[c2] = line
+            line = self.create_line(*c1.position, *c2.position)
+            self._graphics_objects[(c1, c2)] = line
+    
+    def delete_street(self, c1, c2):
+        """Deletes a street c1 -> c2. 
+        
+        Be careful! Only works in direction c1 -> c2"""
+
+        if (c1, c2) in self._graphics_objects:
+            g_obj = self._graphics_objects.pop((c1, c2))
+            self.delete(g_obj)
+    
 
 
         

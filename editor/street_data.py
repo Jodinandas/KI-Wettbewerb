@@ -7,20 +7,24 @@ import event
 
 
 class Crossing(Editable):
-    def __init__(self, position: list, connected: list=[], traffic_lights: bool=False, on_pos_change=None):
+    def __init__(self, position: list, connected: list=[], traffic_lights: bool=False, on_pos_change=None, draw_street=None):
         """class for saving of crossings. connected has to be a
         list in the form of [[crossing, number_of_lanes], [...]]
         """
         Editable.__init__(self)
-        #TODO use custom list for connected
         self._position = EditableList(IntVar(value=position[0]), IntVar(value=position[1]))
         self.on_pos_change = on_pos_change
+        self.draw_street = draw_street 
+        self.draw_crossing = None
+        self.delete_street = None
+
         self._position[0].trace("w", lambda *_: self.on_pos_change.notify(self))
         self._position[1].trace("w", lambda *_: self.on_pos_change.notify(self))
         self._connected = EditableList()
 
-        self.graphic_object = None
-        self.street_connections = {}
+        self._is_io_node = BooleanVar(value=False)
+        # redraw the node if it becomes an IO node
+        self._is_io_node.trace("w", lambda *_: self.draw_crossing.notify(self))
 
         for c, n in connected:
             self._connected.append([c, IntVar(n)])
@@ -28,12 +32,24 @@ class Crossing(Editable):
         
         # Mark for the editor
         self.mark_editable(self._position, name="position: ", range_=(0, 1500))
-        self.mark_editable(self._connected, name="connected: ")
+        self.mark_editable(self._connected, name="connected: ", range_=(1, 5))
         self.mark_editable(self._traffic_lights, name="has traffic lights: ")
+        self.mark_editable(self._is_io_node, name="is I/O-Node")
 
     @property
     def position(self):
         return [self._position[0].get(), self._position[1].get()]
+    
+    @property
+    def is_io_node(self):
+        return self._is_io_node.get()
+
+    @is_io_node.setter
+    def is_io_node(self, n: bool):
+        assert isinstance(n, bool)
+        if self.draw_street:
+            self.draw_street.notify(self)
+        self._is_io_node.set(n)
 
     @position.setter
     def position(self, new: list):
@@ -57,32 +73,48 @@ class Crossing(Editable):
             for c, n in self._connected:
                 if c == other:
                     n.set(n.get()+lanes)
+        
+        if self.draw_street:
+            self.draw_street.notify(self, other, lanes)
 
     def connect_both_ways(self, other: Crossing, lanes):
         """Connects two Crossings in both ways. if LANES is a list,
          different amount of lanes in either direction
         can be specified."""
         if isinstance(lanes, list):
-            if (not isinstance(lanes[0], int)) or (not isinstance(lanes[1], int)):
-                raise ValueError("Connect_both_ways: Number needs to be of the type list [int, int] or int.")
-            self._connected.append(EditableList(other, IntVar(value=lanes[0])))
-            other._connected.append(EditableList(self, IntVar(value=lanes[1])))
-        elif isinstance(lanes, int):
-            self._connected.append(EditableList(other, IntVar(value=lanes)))
-            other._connected.append(EditableList(self, IntVar(value=lanes)))
+            assert len(lanes) == 2, "lanes needs to be of type [int, int] or int"
+            lanes1, lanes2 = lanes
         else:
-            raise ValueError("Connect_both_ways: Number needs to be of the type list [int, int] or int.")
+            assert isinstance(lanes, int), "lanes needs to be a number"
+            lanes1, lanes2 = lanes, lanes
+        
+        self.connect(other, lanes1)
+        other.connect(self, lanes2)
 
-    def disconnect(self, other: Crossing, lanes):
-        """Disconnects a crossing from another one, but ONLY in that one direction,"""
-        if isinstance(lanes, int):
-            # disconnect lane
-            for c, n in self._connected:
-                if c == other:
-                    # lanes cannot be negative, so min() is used
-                    n.set(n.get()-min(lanes, n.get()))
+    def disconnect(self, other: Crossing, lanes, force=False):
+        """Disconnects a crossing from another one, but ONLY in that one direction,
+        
+        force: instead of decreasing the lane count, remove completely"""
+        
+        # get variable storing the index
+        assert isinstance(lanes, int)
+        other_indices = [
+            i for i, (crossing, _) in enumerate(self._connected) if crossing == other
+        ] 
+        if not other_indices:
+            return
+        i = other_indices[0]
+        
+        lanes_var = self._connected[i][1]
+        n_value = lanes_var.get()-min(lanes, lanes_var.get())
+
+        if n_value and not force:
+            lanes_var.set(n_value)
         else:
-            raise ValueError("lanes to dissconnect needs to be a valid int")
+            # delete connection
+            if self.delete_street:
+                self.delete_street.notify(self, other)
+            self._connected.pop(i)
 
     def is_connected(self, other):
         """Checks if crossing is already connected to other crossing
@@ -92,21 +124,59 @@ class Crossing(Editable):
                 return n.get()
         return 0
 
+    def delete_streets(self):
+        if self.delete_street:
+            for other, lanes in self._connected:
+                self.delete_street.notify(self, other)
+            
 
 class StreetData:
-    def __init__(self):
-        self.crossings = []
-        self.on_pos_change = event.Event(name="on_pos_change", log=False)
+    def __init__(self, log=False):
+        self._crossings = []
+        self.on_pos_change = event.Event(name="on_pos_change", log=log)
+        self.on_pos_change += self._redraw_on_pos_change
+        self.draw_crossing = event.Event(name="draw_crossing", log=log)
+        self.delete_crossing = event.Event(name="delete_crossing")
+        self.draw_street = event.Event(name="draw_street", log=log)
+        self.delete_street = event.Event(name="delete_street", log=log)
     
 
     def add(self, c: Crossing):
+        # TODO: Solve the case where the crossing already has observers
         c.on_pos_change = self.on_pos_change
-        self.crossings.append(c)
+        c.draw_street = self.draw_street
+        c.draw_crossing = self.draw_crossing
+        c.delete_street = self.delete_street
+        self._crossings.append(c)
+    
+    def delete(self, c: Crossing):
+        idel = None
+        for i, crossing in enumerate(self._crossings):
+            if crossing == c: 
+                idel = i
+            elif crossing.is_connected(c):
+                crossing.disconnect(c, 1, force=True)
+        if i is not None:
+            c = self._crossings.pop(idel)
+            self.delete_crossing.notify(c)
+            for other, lanes in c._connected:
+                c.disconnect(other, 1, force=True)
+
+    def _redraw_on_pos_change(self, crossing):
+        # redraw streets and crossings
+        self.draw_crossing.notify(crossing)
+        for c in self._crossings:
+            lanes = c.is_connected(crossing)
+            if lanes:
+                self.draw_street.notify(c, crossing, lanes)
+                
+        for other, lanes in crossing._connected:
+            self.draw_street.notify(crossing, other, lanes)
 
     def get_nearest(self, x, y):
         nearest_crossing = None
         min_dist_sqr = None
-        for c in self.crossings:
+        for c in self._crossings:
             dist_sqr = (c.position[0]-x)**2 + (c.position[1]-y)**2
             if min_dist_sqr is None or dist_sqr < min_dist_sqr:
                 nearest_crossing = c

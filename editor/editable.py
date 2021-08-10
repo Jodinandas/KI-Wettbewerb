@@ -45,9 +45,11 @@ class EditableField:
         def generate_new_child(new, delete):
             if not delete:
                 if isinstance(new, list):
-                    new_items.append(EditableField.from_list(new))
+                    new_items.append(EditableField.from_list(new, *nargs, **nkwargs))
                 else:
-                    new_items.append(new)
+                    new_items.append(EditableField(new, *nargs, **nkwargs))
+            else:
+                new_items.pop(new)
         
         items.event += generate_new_child
         # if isinstance(items, EditableList):
@@ -59,11 +61,11 @@ class EditableField:
 
 n = 0
 class EditableList(list):
-
-
     def __init__(self, *args, event=None):
         global n
         list.__init__(self, args)
+        # Is called when an element is added or removed
+        # if removed delete is set to true and the first argument is an index
         self.event = event if event else Event(name=f'on_list_edit{n}')
                 
         # Make sure to call the event if something changes
@@ -112,11 +114,18 @@ class EditableList(list):
         
         # if isinstance(n_element, EditableList):
         #     n_element.event += lambda c_els: self.event.notify(self)
-        print("appppppending^")
 
         list.append(self, n_element) 
         self.event.notify(n_element, delete=False)
 
+    def pop(self, i):
+        el = list.pop(self, i)
+        self.event.notify(i, delete=True)
+        return el
+
+    def remove(self, el):
+        i = self.index(el)
+        self.pop(i)
 
     def __getitem__(self,item):
         if isinstance(item,slice):
