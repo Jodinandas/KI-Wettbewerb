@@ -1,6 +1,6 @@
 from app import *
 
-logging.basicConfig(level=logging.DEBUG,
+logging.basicConfig(level=logging.WARNING,
                     format='%(asctime)s (%(levelname)-2s) %(message)s',
                     datefmt='[%d.%m.%Y %H:%M:%S]')
 

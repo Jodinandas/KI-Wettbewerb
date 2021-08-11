@@ -94,6 +94,7 @@ class StreetView(tkinter.Canvas):
                 fill= color            )
     
     def delete_crossing(self, crossing):
+        print("Deleting crossing: ", crossing)
         g_obj = self._graphics_objects.pop(crossing)
         self.delete(g_obj)
     
@@ -110,6 +111,8 @@ class StreetView(tkinter.Canvas):
         """Deletes a street c1 -> c2. 
         
         Be careful! Only works in direction c1 -> c2"""
+        
+        print("Delete: ", (c1, c2))
 
         if (c1, c2) in self._graphics_objects:
             g_obj = self._graphics_objects.pop((c1, c2))

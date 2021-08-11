@@ -158,6 +158,7 @@ class StreetData:
                 crossing.disconnect(c, 1, force=True)
         if i is not None:
             c = self._crossings.pop(idel)
+            c.delete_streets()
             self.delete_crossing.notify(c)
             for other, lanes in c._connected:
                 c.disconnect(other, 1, force=True)
