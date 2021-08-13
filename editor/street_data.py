@@ -4,6 +4,8 @@ import math
 from editable import EditableList, Editable
 from tkinter import StringVar, IntVar, DoubleVar, BooleanVar
 import event
+import json
+from tkinter import filedialog
 
 
 class Crossing(Editable):
@@ -20,6 +22,7 @@ class Crossing(Editable):
 
         self._position[0].trace("w", lambda *_: self.on_pos_change.notify(self))
         self._position[1].trace("w", lambda *_: self.on_pos_change.notify(self))
+        # TODO: Create setter and getter
         self._connected = EditableList()
 
         self._is_io_node = BooleanVar(value=False)
@@ -183,6 +186,42 @@ class StreetData:
                 nearest_crossing = c
                 min_dist_sqr = dist_sqr
         return min_dist_sqr, nearest_crossing
+    
+    def export_to_json(self, path=None, debug=False):
+        """Creates a json file from the street data"""
+        
+        json_dict = {
+            "crossings" : [],
+        }
+        
+        index_mapping = {
+            c: i for i, c in enumerate(self._crossings)
+        }
+        
+        for i, c in enumerate(self._crossings):
+            json_dict["crossings"].append(
+                {
+                    "traffic_lights": c.traffic_lights,
+                    "is_io_node": c.is_io_node,
+                    "connected": [
+                        (index_mapping[connection], lanes.get()) for connection, lanes in c._connected
+                    ]
+                }
+            )
+        
+        if not debug:
+            text = json.dumps(json_dict)
+            if path:
+                with open(path, "w") as f:
+                    f.write(text)
+            else:
+                with filedialog.asksaveasfile() as f:
+                    f.write(text)
+        else:
+            pprint(json_dict)
+
+
+        
 
 
 

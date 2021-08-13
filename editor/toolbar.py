@@ -6,6 +6,7 @@ class Tool(enum.Enum):
     SELECTION = enum.auto()
     DELETION = enum.auto()
     ADD = enum.auto()
+    EXPORT = enum.auto()
 
 class Toolbar(tkinter.Frame):
     """A toolbox to store things like making a new road"""
@@ -39,6 +40,13 @@ class Toolbar(tkinter.Frame):
                     bg=Toolbar.COLOR_DEFAULT,
                     command = lambda: self.set_selected_tool(Tool.ADD)
                 ),
+            Tool.EXPORT:
+                tkinter.Button(
+                    self,
+                    text="Export", 
+                    bg=Toolbar.COLOR_DEFAULT,
+                    command = lambda: self.on_export.notify() 
+                ),
         }
 
         # Grid tools
@@ -47,6 +55,7 @@ class Toolbar(tkinter.Frame):
 
         # set up events
         self.tool_changed = event.Event(name="tool_changed")
+        self.on_export = event.Event(name="on_export")
         
         self._selected_tool = Tool.SELECTION
     

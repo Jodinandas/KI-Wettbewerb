@@ -34,6 +34,8 @@ class App(tkinter.Tk):
             c1.connect_both_ways(c2, 1)
             print("connected streets", c1._connected, c2._connected)
 
+        # Export functionality
+        self.toolbox.on_export += self.street_view.street_data.export_to_json
         self.input_parser.add_street += connect_streets
         # self.input_parser.add_crossing += self.street_view.expand_street_arc
         self.input_parser.select_crossing += lambda crossing: self.item_editor.display(crossing)
