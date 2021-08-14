@@ -58,7 +58,21 @@ impl Connection {
     }
 }
 
-#[derive(Debug)]
+/// Implement `PartialEq` to make it possible to compare Connections
+impl PartialEq for Connection {
+    /// Make sure they point to the same `Crossing` and also
+    /// have the same amount of lanes
+    fn eq(&self, other: &Connection) -> bool{
+        self.crossing.as_ptr() == other.crossing.as_ptr() &&
+        self.lanes == other.lanes
+    }
+    fn ne(&self, other: &Connection) -> bool{
+        self.crossing.as_ptr() != other.crossing.as_ptr() ||
+        self.lanes != other.lanes
+    }
+}
+
+#[derive(Debug, PartialEq)]
 struct Crossing {
     connections: Vec<Connection>,
     is_io_node: bool,
@@ -153,10 +167,18 @@ mod tests {
     }
     #[test]
     fn get_connection() {
+        // Make a lot of connections and then make sure the method finds the right one
         let c1 = Rc::new(RefCell::new(Crossing::new(false)));
         let c2 = Rc::new(RefCell::new(Crossing::new(false)));
+        for _ in 0..50 {
+            let c = Rc::new(RefCell::new(Crossing::new(false)));
+            c1.borrow_mut().connect(&c, 1);
+        }
         c1.borrow_mut().connect(&c2, 1);
-        let example_connection = Connection::new(&c2);
-        assert_eq!(example_connection, *c1.borrow().get_connection(&c2).unwrap());
+        for _ in 0..50 {
+            let c = Rc::new(RefCell::new(Crossing::new(false)));
+            c1.borrow_mut().connect(&c, 1);
+        }
+        assert_eq!(Connection::new(&c2), *c1.borrow().get_connection(&c2).unwrap());
     }
 }
