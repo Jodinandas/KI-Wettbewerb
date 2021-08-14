@@ -7,7 +7,7 @@ use super::connection::Connection;
 #[derive(Debug, PartialEq)]
 pub struct Crossing {
     connections: Vec<Connection>,
-    is_io_node: bool,
+    pub is_io_node: bool,
 }
 
 impl Crossing {

@@ -1,10 +1,9 @@
 use serde::Deserialize;
 use std::error::Error;
 use std::fmt;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use super::crossing::Crossing;
-
 
 
 /// A struct representing the street network
@@ -15,9 +14,14 @@ use super::crossing::Crossing;
 /// If the Connections held strong references, the memory wouldn't be cleaned
 /// up when the StreetData goes out of scope, as the connections would form a
 /// cycle
+#[derive(Debug)]
 pub struct StreetData {
+    /// A list of all the crossings
     crossings: Vec<Rc<RefCell<Crossing>>>,
+    /// Weak references to all crossings that are IO-Nodes
+    io_nodes: Vec<Weak<RefCell<Crossing>>>
 }
+
 
 #[derive(Debug, Clone)]
 pub struct JsonError (String);
@@ -34,14 +38,18 @@ impl StreetData {
     ///
     /// to see how the json must be formatted, look at the fields of
     /// `JsonCrossing` and `JsonRepresentation`
-    fn from_json(json: &str) -> Result<StreetData, Box<dyn Error>> {
+    pub fn from_json(json: &str) -> Result<StreetData, Box<dyn Error>> {
         // Generate object holding all the data, still formatted in json way
         let json_representation: JsonRepresentation = serde_json::from_str(json)?;
         let mut crossings: Vec<Rc<RefCell<Crossing>>> = Vec::new();    
+        let mut io_nodes: Vec<Weak<RefCell<Crossing>>> = Vec::new();
         // generate all crossings
         for json_crossing in json_representation.crossings.iter() {
-            let new_crossing = Crossing::new(json_crossing.is_io_node);
-            crossings.push(Rc::new(RefCell::new(new_crossing)));
+            let new_crossing = Rc::new(RefCell::new(Crossing::new(json_crossing.is_io_node)));
+            if new_crossing.borrow().is_io_node {
+                io_nodes.push(Rc::downgrade(&new_crossing))
+            }
+            crossings.push(new_crossing);
         }
         // connect the crossings
         for (i, json_crossing) in json_representation.crossings.iter().enumerate() {
@@ -65,6 +73,7 @@ impl StreetData {
         Ok(
             StreetData {
                 crossings,
+                io_nodes
             }
         )
     }
@@ -91,6 +100,7 @@ mod tests {
     #[test]
     fn street_data_from_json() {
         let json: &str = r#"{"crossings": [{"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]}, {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
-        StreetData::from_json(json);
+        let data = StreetData::from_json(json).unwrap();
+        println!("{:?}", &data);
     }
 }
