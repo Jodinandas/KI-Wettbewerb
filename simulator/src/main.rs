@@ -1,8 +1,17 @@
 use std::env;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
+use std::ptr;
 use std::cell::RefCell;
 
 
+/// A struct representing the street network
+///
+/// The `StreetData` Struct itself holds a strong reference (`Rc` as opposed to `Weak`)
+/// to the Crossings, while the Connections only hold weak references
+/// to prevent reference cycles.
+/// If the Connections held strong references, the memory wouldn't be cleaned
+/// up when the StreetData goes out of scope, as the connections would form a
+/// cycle
 struct StreetData {
     crossings: Vec<Rc<RefCell<Crossing>>>,
 }
@@ -28,26 +37,28 @@ impl StreetData {
 /// let mut c = Rc::new(Crossing::new(false));
 /// let connection = Connection::new(&c);
 /// ```
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 struct Connection {
     /// A connection/street needs to point to a crossing
     ///
     /// As to why we use these nested types:
     /// [Rust tutorial -- Interior Mutability](https://doc.rust-lang.org/stable/book/ch15-05-interior-mutability.html)
-    crossing: Rc<RefCell<Crossing>>,
+    /// 
+    /// Weak is used here to prevent [reference cycles](https://doc.rust-lang.org/stable/book/ch15-06-reference-cycles.html#preventing-reference-cycles-turning-an-rct-into-a-weakt)
+    crossing: Weak<RefCell<Crossing>>,
     /// the lanes determine how much througput a connection has
     lanes: u8
 }
 impl Connection {
     fn new(crossing: &Rc<RefCell<Crossing>>) -> Connection {
         Connection {
-            crossing: Rc::clone(&crossing),
+            crossing: Rc::downgrade(&crossing),
             lanes: 1,
         }
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 struct Crossing {
     connections: Vec<Connection>,
     is_io_node: bool,
@@ -60,11 +71,16 @@ impl Crossing {
             connections: Vec::new()
         } 
     }
-    /// Checks if a connection to a Crossing exists
+    /// Get `Connection` to a crossing if it exists
     pub fn get_connection(&self, other: &Rc<RefCell<Crossing>>) -> Option<&Connection> {
         for c in self.connections.iter() {
             // check if the two Rc point to the same crossing
-            if Rc::ptr_eq(&c.crossing, other) {
+            // Omg, this is soo unreadable
+            // It is adapted from [this part](https://doc.rust-lang.org/std/rc/struct.Weak.html#examples-1) of the documentation
+            // 
+            // The extra `*` needs to be used because in the example we don't have a reference, and
+            // here we need to dereference it
+            if ptr::eq(&**other, c.crossing.as_ptr()) {
                 return Some(c)
             }
         }
@@ -74,12 +90,12 @@ impl Crossing {
     /// 
     /// **Be careful**: This only forms a one-way connection and 
     /// **DOES NOT** check if the connection already exists, because this
-    /// would create a large performance penalty
+    /// would create a performance penalty
     ///
     pub fn connect(&mut self, other: &Rc<RefCell<Crossing>>, lane_count: u8){
         // create new connection with reference to other
         let new_connection = Connection {
-            crossing: Rc::clone(&other),
+            crossing: Rc::downgrade(&other),
             lanes: lane_count
         };
         self.connections.push(new_connection)
