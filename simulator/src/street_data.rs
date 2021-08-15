@@ -8,7 +8,7 @@ use super::crossing::Crossing;
 
 /// A struct representing the street network
 ///
-/// The `StreetData` Struct itself holds a strong reference (`Rc` as opposed to `Weak`)
+/// The `StreetData` Struct itscoverelf holds a strong reference (`Rc` as opposed to `Weak`)
 /// to the Crossings, while the Connections only hold weak references
 /// to prevent reference cycles.
 /// If the Connections held strong references, the memory wouldn't be cleaned
@@ -93,6 +93,16 @@ struct JsonCrossing {
 /// Just for Deserialisation
 struct JsonRepresentation {
     crossings: Vec<JsonCrossing>
+}
+
+/// This trait should be implemented for a frontend and signal
+/// 
+/// TODO: Actually implement it
+///  It should be thread safe, potentially using a channel
+///  Performance is not a priority, as this will be called only
+///  if we look at an agent in detail
+pub trait StreetDisplay {
+    
 }
 
 mod tests {

@@ -10,3 +10,4 @@
     * arguments for GA:
         - can be easily executed in parallel
         - easier to implement?
+* Implement speed limit and length of streets in frontend

@@ -32,12 +32,14 @@ pub struct Connection {
     pub crossing: Weak<RefCell<Crossing>>,
     /// the lanes determine how much througput a connection has
     pub lanes: u8,
+    pub speed_limit: f32
 }
 impl Connection {
     pub fn new(crossing: &Rc<RefCell<Crossing>>) -> Connection {
         Connection {
             crossing: Rc::downgrade(&crossing),
             lanes: 1,
+            speed_limit: 60.0,
         }
     }
 }

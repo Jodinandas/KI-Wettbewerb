@@ -3,7 +3,6 @@ use std::ptr;
 use std::cell::RefCell;
 use super::connection::Connection;
 
-
 #[derive(Debug, PartialEq)]
 pub struct Crossing {
     connections: Vec<Connection>,
@@ -42,7 +41,8 @@ impl Crossing {
         // create new connection with reference to other
         let new_connection = Connection {
             crossing: Rc::downgrade(&other),
-            lanes: lane_count
+            lanes: lane_count,
+            speed_limit: 60.0
         };
         self.connections.push(new_connection)
     }
