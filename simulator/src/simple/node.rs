@@ -1,3 +1,5 @@
+use std::vec;
+
 use super::super::traits::NodeTrait;
 use enum_dispatch::enum_dispatch;
 
@@ -21,6 +23,19 @@ pub enum Node {
     Street
 }
 
+impl Node {
+    /// Returns the name of the variant
+    ///
+    /// primarily for use in displaying. Not very efficient
+    pub fn name(&self) -> String {
+        match self {
+            Node::Crossing(_i) => "Crossing".to_owned(),
+            Node::IONode(_i) => "IONode".to_owned(),
+            Node::Street(_i) => "Street".to_owned()
+        }
+    }
+}
+
 /// A simple crossing
 #[derive(Debug)]
 pub struct Crossing {
@@ -40,6 +55,9 @@ impl NodeTrait for Crossing {
 
     fn connect(&mut self, other: usize) {
         self.connections.push(other)
+    }
+    fn get_connections(&self) -> Vec<usize> {
+        self.connections.clone()
     }
 }
 /// A Node that represents either the start of the simulation or the end of it
@@ -63,6 +81,9 @@ impl NodeTrait for IONode {
 
     fn connect(&mut self, other: usize) {
         self.connections.push(other)
+    }
+    fn get_connections(&self) -> Vec<usize> {
+        self.connections.clone()
     }
 }
 
@@ -93,5 +114,11 @@ impl NodeTrait for Street {
 
     fn connect(&mut self, other: usize) {
         self.connection = Some(other)
+    }
+    fn get_connections(&self) -> Vec<usize> {
+        match self.connection {
+            Some(c) => vec![c],
+            None => vec![]
+        }
     }
 }

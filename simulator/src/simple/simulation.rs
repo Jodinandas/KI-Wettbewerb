@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use std::error::Error;
-use std::fmt;
+use std::fmt::{self, Display, format, write};
 use crate::traits::NodeTrait;
 use super::node::*;
 
@@ -134,6 +134,34 @@ impl Simulator {
         // get the starting node
         self.nodes[inode1].connect(street_index);
         Ok(())
+    }
+}
+/// Display to make it easier to check the connections etc.
+/// 
+/// # Intended look
+/// `
+/// Simulator{
+///     nodes: [
+///         0: Crossing -> 1, 2, 3
+///     ]
+/// }
+/// `
+impl Display for Simulator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::from("Simulator {\n\tnodes: [\n");
+        for (i, n) in self.nodes.iter().enumerate() {
+            s.push_str(
+                &format!("\t\t{}: {} ->\t", i, n.name())
+            );
+            for connection in n.get_connections().iter() {
+                s.push_str(
+                    &format!("{}, ", &connection)
+                );
+            }
+            s.push_str("\n")
+        } 
+        s.push_str("\t]\n}");
+        write!(f, "{}", s)
     }
 }
 

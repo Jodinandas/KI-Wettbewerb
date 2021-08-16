@@ -27,4 +27,5 @@ use super::simple::node::*;
 pub trait NodeTrait : Debug {
     fn is_connected(&self, other: usize) -> bool;
     fn connect(&mut self, other: usize);
+    fn get_connections(&self) -> Vec<usize>;
 }
