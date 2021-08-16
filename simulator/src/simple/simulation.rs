@@ -1,6 +1,9 @@
 use serde::Deserialize;
 use std::error::Error;
 use std::fmt;
+use crate::traits::NodeTrait;
+use super::node::*;
+
 use super::node::Node;
 
 
@@ -57,8 +60,8 @@ impl Simulator {
         for json_crossing in json_representation.crossings.iter() {
             // create nodes from json object
             let new_crossing = match json_crossing.is_io_node {
-                true => Node::IONode{connections: Vec::new()},
-                false => Node::Crossing{connections: Vec::new()}
+                true => IONode::new().into(),
+                false => Crossing::new().into()
             };
             crossings.push(new_crossing);
         }
@@ -80,17 +83,12 @@ impl Simulator {
                     );
                 }
                 // Make sure the connection doesn't already exist
-                match simulator.nodes.get(i).unwrap() {
-                    Node::Crossing {connections } => {
-                        if connections.contains(connection_index) {
-                            return Err(
-                                Box::new(
-                                    JsonError("Attempt to create the same connection multiple times".to_string())
-                                )
-                            );
-                        }
-                    },
-                    _ => {} 
+                if simulator.nodes.get(i).unwrap().is_connected(*connection_index) {
+                    return Err(
+                        Box::new(
+                            JsonError("Attempt to create the same connection multiple times".to_string())
+                        )
+                    );
                 }
                 simulator.connect_with_street(i, *connection_index, *lanes)?;
             }
@@ -123,18 +121,12 @@ impl Simulator {
             );
         } 
         // create a new street to connect them
-        {
-            let new_street = Node::Street { connection: inode2, lanes};
-            self.nodes.push(new_street);
-        }
+        let new_street: Node = Street {connection: Some(inode2), lanes}.into();
+        self.nodes.push(new_street);
         let street_index = self.nodes.len() - 1;
         // get the starting node
         // TODO: Remember, remember, remember this way of doing things
-        match &mut self.nodes[inode1] {
-            Node::Crossing {connections} => {connections.push(street_index)},
-            Node::IONode {connections} => {connections.push(street_index)},
-            Node::Street {connection, lanes: _} => {*connection = street_index}
-        }
+        self.nodes[inode2].connect(street_index);
         Ok(())
     }
 }

@@ -1,3 +1,7 @@
+use super::super::traits::NodeTrait;
+use enum_dispatch::enum_dispatch;
+
+
 /// This enum represents all types of simulation data types
 ///
 /// the connections are not safed as references, but rather as
@@ -9,16 +13,76 @@
 /// things like moving cars from one ```Node``` to another has
 /// to be done by the simulator and not by functions implemented
 /// in the Node.
+#[enum_dispatch(NodeTrait)]
 #[derive(Debug)]
 pub enum Node {
-    Crossing {
-        connections: Vec<usize>
-    },
-    IONode{
-        connections: Vec<usize>
-    },
-    Street{
-        connection: usize,
-        lanes: u8
-    } 
+    Crossing,
+    IONode(IONode),
+    Street(Street)
+}
+
+#[derive(Debug)]
+pub struct Crossing {
+    connections: Vec<usize>
+}
+impl Crossing {
+    pub fn new() -> Crossing {
+        Crossing {
+            connections: vec![]
+        }
+    }
+}
+impl NodeTrait for Crossing {
+    fn is_connected(&self, other: usize) -> bool {
+        self.connections.contains(&other)
+    }
+
+    fn connect(&mut self, other: usize) {
+        self.connections.push(other)
+    }
+}
+#[derive(Debug)]
+pub struct IONode{
+    connections: Vec<usize>
+}
+impl IONode{
+    pub fn new() -> IONode {
+        IONode {
+            connections: vec![]
+        }
+    }
+}
+impl NodeTrait for IONode {
+    fn is_connected(&self, other: usize) -> bool {
+        self.connections.contains(&other)
+    }
+
+    fn connect(&mut self, other: usize) {
+        self.connections.push(other)
+    }
+}
+#[derive(Debug)]
+pub struct Street{
+    pub connection: Option<usize>,
+    pub lanes: u8
+} 
+impl Street {
+    pub fn new() -> Street{
+        Street {
+            connection: None,
+            lanes: 1
+        }
+    }
+}
+impl NodeTrait for Street {
+    fn is_connected(&self, other: usize) -> bool {
+        match self.connection {
+            Some(c) => c == other,
+            None => false
+        }
+    }
+
+    fn connect(&mut self, other: usize) {
+        self.connection = Some(other)
+    }
 }
