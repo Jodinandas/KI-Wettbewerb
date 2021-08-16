@@ -18,6 +18,7 @@ pub struct Simulator {
 }
 
 
+/// Is raised when the conversion `JSON` -> `Simulator` fails
 #[derive(Debug, Clone)]
 pub struct JsonError (String);
 impl fmt::Display for JsonError {
@@ -38,12 +39,33 @@ impl fmt::Display for IndexError {
 
 impl Error for IndexError {}
 
+/// The simulator, the top level struct that is instaniated to simulate traffic
+/// 
+/// # Examples
+/// ## From JSON file
+/// ```
+/// use simulator::simple::simulation::Simulator;
+/// let json: &str = r#"
+/// {"crossings": [
+///     {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]},
+///     {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]},
+///     {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]},
+///     {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]},
+///     {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]},
+///     {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
+/// let mut simulator = Simulator::from_json(json);
+/// ```
 impl Simulator {
     /// Create new node
     pub fn new() -> Simulator {
         Simulator {
             nodes: Vec::new()
         }
+    }
+    /// Add a new node
+    pub fn add_node(&mut self, node: Node) -> &mut Simulator {
+        self.nodes.push(node);
+        self
     }
     /// creates a `Simulator` object from a `&str` formatted in a json-like way
     ///
@@ -95,21 +117,6 @@ impl Simulator {
         }
         Ok(simulator)
     }
-    // /// Connects two nodes, ONE WAY ONLY
-    // /// 
-    // /// It is pretty inefficient, but relatively easy to use
-    // /// # Examples
-    // ///
-    // /// ```
-    // /// use super::*;
-    // /// let sim = Simulator{
-    // ///     vec![Node::Cros]
-    // /// };
-    // ///
-    // /// ```
-    // pub fn connect(&mut self, node1: &Node, node2: &Node) {
-
-    // }
     /// Connects two node, ONE WAY ONLY, adding a street in between 
     pub fn connect_with_street(&mut self, inode1: usize, inode2: usize, lanes: u8) -> Result<(), Box<dyn Error>>{
         // make sure the second nodes actually exist
@@ -125,8 +132,7 @@ impl Simulator {
         self.nodes.push(new_street);
         let street_index = self.nodes.len() - 1;
         // get the starting node
-        // TODO: Remember, remember, remember this way of doing things
-        self.nodes[inode2].connect(street_index);
+        self.nodes[inode1].connect(street_index);
         Ok(())
     }
 }
@@ -158,16 +164,22 @@ pub trait StreetDisplay {
 }
 
 mod tests {
-    use super::*;
     #[test]
     fn street_data_from_json() {
         let json: &str = r#"{"crossings": [{"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]}, {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
-        let data = Simulator::from_json(json).unwrap();
+        let data = super::Simulator::from_json(json).unwrap();
         println!("{:?}", &data);
     }
     
     #[test]
     fn connect_with_streets() {
+        use super::{Crossing, Street, IONode, Simulator};
         let mut simulator = Simulator::new();
+        simulator.add_node(IONode::new().into())
+        .add_node(Crossing::new().into())
+        .add_node(Street::new().into());
+        simulator.connect_with_street(0, 1, 2).unwrap();
+        simulator.connect_with_street(1, 2, 3).unwrap();
+        simulator.connect_with_street(2, 0, 4).unwrap();
     }
 }

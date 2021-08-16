@@ -4,7 +4,7 @@ use enum_dispatch::enum_dispatch;
 
 /// This enum represents all types of simulation data types
 ///
-/// the connections are not safed as references, but rather as
+/// the connections are not saved as references, but rather as
 /// indices in the list of all parts of the simulation, to avoid
 /// the overhead (and tremendous complexity and annoyance of using
 /// these types of e.g. a nested ```Weak<RefCell<Node>>```
@@ -17,10 +17,11 @@ use enum_dispatch::enum_dispatch;
 #[derive(Debug)]
 pub enum Node {
     Crossing,
-    IONode(IONode),
-    Street(Street)
+    IONode,
+    Street
 }
 
+/// A simple crossing
 #[derive(Debug)]
 pub struct Crossing {
     connections: Vec<usize>
@@ -41,6 +42,9 @@ impl NodeTrait for Crossing {
         self.connections.push(other)
     }
 }
+/// A Node that represents either the start of the simulation or the end of it
+/// 
+/// One of its responsibilities is to add cars and passengers to the simulation
 #[derive(Debug)]
 pub struct IONode{
     connections: Vec<usize>
@@ -61,6 +65,11 @@ impl NodeTrait for IONode {
         self.connections.push(other)
     }
 }
+
+/// A `Street` is mostly used to connect `IONode`s or `Crossing`s
+/// 
+/// # Fields
+/// - `lanes` stores how many lanes the `Street` has
 #[derive(Debug)]
 pub struct Street{
     pub connection: Option<usize>,
