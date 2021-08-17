@@ -28,3 +28,15 @@ pub trait NodeTrait : Debug {
     fn is_connected(&self, other: usize) -> bool;
     fn connect(&mut self, other: usize);
 }
+
+/// This trait represents some kind of movable
+/// 
+/// idea for movables:
+///  use the delta t when updating to weigh a chance of 
+/// come action taking place internally. Example: Going into a shop
+/// for 10 min or maybe someone tripping 
+pub trait Movable {
+    fn get_speed(&self) -> f32;
+    fn set_speed(&mut self, s: f32);
+    fn update(&mut self, t: f32);
+}

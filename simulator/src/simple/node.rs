@@ -1,5 +1,6 @@
 use super::super::traits::NodeTrait;
 use enum_dispatch::enum_dispatch;
+use super::traversible::Traversible;
 
 
 /// This enum represents all types of simulation data types
@@ -24,12 +25,12 @@ pub enum Node {
 /// A simple crossing
 #[derive(Debug)]
 pub struct Crossing {
-    connections: Vec<usize>
+    connections: Vec<usize>,
 }
 impl Crossing {
     pub fn new() -> Crossing {
         Crossing {
-            connections: vec![]
+            connections: vec![],
         }
     }
 }
