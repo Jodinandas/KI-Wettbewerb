@@ -2,9 +2,11 @@ use serde::Deserialize;
 use std::error::Error;
 use std::fmt::{self, Display, format, write};
 use crate::traits::NodeTrait;
+use super::movable::RandCar;
 use super::node::*;
 
 use super::node::Node;
+use super::traversible::Traversible;
 
 
 /// A struct representing the street network
@@ -128,7 +130,7 @@ impl Simulator {
             );
         } 
         // create a new street to connect them
-        let new_street: Node = Street {connection: Some(inode2), lanes}.into();
+        let new_street: Node = Street {connection: Some(inode2), lanes, car_lane: Traversible::<RandCar>::new(100.0)}.into();
         self.nodes.push(new_street);
         let street_index = self.nodes.len() - 1;
         // get the starting node
@@ -192,6 +194,8 @@ pub trait StreetDisplay {
 }
 
 mod tests {
+    use crate::simple::node::Crossing;
+
     #[test]
     fn street_data_from_json() {
         let json: &str = r#"{"crossings": [{"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]}, {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;

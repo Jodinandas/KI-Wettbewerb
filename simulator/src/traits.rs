@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 use enum_dispatch::enum_dispatch;
+use crate::simple::movable::RandCar;
+
 use super::simple::node::*;
 
 
@@ -27,6 +29,7 @@ use super::simple::node::*;
 pub trait NodeTrait : Debug {
     fn is_connected(&self, other: usize) -> bool;
     fn connect(&mut self, other: usize);
+    fn update_cars(&mut self, t: f32) -> Vec<RandCar>;
 }
 
 /// This trait represents some kind of movable
@@ -35,8 +38,9 @@ pub trait NodeTrait : Debug {
 ///  use the delta t when updating to weigh a chance of 
 /// come action taking place internally. Example: Going into a shop
 /// for 10 min or maybe someone tripping 
-pub trait Movable {
+pub trait Movable : Debug {
     fn get_speed(&self) -> f32;
     fn set_speed(&mut self, s: f32);
     fn update(&mut self, t: f32);
+    fn decide_next<'a>(&mut self, connections: &'a Vec<usize>) -> &'a usize;
 }

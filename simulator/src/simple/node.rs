@@ -1,8 +1,14 @@
 use std::vec;
+use std::borrow::{Borrow, BorrowMut};
+use std::cell::RefCell;
+use std::rc::{Rc, Weak};
+
+use crate::traits::Movable;
 
 use super::super::traits::NodeTrait;
 use enum_dispatch::enum_dispatch;
 use super::traversible::Traversible;
+use super::movable::{RandCar, RandPerson};
 
 
 /// This enum represents all types of simulation data types
@@ -41,11 +47,13 @@ impl Node {
 #[derive(Debug)]
 pub struct Crossing {
     connections: Vec<usize>,
+    car_lane: Traversible<RandCar>
 }
 impl Crossing {
     pub fn new() -> Crossing {
         Crossing {
             connections: vec![],
+            car_lane: Traversible::<RandCar>::new(100.0)
         }
     }
 }
@@ -59,6 +67,9 @@ impl NodeTrait for Crossing {
     }
     fn get_connections(&self) -> Vec<usize> {
         self.connections.clone()
+    
+    fn update_cars(&mut self, t: f32) -> Vec<RandCar> {
+        self.car_lane.update_movables(t)
     }
 }
 /// A Node that represents either the start of the simulation or the end of it
@@ -66,13 +77,26 @@ impl NodeTrait for Crossing {
 /// One of its responsibilities is to add cars and passengers to the simulation
 #[derive(Debug)]
 pub struct IONode{
-    connections: Vec<usize>
+    connections: Vec<usize>,
+    global_car_count: Option<Weak<RefCell<usize>>>,
+    max_num_cars: Option<Weak<usize>>
 }
 impl IONode{
     pub fn new() -> IONode {
         IONode {
-            connections: vec![]
+            connections: vec![],
+            global_car_count: None,
+            max_num_cars: None
         }
+    }
+    pub fn car_count(&mut self, car_count: &Rc<RefCell<usize>>) -> &mut IONode {
+        self.global_car_count = Some(Rc::downgrade(car_count));
+        self
+    }
+
+    pub fn max_cars(&mut self, max_cars: &Rc<usize>) -> &mut IONode {
+        self.max_num_cars = Some(Rc::downgrade(max_cars));
+        self
     }
 }
 impl NodeTrait for IONode {
@@ -85,6 +109,15 @@ impl NodeTrait for IONode {
     }
     fn get_connections(&self) -> Vec<usize> {
         self.connections.clone()
+    
+    /// Spawn cars
+    fn update_cars(&mut self, t: f32) -> Vec<RandCar> {
+        // let mut max_cars = match self.max_num_cars {
+        //     Some(reference) => {reference.},
+        //     None => 1000
+        // };
+        // let mut car_count = 1000;
+        Vec::new()
     }
 }
 
@@ -95,13 +128,15 @@ impl NodeTrait for IONode {
 #[derive(Debug)]
 pub struct Street{
     pub connection: Option<usize>,
-    pub lanes: u8
+    pub lanes: u8,
+    pub car_lane: Traversible<RandCar>
 } 
 impl Street {
     pub fn new() -> Street{
         Street {
             connection: None,
-            lanes: 1
+            lanes: 1,
+            car_lane: Traversible::<RandCar>::new(100.0)
         }
     }
 }
@@ -121,5 +156,8 @@ impl NodeTrait for Street {
             Some(c) => vec![c],
             None => vec![]
         }
+
+    fn update_cars(&mut self, t: f32) -> Vec<RandCar> {
+        self.car_lane.update_movables(t)
     }
 }
