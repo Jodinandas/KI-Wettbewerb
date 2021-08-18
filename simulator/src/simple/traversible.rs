@@ -2,6 +2,7 @@ use super::super::traits::Movable;
 
 
 /// This structs represents a sidewalk, a street or something else that can be walked on
+#[derive(Debug)]
 pub struct Traversible<T: Movable> {
     /// These are for example people, cars, bycicles etc.
     movables: Vec<(T, f32)>,
@@ -23,7 +24,7 @@ impl<T: Movable> Traversible<T> {
         // return all movables that are 
         let mut out = Vec::<T>::new();
         for i in 0..self.movables.len() {
-            let (m, mut dist) = &self.movables[i];
+            let (_m, mut dist) = &self.movables[i];
             dist += t;
             if dist >= self.length {
                 out.push(
