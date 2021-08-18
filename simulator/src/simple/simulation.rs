@@ -201,7 +201,7 @@ mod tests {
     
     #[test]
     fn connect_with_streets() {
-        use super::{Crossing, Street, IONode, Simulator};
+        use super::{Street, IONode, Simulator};
         let mut simulator = Simulator::new();
         simulator.add_node(IONode::new().into())
         .add_node(Crossing::new().into())
