@@ -30,6 +30,7 @@ pub trait NodeTrait : Debug {
     fn is_connected(&self, other: usize) -> bool;
     fn connect(&mut self, other: usize);
     fn update_cars(&mut self, t: f32) -> Vec<RandCar>;
+    fn get_connections(&self) -> Vec<usize>;
 }
 
 /// This trait represents some kind of movable

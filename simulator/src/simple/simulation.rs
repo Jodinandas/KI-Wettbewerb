@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use std::error::Error;
-use std::fmt::{self, Display, format, write};
+use std::fmt::{self, Display};
 use crate::traits::NodeTrait;
 use super::movable::RandCar;
 use super::node::*;
@@ -194,7 +194,6 @@ pub trait StreetDisplay {
 }
 
 mod tests {
-    use crate::simple::node::Crossing;
 
     #[test]
     fn street_data_from_json() {
@@ -206,6 +205,7 @@ mod tests {
     #[test]
     fn connect_with_streets() {
         use super::{Street, IONode, Simulator};
+        use super::super::node::Crossing;
         let mut simulator = Simulator::new();
         simulator.add_node(IONode::new().into())
         .add_node(Crossing::new().into())

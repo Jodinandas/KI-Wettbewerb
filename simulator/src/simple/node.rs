@@ -1,9 +1,6 @@
 use std::vec;
-use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
-
-use crate::traits::Movable;
 
 use super::super::traits::NodeTrait;
 use enum_dispatch::enum_dispatch;
@@ -67,6 +64,7 @@ impl NodeTrait for Crossing {
     }
     fn get_connections(&self) -> Vec<usize> {
         self.connections.clone()
+    }
     
     fn update_cars(&mut self, t: f32) -> Vec<RandCar> {
         self.car_lane.update_movables(t)
@@ -109,7 +107,7 @@ impl NodeTrait for IONode {
     }
     fn get_connections(&self) -> Vec<usize> {
         self.connections.clone()
-    
+    }
     /// Spawn cars
     fn update_cars(&mut self, t: f32) -> Vec<RandCar> {
         // let mut max_cars = match self.max_num_cars {
@@ -156,6 +154,7 @@ impl NodeTrait for Street {
             Some(c) => vec![c],
             None => vec![]
         }
+    }
 
     fn update_cars(&mut self, t: f32) -> Vec<RandCar> {
         self.car_lane.update_movables(t)
