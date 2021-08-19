@@ -21,6 +21,14 @@ pub struct RandCar {
     speed: f32
 }
 
+impl RandCar {
+    pub fn new() -> RandCar {
+        RandCar {
+            speed: 2.0
+        }
+    }
+}
+
 impl Movable for RandCar {
     fn get_speed(&self) -> f32 {self.speed}
     fn set_speed(&mut self, s: f32) {self.speed = s}

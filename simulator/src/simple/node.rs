@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::vec;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
@@ -69,6 +70,10 @@ impl NodeTrait for Crossing {
     fn update_cars(&mut self, t: f32) -> Vec<RandCar> {
         self.car_lane.update_movables(t)
     }
+    
+    fn add_car(&mut self, car: RandCar) {
+        self.car_lane.add(car)
+    }
 }
 /// A Node that represents either the start of the simulation or the end of it
 /// 
@@ -76,24 +81,20 @@ impl NodeTrait for Crossing {
 #[derive(Debug)]
 pub struct IONode{
     connections: Vec<usize>,
-    global_car_count: Option<Weak<RefCell<usize>>>,
-    max_num_cars: Option<Weak<usize>>
+    spawn_rate: f32,
+    time_since_last_spawn: f32
 }
 impl IONode{
     pub fn new() -> IONode {
         IONode {
             connections: vec![],
-            global_car_count: None,
-            max_num_cars: None
+            spawn_rate: 1.0,
+            time_since_last_spawn: 0.0
         }
     }
-    pub fn car_count(&mut self, car_count: &Rc<RefCell<usize>>) -> &mut IONode {
-        self.global_car_count = Some(Rc::downgrade(car_count));
-        self
-    }
-
-    pub fn max_cars(&mut self, max_cars: &Rc<usize>) -> &mut IONode {
-        self.max_num_cars = Some(Rc::downgrade(max_cars));
+    // Spawn rate in cars / second
+    pub fn spawn_rate(&mut self, rate: f32) -> &mut IONode {
+        self.spawn_rate = rate;
         self
     }
 }
@@ -110,12 +111,17 @@ impl NodeTrait for IONode {
     }
     /// Spawn cars
     fn update_cars(&mut self, t: f32) -> Vec<RandCar> {
-        // let mut max_cars = match self.max_num_cars {
-        //     Some(reference) => {reference.},
-        //     None => 1000
-        // };
-        // let mut car_count = 1000;
-        Vec::new()
+        self.time_since_last_spawn += t;
+        let mut new_cars = Vec::<RandCar>::new();
+        if self.time_since_last_spawn >= self.spawn_rate {
+            new_cars.push(
+                RandCar::new()
+            )
+        }
+        new_cars
+    }
+    fn add_car(&mut self, car: RandCar) {
+        drop(car)
     }
 }
 
@@ -158,5 +164,8 @@ impl NodeTrait for Street {
 
     fn update_cars(&mut self, t: f32) -> Vec<RandCar> {
         self.car_lane.update_movables(t)
+    }
+    fn add_car(&mut self, car: RandCar) {
+        self.car_lane.add(car);
     }
 }

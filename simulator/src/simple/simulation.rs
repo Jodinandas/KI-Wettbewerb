@@ -4,6 +4,7 @@ use std::fmt::{self, Display};
 use crate::traits::NodeTrait;
 use super::movable::RandCar;
 use super::node::*;
+use super::super::traits::Movable;
 
 use super::node::Node;
 use super::traversible::Traversible;
@@ -136,6 +137,16 @@ impl Simulator {
         // get the starting node
         self.nodes[inode1].connect(street_index);
         Ok(())
+    }
+    
+    pub fn update_all_nodes(&mut self, dt: f32) {
+        self.nodes.iter_mut().map(|n | {
+            let mut cars_at_end = n.update_cars(dt);
+            for i in 0..cars_at_end.len() {
+                let next_i = cars_at_end[i].decide_next(&n.get_connections());
+                self.nodes[*next_i].add_car(cars_at_end[i]);
+            }
+        });
     }
 }
 /// Display to make it easier to check the connections etc.
