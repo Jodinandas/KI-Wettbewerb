@@ -1,6 +1,9 @@
 use serde::Deserialize;
+use core::time;
 use std::error::Error;
 use std::fmt::{self, Display};
+use std::{cmp, thread};
+use std::time::{Duration, SystemTime};
 use crate::traits::NodeTrait;
 use super::movable::RandCar;
 use super::node::*;
@@ -18,6 +21,8 @@ use super::traversible::Traversible;
 pub struct Simulator {
     /// A list of all the crossings
     nodes: Vec<Node>,
+    max_iter: Option<usize>,
+    delay: u64
 }
 
 
@@ -62,7 +67,9 @@ impl Simulator {
     /// Create new node
     pub fn new() -> Simulator {
         Simulator {
-            nodes: Vec::new()
+            nodes: Vec::new(),
+            max_iter: None,
+            delay: 0
         }
     }
     /// Add a new node
@@ -139,14 +146,45 @@ impl Simulator {
         Ok(())
     }
     
+    /// Update all nodes moving the cars and people to the next 
+    /// nodes
     pub fn update_all_nodes(&mut self, dt: f32) {
-        self.nodes.iter_mut().map(|n | {
-            let mut cars_at_end = n.update_cars(dt);
-            for i in 0..cars_at_end.len() {
-                let next_i = cars_at_end[i].decide_next(&n.get_connections());
-                self.nodes[*next_i].add_car(cars_at_end[i]);
+        for i in 0..self.nodes.len() {
+            let mut cars_at_end = self.nodes[i].update_cars(dt);
+            let options = self.nodes[i].get_connections();
+            for j in cars_at_end.len()..0 {
+                let next_i = cars_at_end[j].decide_next(&options);
+                self.nodes[*next_i].add_car(cars_at_end.pop().unwrap());
             }
-        });
+        }
+    }
+    
+    pub fn simulation_loop(&mut self) -> Result<(), Box<dyn Error>>{
+        let mut counter = 0;
+        loop {
+            let now = SystemTime::now();
+            if let Some(max_iter) = self.max_iter {
+                if counter > max_iter {break};
+            }
+            
+            self.update_all_nodes(dt);
+            
+            counter += 1;
+            // TODO: Could case the system to wait an unnecessary millisecond
+            thread::sleep(Duration::from_millis(
+                cmp::min(self.delay.into()-now.elapsed()?.as_millis(), 0)
+            ));
+        }
+        Ok(())
+    }
+    
+    pub fn delay(&mut self, value: u64) -> &mut Simulator{
+        self.delay = value;
+        self
+    }
+    pub fn max_iter(&mut self, value: Option<usize>) -> &mut Simulator {
+        self.max_iter = value;
+        self
     }
 }
 /// Display to make it easier to check the connections etc.
@@ -204,6 +242,8 @@ pub trait StreetDisplay {
     
 }
 
+#[bench]
+
 mod tests {
 
     #[test]
@@ -224,5 +264,14 @@ mod tests {
         simulator.connect_with_street(0, 1, 2).unwrap();
         simulator.connect_with_street(1, 2, 3).unwrap();
         simulator.connect_with_street(2, 0, 4).unwrap();
+    }
+    
+    #[test]
+    fn test_simloop() {
+        use super::Simulator;
+        let json: &str = r#"{"crossings": [{"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]}, {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
+        let mut sim = Simulator::from_json(&json).unwrap();
+        sim.max_iter(Some(1000)).delay(0);
+        sim.simulation_loop();
     }
 }
