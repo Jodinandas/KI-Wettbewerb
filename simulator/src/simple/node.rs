@@ -43,8 +43,8 @@ impl Node {
 /// A simple crossing
 #[derive(Debug)]
 pub struct Crossing {
-    connections: Vec<Weak<RefCell<Node>>>,
-    car_lane: Traversible<RandCar>
+    pub connections: Vec<Weak<RefCell<Node>>>,
+    pub car_lane: Traversible<RandCar>
 }
 impl Crossing {
     pub fn new() -> Crossing {
@@ -81,9 +81,9 @@ impl NodeTrait for Crossing {
 /// One of its responsibilities is to add cars and passengers to the simulation
 #[derive(Debug)]
 pub struct IONode{
-    connections: Vec<Weak<RefCell<Node>>>,
-    spawn_rate: f64,
-    time_since_last_spawn: f64
+    pub connections: Vec<Weak<RefCell<Node>>>,
+    pub spawn_rate: f64,
+    pub time_since_last_spawn: f64
 }
 impl IONode{
     pub fn new() -> IONode {
