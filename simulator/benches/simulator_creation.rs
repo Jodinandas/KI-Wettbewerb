@@ -97,9 +97,9 @@ fn build_grid_sim(grid_side_len: u32) -> Simulator{
 }
 
 fn performance_simulation_creation(c: &mut Criterion) {
-    c.bench_function("Simulation creating grid 1000x1000 Crossings connected with streets", 
+    c.bench_function("Simulation creating grid 100x100 Crossings connected with streets", 
         |b| b.iter(|| {
-            build_grid_sim(black_box(1000));
+            build_grid_sim(black_box(100));
         })
     );
 }

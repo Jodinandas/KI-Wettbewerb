@@ -97,12 +97,12 @@ fn build_grid_sim(grid_side_len: u32) -> Simulator{
 }
 
 fn simulation_performance_bench(c: &mut Criterion) {
-    let mut sim = build_grid_sim(1000);
+    let mut sim = build_grid_sim(100);
     // iterate a few times to get the cars to enter the simulation
-    for _ in 0..100 {
+    for _ in 0..0100 {
         sim.sim_iter(1.0)
     }
-    c.bench_function("simulator (grid side len 1000) 1000 iter 1 sec virt delay", 
+    c.bench_function("simulator (grid side len 100) 10000 iter 1 sec virt delay", 
         |b| b.iter(|| sim.sim_iter(black_box(1.0)))
     );
 }
