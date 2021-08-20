@@ -1,12 +1,11 @@
-use std::borrow::Borrow;
-use std::vec;
+use std::{ptr, vec};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
 use super::super::traits::NodeTrait;
 use enum_dispatch::enum_dispatch;
 use super::traversible::Traversible;
-use super::movable::{RandCar, RandPerson};
+use super::movable::RandCar;
 
 
 /// This enum represents all types of simulation data types
@@ -44,8 +43,8 @@ impl Node {
 /// A simple crossing
 #[derive(Debug)]
 pub struct Crossing {
-    connections: Vec<usize>,
-    car_lane: Traversible<RandCar>
+    pub connections: Vec<Weak<RefCell<Node>>>,
+    pub car_lane: Traversible<RandCar>
 }
 impl Crossing {
     pub fn new() -> Crossing {
@@ -56,15 +55,17 @@ impl Crossing {
     }
 }
 impl NodeTrait for Crossing {
-    fn is_connected(&self, other: usize) -> bool {
-        self.connections.contains(&other)
+    fn is_connected(&self, other: &Weak<RefCell<Node>>) -> bool {
+        self.connections.iter().find_map(|c| {
+            Some(ptr::eq(c, other))
+        }).is_some()
     }
 
-    fn connect(&mut self, other: usize) {
-        self.connections.push(other)
+    fn connect(&mut self, other: &Rc<RefCell<Node>>) {
+        self.connections.push(Rc::downgrade(other))
     }
-    fn get_connections(&self) -> Vec<usize> {
-        self.connections.clone()
+    fn get_connections(&self) -> &Vec<Weak<RefCell<Node>>> {
+        &self.connections
     }
     
     fn update_cars(&mut self, t: f64) -> Vec<RandCar> {
@@ -80,9 +81,9 @@ impl NodeTrait for Crossing {
 /// One of its responsibilities is to add cars and passengers to the simulation
 #[derive(Debug)]
 pub struct IONode{
-    connections: Vec<usize>,
-    spawn_rate: f64,
-    time_since_last_spawn: f64
+    pub connections: Vec<Weak<RefCell<Node>>>,
+    pub spawn_rate: f64,
+    pub time_since_last_spawn: f64
 }
 impl IONode{
     pub fn new() -> IONode {
@@ -99,15 +100,17 @@ impl IONode{
     }
 }
 impl NodeTrait for IONode {
-    fn is_connected(&self, other: usize) -> bool {
-        self.connections.contains(&other)
+    fn is_connected(&self, other: &Weak<RefCell<Node>>) -> bool {
+        self.connections.iter().find_map(|c| {
+            Some(ptr::eq(c, other))
+        }).is_some()
     }
 
-    fn connect(&mut self, other: usize) {
-        self.connections.push(other)
+    fn connect(&mut self, other: &Rc<RefCell<Node>>) {
+        self.connections.push(Rc::downgrade(other))
     }
-    fn get_connections(&self) -> Vec<usize> {
-        self.connections.clone()
+    fn get_connections(&self) -> &Vec<Weak<RefCell<Node>>> {
+        &self.connections
     }
     /// Spawn cars
     fn update_cars(&mut self, dt: f64) -> Vec<RandCar> {
@@ -131,35 +134,36 @@ impl NodeTrait for IONode {
 /// - `lanes` stores how many lanes the `Street` has
 #[derive(Debug)]
 pub struct Street{
-    pub connection: Option<usize>,
+    pub connection: Vec<Weak<RefCell<Node>>>,
     pub lanes: u8,
     pub car_lane: Traversible<RandCar>
 } 
 impl Street {
     pub fn new() -> Street{
         Street {
-            connection: None,
+            connection: Vec::new(),
             lanes: 1,
             car_lane: Traversible::<RandCar>::new(100.0)
         }
     }
+    pub fn lanes(mut self, lanes: u8) -> Street {
+        self.lanes = lanes;
+        self
+    }
 }
 impl NodeTrait for Street {
-    fn is_connected(&self, other: usize) -> bool {
-        match self.connection {
-            Some(c) => c == other,
-            None => false
-        }
+    fn is_connected(&self, other: &Weak<RefCell<Node>>) -> bool {
+        self.connection.iter().find_map(|c| {
+            Some(ptr::eq(c, other))
+        }).is_some()
     }
 
-    fn connect(&mut self, other: usize) {
-        self.connection = Some(other)
+    fn connect(&mut self, other: &Rc<RefCell<Node>>) {
+        self.connection.clear();
+        self.connection.push(Rc::downgrade(other))
     }
-    fn get_connections(&self) -> Vec<usize> {
-        match self.connection {
-            Some(c) => vec![c],
-            None => vec![]
-        }
+    fn get_connections(&self) -> &Vec<Weak<RefCell<Node>>> {
+        &self.connection
     }
 
     fn update_cars(&mut self, t: f64) -> Vec<RandCar> {

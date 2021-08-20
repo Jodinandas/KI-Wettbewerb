@@ -1,4 +1,6 @@
-use super::super::traits::Movable;
+use std::{cell::RefCell, rc::Weak};
+
+use super::{super::traits::Movable, node::Node};
 use rand::Rng;
 
 #[derive(Debug)]
@@ -9,8 +11,8 @@ pub struct RandPerson {
 impl Movable for RandPerson {
     fn get_speed(&self) -> f32 {self.speed}
     fn set_speed(&mut self, s: f32) {self.speed = s}
-    fn update(&mut self, t: f64) {}
-    fn decide_next<'a>(&mut self, connections: &'a Vec<usize>) -> &'a usize {
+    fn update(&mut self, _t: f64) {}
+    fn decide_next<'a>(&mut self, connections: &'a Vec<Weak<RefCell<Node>>>) -> &'a Weak<RefCell<Node>> {
         let i = rand::thread_rng().gen_range(0..connections.len());
         &connections[i]
     }
@@ -32,8 +34,8 @@ impl RandCar {
 impl Movable for RandCar {
     fn get_speed(&self) -> f32 {self.speed}
     fn set_speed(&mut self, s: f32) {self.speed = s}
-    fn update(&mut self, t: f64) {}
-    fn decide_next<'a>(&mut self, connections: &'a Vec<usize>) -> &'a usize {
+    fn update(&mut self, _t: f64) {}
+    fn decide_next<'a>(&mut self, connections: &'a Vec<Weak<RefCell<Node>>>) -> &'a Weak<RefCell<Node>>{
         let i = rand::thread_rng().gen_range(0..connections.len());
         &connections[i]
     }
