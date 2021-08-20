@@ -1,6 +1,4 @@
 use serde::Deserialize;
-use core::time;
-use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::error::Error;
 use std::fmt::{self, Display};
@@ -8,12 +6,10 @@ use std::rc::Rc;
 use std::{cmp, ptr, thread};
 use std::time::{Duration, SystemTime};
 use crate::traits::NodeTrait;
-use super::movable::RandCar;
 use super::node::*;
 use super::super::traits::Movable;
 
 use super::node::Node;
-use super::traversible::Traversible;
 
 
 /// A struct representing the street network
@@ -167,7 +163,7 @@ impl Simulator {
     
     pub fn simulation_loop(&mut self) -> Result<(), Box<dyn Error>>{
         let mut counter = 0;
-        let mut iteration_compute_time: u128 = self.delay.into();
+        let mut iteration_compute_time;
         loop {
             let now = SystemTime::now();
             if let Some(max_iter) = self.max_iter {

@@ -1,12 +1,11 @@
-use std::borrow::Borrow;
 use std::{ptr, vec};
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
 use super::super::traits::NodeTrait;
 use enum_dispatch::enum_dispatch;
 use super::traversible::Traversible;
-use super::movable::{RandCar, RandPerson};
+use super::movable::RandCar;
 
 
 /// This enum represents all types of simulation data types
