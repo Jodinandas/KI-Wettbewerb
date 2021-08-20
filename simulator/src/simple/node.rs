@@ -67,7 +67,7 @@ impl NodeTrait for Crossing {
         self.connections.clone()
     }
     
-    fn update_cars(&mut self, t: f32) -> Vec<RandCar> {
+    fn update_cars(&mut self, t: f64) -> Vec<RandCar> {
         self.car_lane.update_movables(t)
     }
     
@@ -81,8 +81,8 @@ impl NodeTrait for Crossing {
 #[derive(Debug)]
 pub struct IONode{
     connections: Vec<usize>,
-    spawn_rate: f32,
-    time_since_last_spawn: f32
+    spawn_rate: f64,
+    time_since_last_spawn: f64
 }
 impl IONode{
     pub fn new() -> IONode {
@@ -93,7 +93,7 @@ impl IONode{
         }
     }
     // Spawn rate in cars / second
-    pub fn spawn_rate(&mut self, rate: f32) -> &mut IONode {
+    pub fn spawn_rate(&mut self, rate: f64) -> &mut IONode {
         self.spawn_rate = rate;
         self
     }
@@ -110,8 +110,8 @@ impl NodeTrait for IONode {
         self.connections.clone()
     }
     /// Spawn cars
-    fn update_cars(&mut self, t: f32) -> Vec<RandCar> {
-        self.time_since_last_spawn += t;
+    fn update_cars(&mut self, dt: f64) -> Vec<RandCar> {
+        self.time_since_last_spawn += dt;
         let mut new_cars = Vec::<RandCar>::new();
         if self.time_since_last_spawn >= self.spawn_rate {
             new_cars.push(
@@ -162,7 +162,7 @@ impl NodeTrait for Street {
         }
     }
 
-    fn update_cars(&mut self, t: f32) -> Vec<RandCar> {
+    fn update_cars(&mut self, t: f64) -> Vec<RandCar> {
         self.car_lane.update_movables(t)
     }
     fn add_car(&mut self, car: RandCar) {

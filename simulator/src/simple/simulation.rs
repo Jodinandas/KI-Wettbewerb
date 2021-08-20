@@ -148,7 +148,7 @@ impl Simulator {
     
     /// Update all nodes moving the cars and people to the next 
     /// nodes
-    pub fn update_all_nodes(&mut self, dt: f32) {
+    pub fn update_all_nodes(&mut self, dt: f64) {
         for i in 0..self.nodes.len() {
             let mut cars_at_end = self.nodes[i].update_cars(dt);
             let options = self.nodes[i].get_connections();
@@ -161,21 +161,32 @@ impl Simulator {
     
     pub fn simulation_loop(&mut self) -> Result<(), Box<dyn Error>>{
         let mut counter = 0;
+        let mut iteration_compute_time: u128 = self.delay.into();
         loop {
             let now = SystemTime::now();
             if let Some(max_iter) = self.max_iter {
                 if counter > max_iter {break};
             }
             
-            self.update_all_nodes(dt);
+
+
+            iteration_compute_time = now.elapsed()?.as_millis();
+            // Convert the time to seconds and wait either as long as the
+            // last iteration took if the iteration took longer than the 
+            // specified delay or update using the delay
+            let dt = cmp::max(self.delay as u128, iteration_compute_time) as f64 / 1000.0;
+            self.sim_iter(dt);
             
             counter += 1;
             // TODO: Could case the system to wait an unnecessary millisecond
             thread::sleep(Duration::from_millis(
-                cmp::min(self.delay.into()-now.elapsed()?.as_millis(), 0)
+                cmp::min(self.delay - iteration_compute_time as u64, 0)
             ));
         }
         Ok(())
+    }
+    pub fn sim_iter(&mut self, dt: f64) {
+        self.update_all_nodes(dt);
     }
     
     pub fn delay(&mut self, value: u64) -> &mut Simulator{
@@ -242,7 +253,6 @@ pub trait StreetDisplay {
     
 }
 
-#[bench]
 
 mod tests {
 
@@ -272,6 +282,6 @@ mod tests {
         let json: &str = r#"{"crossings": [{"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]}, {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
         let mut sim = Simulator::from_json(&json).unwrap();
         sim.max_iter(Some(1000)).delay(0);
-        sim.simulation_loop();
+        sim.simulation_loop().unwrap();
     }
 }

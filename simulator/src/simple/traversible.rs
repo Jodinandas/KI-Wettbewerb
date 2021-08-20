@@ -20,12 +20,12 @@ impl<T: Movable> Traversible<T> {
     /// update all the movables by timestep `t` and return all that have reached the end
     /// 
     /// TODO
-    pub fn update_movables(&mut self, t: f32) -> Vec<T> {
+    pub fn update_movables(&mut self, t: f64) -> Vec<T> {
         // return all movables that are 
         let mut out = Vec::<T>::new();
         for i in 0..self.movables.len() {
-            let (_m, mut dist) = &self.movables[i];
-            dist += t;
+            let (m, mut dist) = &self.movables[i];
+            dist += t as f32 * m.get_speed();
             if dist >= self.length {
                 out.push(
                     self.movables.remove(i).0

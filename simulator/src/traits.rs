@@ -29,7 +29,7 @@ use super::simple::node::*;
 pub trait NodeTrait : Debug {
     fn is_connected(&self, other: usize) -> bool;
     fn connect(&mut self, other: usize);
-    fn update_cars(&mut self, t: f32) -> Vec<RandCar>;
+    fn update_cars(&mut self, t: f64) -> Vec<RandCar>;
     fn get_connections(&self) -> Vec<usize>;
     fn add_car(&mut self, car: RandCar);
 }
@@ -43,6 +43,6 @@ pub trait NodeTrait : Debug {
 pub trait Movable : Debug {
     fn get_speed(&self) -> f32;
     fn set_speed(&mut self, s: f32);
-    fn update(&mut self, t: f32);
+    fn update(&mut self, t: f64);
     fn decide_next<'a>(&mut self, connections: &'a Vec<usize>) -> &'a usize;
 }
