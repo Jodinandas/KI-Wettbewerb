@@ -1,3 +1,5 @@
+use std::cell::{Ref, RefCell};
+use std::rc::{Rc, Weak};
 use std::fmt::Debug;
 use enum_dispatch::enum_dispatch;
 use crate::simple::movable::RandCar;
@@ -27,10 +29,10 @@ use super::simple::node::*;
 /// using traits the first example wouldn't be too different)
 #[enum_dispatch]
 pub trait NodeTrait : Debug {
-    fn is_connected(&self, other: usize) -> bool;
-    fn connect(&mut self, other: usize);
+    fn is_connected(&self, other: &Weak<RefCell<Node>>) -> bool;
+    fn connect(&mut self, other: &Rc<RefCell<Node>>);
     fn update_cars(&mut self, t: f64) -> Vec<RandCar>;
-    fn get_connections(&self) -> Vec<usize>;
+    fn get_connections(&self) -> &Vec<Weak<RefCell<Node>>>;
     fn add_car(&mut self, car: RandCar);
 }
 
@@ -44,5 +46,5 @@ pub trait Movable : Debug {
     fn get_speed(&self) -> f32;
     fn set_speed(&mut self, s: f32);
     fn update(&mut self, t: f64);
-    fn decide_next<'a>(&mut self, connections: &'a Vec<usize>) -> &'a usize;
+    fn decide_next<'a>(&mut self, connections: &'a Vec<Weak<RefCell<Node>>>) -> &'a Weak<RefCell<Node>>;
 }

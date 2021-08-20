@@ -1,8 +1,11 @@
 use serde::Deserialize;
 use core::time;
+use std::borrow::{Borrow, BorrowMut};
+use std::cell::RefCell;
 use std::error::Error;
 use std::fmt::{self, Display};
-use std::{cmp, thread};
+use std::rc::Rc;
+use std::{cmp, ptr, thread};
 use std::time::{Duration, SystemTime};
 use crate::traits::NodeTrait;
 use super::movable::RandCar;
@@ -20,7 +23,7 @@ use super::traversible::Traversible;
 #[derive(Debug)]
 pub struct Simulator {
     /// A list of all the crossings
-    nodes: Vec<Node>,
+    nodes: Vec<Rc<RefCell<Node>>>,
     max_iter: Option<usize>,
     delay: u64
 }
@@ -74,7 +77,7 @@ impl Simulator {
     }
     /// Add a new node
     pub fn add_node(&mut self, node: Node) -> &mut Simulator {
-        self.nodes.push(node);
+        self.nodes.push(Rc::new(RefCell::new(node)));
         self
     }
     /// creates a `Simulator` object from a `&str` formatted in a json-like way
@@ -87,13 +90,13 @@ impl Simulator {
     pub fn from_json(json: &str) -> Result<Simulator, Box<dyn Error>> {
         // Generate object holding all the data, still formatted in json way
         let json_representation: JsonRepresentation = serde_json::from_str(json)?;
-        let mut crossings: Vec<Node> = Vec::new();    
+        let mut crossings: Vec<Rc<RefCell<Node>>> = Vec::new();    
         // generate all crossings
         for json_crossing in json_representation.crossings.iter() {
             // create nodes from json object
             let new_crossing = match json_crossing.is_io_node {
-                true => IONode::new().into(),
-                false => Crossing::new().into()
+                true => Rc::new(RefCell::new(IONode::new().into())),
+                false => Rc::new(RefCell::new(Crossing::new().into()))
             };
             crossings.push(new_crossing);
         }
@@ -115,7 +118,7 @@ impl Simulator {
                     );
                 }
                 // Make sure the connection doesn't already exist
-                if simulator.nodes.get(i).unwrap().is_connected(*connection_index) {
+                if (**simulator.nodes.get(i).unwrap()).borrow().is_connected(&Rc::downgrade(&simulator.nodes[*connection_index])) {
                     return Err(
                         Box::new(
                             JsonError("Attempt to create the same connection multiple times".to_string())
@@ -138,11 +141,10 @@ impl Simulator {
             );
         } 
         // create a new street to connect them
-        let new_street: Node = Street {connection: Some(inode2), lanes, car_lane: Traversible::<RandCar>::new(100.0)}.into();
+        let new_street: Rc<RefCell<Node>> = Rc::new(RefCell::new(Street::new().lanes(lanes).into()));
+        (*new_street).borrow_mut().connect(&self.nodes[inode2]); 
+        (*self.nodes[inode1]).borrow_mut().connect(&new_street);
         self.nodes.push(new_street);
-        let street_index = self.nodes.len() - 1;
-        // get the starting node
-        self.nodes[inode1].connect(street_index);
         Ok(())
     }
     
@@ -150,11 +152,15 @@ impl Simulator {
     /// nodes
     pub fn update_all_nodes(&mut self, dt: f64) {
         for i in 0..self.nodes.len() {
-            let mut cars_at_end = self.nodes[i].update_cars(dt);
-            let options = self.nodes[i].get_connections();
+            let mut cars_at_end = (*self.nodes[i]).borrow_mut().update_cars(dt);
+            let node =  (*self.nodes[i]).borrow();
+            let options = node.get_connections();
             for j in cars_at_end.len()..0 {
                 let next_i = cars_at_end[j].decide_next(&options);
-                self.nodes[*next_i].add_car(cars_at_end.pop().unwrap());
+                if let Some(reference) = next_i.upgrade() {
+                    (*reference).borrow_mut().add_car(cars_at_end.pop().unwrap());
+                }
+
             }
         }
     }
@@ -212,12 +218,22 @@ impl Display for Simulator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut s = String::from("Simulator {\n\tnodes: [\n");
         for (i, n) in self.nodes.iter().enumerate() {
+            let name = (**n).borrow().name();
             s.push_str(
-                &format!("\t\t{}: {} ->\t", i, n.name())
+                &format!("\t\t{}: {} ->\t", i, name)
             );
-            for connection in n.get_connections().iter() {
+            for _connection in (**n).borrow().get_connections().iter() {
+                // find the index
+                let mut index = 0;
+                for (i, node) in self.nodes.iter().enumerate() {
+                    if ptr::eq(n, node) {
+                        index = i;
+                        break;
+                    }
+                }
+                
                 s.push_str(
-                    &format!("{}, ", &connection)
+                    &format!("{}, ", &index)
                 );
             }
             s.push_str("\n")
