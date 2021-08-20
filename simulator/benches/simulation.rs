@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId};
 use simulator::simple::simulation::Simulator;
 use simulator::simple::node::{Street, IONode, Crossing};
 
@@ -97,14 +97,25 @@ fn build_grid_sim(grid_side_len: u32) -> Simulator{
 }
 
 fn simulation_performance_bench(c: &mut Criterion) {
-    let mut sim = build_grid_sim(100);
-    // iterate a few times to get the cars to enter the simulation
-    for _ in 0..0100 {
-        sim.sim_iter(1.0)
+    let mut group = c.benchmark_group("simulation_performance_bench");
+    let mut size: u32 = 100;
+    for _i in 1..5 {
+        size *= 2;
+        let mut sim = build_grid_sim(size);
+        // iterate a few times to get the cars to enter the simulation
+        for _ in 0..100 {
+            sim.sim_iter(1.0)
+        }
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &_size|{
+            b.iter(
+                || {
+                    sim.sim_iter(1.0)
+                }
+            )
+        });
+
     }
-    c.bench_function("simulator (grid side len 100) 10000 iter 1 sec virt delay", 
-        |b| b.iter(|| sim.sim_iter(black_box(1.0)))
-    );
+    group.finish()
 }
 
 criterion_group!(benches, simulation_performance_bench);

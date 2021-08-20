@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use simulator::simple::simulation::Simulator;
 use simulator::simple::node::{Street, IONode, Crossing};
 
@@ -97,11 +97,20 @@ fn build_grid_sim(grid_side_len: u32) -> Simulator{
 }
 
 fn performance_simulation_creation(c: &mut Criterion) {
-    c.bench_function("Simulation creating grid 100x100 Crossings connected with streets", 
-        |b| b.iter(|| {
-            build_grid_sim(black_box(100));
-        })
-    );
+    let mut group = c.benchmark_group("performance_simulation_creation");
+    let mut size: u32 = 100;
+    for _i in 1..4 {
+        size *= 2;
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &_size|{
+            b.iter(
+                || {
+                    build_grid_sim(size);
+                }
+            )
+        });
+
+    }
+    group.finish()
 }
 
 criterion_group!(benches, performance_simulation_creation);
