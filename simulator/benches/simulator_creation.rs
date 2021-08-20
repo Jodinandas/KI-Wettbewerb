@@ -6,7 +6,10 @@ fn performance_simulation_creation(c: &mut Criterion) {
     let mut size: u32 = 100;
     for _i in 1..4 {
         size *= 2;
-        let sim_builder = build_grid_sim(size);
+        let mut sim_builder = build_grid_sim(size);
+        // build once to populate the cache
+        let build = sim_builder.build();
+        println!("Build finished with {} nodes", build.nodes.len());
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &_size|{
             b.iter(
                 || {

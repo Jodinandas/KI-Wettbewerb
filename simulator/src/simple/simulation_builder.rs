@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use super::node::{IONode, Node, Street, Crossing};
+use super::node::Node;
 use super::super::traits::NodeTrait;
 use super::node_builder::{CrossingBuilder, IONodeBuilder, NodeBuilder, StreetBuilder};
 use super::node_builder::NodeBuilderTrait;
@@ -51,6 +51,7 @@ pub struct SimulatorBuilder {
     /// A list of all the crossings
     nodes: Vec<NodeBuilder>,
     max_iter: Option<usize>,
+    pub cache: Option<Vec<Rc<RefCell<Node>>>>,
     delay: u64
 }
 
@@ -60,7 +61,8 @@ impl SimulatorBuilder {
         SimulatorBuilder {
             nodes: Vec::new(),
             max_iter: None,
-            delay: 0
+            delay: 0,
+            cache: None
         }
     }
     /// creates a `Simulator` object from a `&str` formatted in a json-like way
@@ -131,7 +133,14 @@ impl SimulatorBuilder {
         self.nodes[inode1].connect(street_i);
         Ok(())
     }
-    pub fn build(&self) -> Simulator {
+    pub fn build(&mut self) -> Simulator {
+        if let Some(cache) = &self.cache {
+            return Simulator {
+                nodes: cache.clone(),
+                max_iter: self.max_iter,
+                delay: self.delay
+            }
+        }
         let mut sim_nodes: Vec<Rc<RefCell<Node>>> = Vec::new();
         // create the nodes
         self.nodes.iter().for_each(|n| {
@@ -148,7 +157,7 @@ impl SimulatorBuilder {
                 (*starting_node).borrow_mut().connect(end_node);
             });
         });
-        
+        self.cache = Some(sim_nodes.clone());
         Simulator {
             nodes: sim_nodes,
             max_iter: self.max_iter,

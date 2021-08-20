@@ -5,7 +5,6 @@ use std::rc::Rc;
 use std::{cmp, ptr, thread};
 use std::time::{Duration, SystemTime};
 use crate::traits::NodeTrait;
-use super::node::*;
 use super::super::traits::Movable;
 
 use super::node::Node;
