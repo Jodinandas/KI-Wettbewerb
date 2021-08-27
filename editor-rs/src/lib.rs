@@ -20,5 +20,6 @@ fn ui_example(egui_context: ResMut<EguiContext>) {
         .default_width(300.0)
         .show(egui_context.ctx(), |ui| {
             ui.heading("ItemEditor");
+            ui.separator();
         });
 }

@@ -4,6 +4,8 @@ version = "0.1.0"
 authors = ["Ferdinand Pamberger <fiesereiswuerfel@gmail.com>"]
 edition = "2018"
 resolver = "2"
+# Make sure this binary is run when "cargo run" is used in the workspace
+default-run = "editor-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
