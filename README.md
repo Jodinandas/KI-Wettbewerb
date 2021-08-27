@@ -16,7 +16,7 @@
 * Implement basic canvas-ish are in the middle to display output
     from bevy
 * Add egui library and build the Buttons etc.
-    * Look at how to implement 2-way coupling. *I think, egui redraws
+    * Look at how to implement 2-way coupling. *I think*, egui redraws
         the user interface everytime something changes, so two way coupling
         boils down to the question how to redraw the UI when some variable
         in the background changes. (I also don't know how to call a callback
