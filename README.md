@@ -13,7 +13,7 @@
 * Implement speed limit and length of streets in frontend
 
 ## TODO (Frontend: bevy + egui)
-* Implement basic canvas-ish are in the middle to display output
+* Implement basic canvas-ish in the middle to display output
     from bevy
 * Add egui library and build the Buttons etc.
     * Look at how to implement 2-way coupling. *I think*, egui redraws
