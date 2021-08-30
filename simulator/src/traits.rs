@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::error::Error;
 use std::rc::{Rc, Weak};
 use std::fmt::Debug;
 use enum_dispatch::enum_dispatch;
