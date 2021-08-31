@@ -1,9 +1,11 @@
+use std::fmt::Result;
 use std::{ptr, vec};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
 use super::super::traits::NodeTrait;
 use enum_dispatch::enum_dispatch;
+use rand::Error;
 use super::traversible::Traversible;
 use super::movable::RandCar;
 
@@ -75,6 +77,7 @@ impl NodeTrait for Crossing {
     fn add_car(&mut self, car: RandCar) {
         self.car_lane.add(car)
     }
+    
 }
 /// A Node that represents either the start of the simulation or the end of it
 /// 

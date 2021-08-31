@@ -1,4 +1,4 @@
-use super::super::traits::Movable;
+use super::{super::traits::Movable, movable::RandCar};
 
 
 /// This structs represents a sidewalk, a street or something else that can be walked on

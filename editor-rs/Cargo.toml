@@ -1,0 +1,34 @@
+[package]
+name = "editor-rs"
+version = "0.1.0"
+authors = ["Ferdinand Pamberger <fiesereiswuerfel@gmail.com>"]
+edition = "2018"
+resolver = "2"
+# Make sure this binary is run when "cargo run" is used in the workspace
+default-run = "editor-rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# Dependencies for all targets go here.
+[dependencies]
+wasm-bindgen = "0.2"
+egui="0.14"
+bevy_egui = "0.6"
+simulator = { path = "../simulator" }
+enum_dispatch = "0.3"
+# bevy_webgl2 = "0.5"
+
+# Dependencies for native only.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+egui="0.14"
+# REMOVE DYNCAMIC BEFORE FINAL RELEASE
+bevy = {version = "0.5", default-features = false, features = ["bevy_wgpu", "bevy_winit", "render", "x11", "dynamic"]}
+
+# Dependencies for WASM only.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+bevy = {version = "0.5", default-features = false, features = ["bevy_winit", "render"]}
+# For error messages
+console_error_panic_hook = "0.1"
