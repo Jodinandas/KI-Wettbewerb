@@ -1,10 +1,9 @@
 use std::cell::RefCell;
-use std::error::Error;
-use std::rc::{Rc, Weak};
 use std::fmt::Debug;
-use enum_dispatch::enum_dispatch;
-use crate::simple::movable::RandCar;
+use std::error::Error;
 
+
+use crate::simple::movable::RandCar;
 use super::simple::node::*;
 
 
@@ -28,14 +27,36 @@ use super::simple::node::*;
 /// ```
 /// (Of course, all the trait implementations are ommited, but even with,
 /// using traits the first example wouldn't be too different)
-#[enum_dispatch]
-pub trait NodeTrait : Debug {
-    fn is_connected(&self, other: &Weak<RefCell<Node>>) -> bool;
-    fn connect(&mut self, other: &Rc<RefCell<Node>>);
-    fn update_cars(&mut self, t: f64) -> Vec<RandCar>;
-    fn get_connections(&self) -> &Vec<Weak<RefCell<Node>>>;
-    fn add_car(&mut self, car: RandCar);
+pub trait NodeTrait<Car=RandCar> : Debug {
+    fn is_connected(&self, other: &usize) -> bool;
+    fn connect(&mut self, other: &usize);
+    fn update_cars(&mut self, t: f64) -> Vec<Car>;
+    fn get_connections(&self) -> &Vec<usize>;
+    fn add_car(&mut self, car: Car);
 }
+
+
+trait MyTraitClone {
+    fn clone_box(&self) -> Box<NodeTrait>;
+}
+
+impl<T> for MyTraitClone for T where
+    T: 'static + MyTrait + Clone {
+        fn clone_box(&self) -> Box<NodeTrait> {
+            Box::new(self.clone())
+        }
+    }
+impl Clone for Box<MyTrait> {
+    fn clone(&self) -> Box<MyTrait> {
+        self.clone_box()
+    }
+}
+impl Clone for Box<dyn NodeTrait> {
+    fn clone(&self) -> Self {
+        
+    }
+}
+
 
 /// This trait represents some kind of movable
 /// 
@@ -43,9 +64,13 @@ pub trait NodeTrait : Debug {
 ///  use the delta t when updating to weigh a chance of 
 /// come action taking place internally. Example: Going into a shop
 /// for 10 min or maybe someone tripping 
-pub trait Movable : Debug {
+pub trait Movable : Debug + Sized {
     fn get_speed(&self) -> f32;
     fn set_speed(&mut self, s: f32);
     fn update(&mut self, t: f64);
-    fn decide_next<'a>(&mut self, connections: &'a Vec<Weak<RefCell<Node>>>) -> &'a Weak<RefCell<Node>>;
+    /// Decides the next node for the movable to move to 
+    ///
+    /// It can very well happen that the next node can't be determined
+    /// if the part of the program that figures out the paths makes a mistake
+    fn decide_next(&mut self, connections: &Vec<usize>) -> Result<usize, Box<dyn Error>>;
 }

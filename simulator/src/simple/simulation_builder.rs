@@ -1,6 +1,5 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use super::node::Node;
 use super::super::traits::NodeTrait;
 use super::node_builder::{CrossingBuilder, IONodeBuilder, NodeBuilder, StreetBuilder};
 use super::node_builder::NodeBuilderTrait;
@@ -51,7 +50,7 @@ pub struct SimulatorBuilder {
     /// A list of all the crossings
     nodes: Vec<NodeBuilder>,
     max_iter: Option<usize>,
-    pub cache: Option<Vec<Rc<RefCell<Node>>>>,
+    pub cache: Option<Vec<Box<dyn NodeTrait>>>,
     delay: u64
 }
 
@@ -136,25 +135,24 @@ impl SimulatorBuilder {
     pub fn build(&mut self) -> Simulator {
         if let Some(cache) = &self.cache {
             return Simulator {
-                nodes: cache.clone(),
+                nodes: *cache.clone(),
                 max_iter: self.max_iter,
                 delay: self.delay
             }
         }
-        let mut sim_nodes: Vec<Rc<RefCell<Node>>> = Vec::new();
+        let mut sim_nodes: Vec<Box<dyn NodeTrait>> = Vec::new();
+        sim_nodes.reserve(self.nodes.len());
         // create the nodes
         self.nodes.iter().for_each(|n| {
             sim_nodes.push(
-                Rc::new(RefCell::new(n.build()))
+                n.build()
             )
         });
         // create the connections
         self.nodes.iter().enumerate().for_each(|(i, n)| {
-            // FIXME: possible speed improvement by not using Rc::clone here
-            let starting_node = Rc::clone(&sim_nodes[i]);
+            let starting_node = sim_nodes[i];
             n.get_connections().iter().for_each(|c| {
-                let end_node = &sim_nodes[*c];
-                (*starting_node).borrow_mut().connect(end_node);
+                starting_node.connect(c);
             });
         });
         self.cache = Some(sim_nodes.clone());

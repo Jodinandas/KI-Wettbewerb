@@ -1,5 +1,5 @@
 use enum_dispatch::enum_dispatch;
-use super::{movable::RandCar, node::{IONode, Node, Street, Crossing}, traversible::Traversible};
+use super::{movable::RandCar, node::{IONode, Street, Crossing}, traversible::Traversible};
 
 
 #[enum_dispatch]
@@ -9,7 +9,6 @@ pub trait NodeBuilderTrait {
     fn connect(&mut self, i: usize);
 }
 
-#[enum_dispatch(NodeBuilderTrait)]
 #[derive(Debug)]
 pub enum NodeBuilder {
     StreetBuilder,

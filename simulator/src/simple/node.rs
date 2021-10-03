@@ -10,42 +10,10 @@ use super::traversible::Traversible;
 use super::movable::RandCar;
 
 
-/// This enum represents all types of simulation data types
-///
-/// the connections are not saved as references, but rather as
-/// indices in the list of all parts of the simulation, to avoid
-/// the overhead (and tremendous complexity and annoyance of using
-/// these types of e.g. a nested ```Weak<RefCell<Node>>```
-///
-/// The consequence of this way of organizing the data is that
-/// things like moving cars from one ```Node``` to another has
-/// to be done by the simulator and not by functions implemented
-/// in the Node.
-#[enum_dispatch(NodeTrait)]
-#[derive(Debug)]
-pub enum Node {
-    Crossing,
-    IONode,
-    Street
-}
-
-impl Node {
-    /// Returns the name of the variant
-    ///
-    /// primarily for use in displaying. Not very efficient
-    pub fn name(&self) -> String {
-        match self {
-            Node::Crossing(_i) => "Crossing".to_owned(),
-            Node::IONode(_i) => "IONode".to_owned(),
-            Node::Street(_i) => "Street".to_owned()
-        }
-    }
-}
-
 /// A simple crossing
 #[derive(Debug)]
 pub struct Crossing {
-    pub connections: Vec<Weak<RefCell<Node>>>,
+    pub connections: Vec<usize>,
     pub car_lane: Traversible<RandCar>
 }
 impl Crossing {
@@ -57,16 +25,16 @@ impl Crossing {
     }
 }
 impl NodeTrait for Crossing {
-    fn is_connected(&self, other: &Weak<RefCell<Node>>) -> bool {
+    fn is_connected(&self, other: &usize) -> bool {
         self.connections.iter().find_map(|c| {
             Some(ptr::eq(c, other))
         }).is_some()
     }
 
-    fn connect(&mut self, other: &Rc<RefCell<Node>>) {
-        self.connections.push(Rc::downgrade(other))
+    fn connect(&mut self, other: &usize) {
+        self.connections.push(*other)
     }
-    fn get_connections(&self) -> &Vec<Weak<RefCell<Node>>> {
+    fn get_connections(&self) -> &Vec<usize> {
         &self.connections
     }
     
@@ -84,7 +52,7 @@ impl NodeTrait for Crossing {
 /// One of its responsibilities is to add cars and passengers to the simulation
 #[derive(Debug)]
 pub struct IONode{
-    pub connections: Vec<Weak<RefCell<Node>>>,
+    pub connections: Vec<usize>,
     pub spawn_rate: f64,
     pub time_since_last_spawn: f64
 }
@@ -103,16 +71,16 @@ impl IONode{
     }
 }
 impl NodeTrait for IONode {
-    fn is_connected(&self, other: &Weak<RefCell<Node>>) -> bool {
+    fn is_connected(&self, other: &usize) -> bool {
         self.connections.iter().find_map(|c| {
             Some(ptr::eq(c, other))
         }).is_some()
     }
 
-    fn connect(&mut self, other: &Rc<RefCell<Node>>) {
-        self.connections.push(Rc::downgrade(other))
+    fn connect(&mut self, other: &usize) {
+        self.connections.push(*other)
     }
-    fn get_connections(&self) -> &Vec<Weak<RefCell<Node>>> {
+    fn get_connections(&self) -> &Vec<usize> {
         &self.connections
     }
     /// Spawn cars
@@ -137,7 +105,7 @@ impl NodeTrait for IONode {
 /// - `lanes` stores how many lanes the `Street` has
 #[derive(Debug)]
 pub struct Street{
-    pub connection: Vec<Weak<RefCell<Node>>>,
+    pub connection: Vec<usize>,
     pub lanes: u8,
     pub car_lane: Traversible<RandCar>
 } 
@@ -155,17 +123,17 @@ impl Street {
     }
 }
 impl NodeTrait for Street {
-    fn is_connected(&self, other: &Weak<RefCell<Node>>) -> bool {
+    fn is_connected(&self, other: &usize) -> bool {
         self.connection.iter().find_map(|c| {
             Some(ptr::eq(c, other))
         }).is_some()
     }
 
-    fn connect(&mut self, other: &Rc<RefCell<Node>>) {
+    fn connect(&mut self, other: &usize) {
         self.connection.clear();
-        self.connection.push(Rc::downgrade(other))
+        self.connection.push(*other)
     }
-    fn get_connections(&self) -> &Vec<Weak<RefCell<Node>>> {
+    fn get_connections(&self) -> &Vec<usize> {
         &self.connection
     }
 

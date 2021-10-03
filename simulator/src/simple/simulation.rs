@@ -6,8 +6,7 @@ use std::{cmp, ptr, thread};
 use std::time::{Duration, SystemTime};
 use crate::traits::NodeTrait;
 use super::super::traits::Movable;
-
-use super::node::Node;
+use super::movable::RandCar;
 
 
 /// A struct representing the street network
@@ -17,7 +16,7 @@ use super::node::Node;
 #[derive(Debug)]
 pub struct Simulator {
     /// A list of all the crossings
-    pub nodes: Vec<Rc<RefCell<Node>>>,
+    pub nodes: Vec<Box<dyn NodeTrait>>,
     pub max_iter: Option<usize>,
     pub delay: u64
 }
@@ -46,15 +45,21 @@ impl Simulator {
     /// nodes
     pub fn update_all_nodes(&mut self, dt: f64) {
         for i in 0..self.nodes.len() {
-            let mut cars_at_end = (*self.nodes[i]).borrow_mut().update_cars(dt);
-            let node =  (*self.nodes[i]).borrow();
+            let mut node =  self.nodes[i];
+            let mut cars_at_end = node.update_cars(dt);
             let options = node.get_connections();
             for j in cars_at_end.len()..0 {
-                let next_i = cars_at_end[j].decide_next(&options);
-                if let Some(reference) = next_i.upgrade() {
-                    (*reference).borrow_mut().add_car(cars_at_end.pop().unwrap());
-                }
+                let next_i = cars_at_end[j].decide_next(options);
+                match next_i {
+                    Err(error) => {
+                        println!("Unable to decide next node for car with index {} at node {}", j, i);
+                    },
+                    Ok(next_node) => {
+                        let mut node = self.nodes[next_node];
+                        node.add_car(cars_at_end.pop().unwrap())
+                    }
 
+                }
             }
         }
     }
@@ -90,6 +95,12 @@ impl Simulator {
     }
     
 }
+
+
+fn get_type_of<T>(_: &T) -> &'static str {
+    std::any::type_name::<T>()
+}
+
 /// Display to make it easier to check the connections etc.
 /// 
 /// # Intended look
@@ -104,11 +115,11 @@ impl Display for Simulator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut s = String::from("Simulator {\n\tnodes: [\n");
         for (i, n) in self.nodes.iter().enumerate() {
-            let name = (**n).borrow().name();
+            let name = get_type_of(&*n);
             s.push_str(
                 &format!("\t\t{}: {} ->\t", i, name)
             );
-            for _connection in (**n).borrow().get_connections().iter() {
+            for _connection in (**n).get_connections().iter() {
                 // find the index
                 let mut index = 0;
                 for (i, node) in self.nodes.iter().enumerate() {
