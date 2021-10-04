@@ -4,6 +4,7 @@ use super::{super::traits::Movable};
 use rand::Rng;
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct RandPerson {
     speed: f32,
 }
@@ -19,6 +20,7 @@ impl Movable for RandPerson {
 }
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct RandCar {
     speed: f32
 }
@@ -37,6 +39,6 @@ impl Movable for RandCar {
     fn update(&mut self, _t: f64) {}
     fn decide_next(&mut self, connections: &Vec<usize>) -> Result<usize, Box<dyn Error>> {
         let i = rand::thread_rng().gen_range(0..connections.len());
-        Ok(connections[i])
+        Ok(connections[i].clone())
     }
 }

@@ -12,6 +12,7 @@ use super::movable::RandCar;
 
 /// A simple crossing
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct Crossing {
     pub connections: Vec<usize>,
     pub car_lane: Traversible<RandCar>
@@ -51,6 +52,7 @@ impl NodeTrait for Crossing {
 /// 
 /// One of its responsibilities is to add cars and passengers to the simulation
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct IONode{
     pub connections: Vec<usize>,
     pub spawn_rate: f64,
@@ -104,6 +106,7 @@ impl NodeTrait for IONode {
 /// # Fields
 /// - `lanes` stores how many lanes the `Street` has
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct Street{
     pub connection: Vec<usize>,
     pub lanes: u8,

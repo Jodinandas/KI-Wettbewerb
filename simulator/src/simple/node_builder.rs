@@ -1,20 +1,18 @@
+use std::fmt::Debug;
+
 use enum_dispatch::enum_dispatch;
+use crate::traits::NodeTrait;
+
 use super::{movable::RandCar, node::{IONode, Street, Crossing}, traversible::Traversible};
 
 
 #[enum_dispatch]
-pub trait NodeBuilderTrait {
-    fn build(&self) -> Node;
+pub trait NodeBuilderTrait : Debug {
+    fn build(&self) -> Box<dyn NodeTrait>;
     fn get_connections(&self) -> &Vec<usize>;
     fn connect(&mut self, i: usize);
 }
 
-#[derive(Debug)]
-pub enum NodeBuilder {
-    StreetBuilder,
-    IONodeBuilder,
-    CrossingBuilder
-}
 #[derive(Debug)]
 pub struct StreetBuilder {
     /// indices in SimulationBuilder
@@ -23,12 +21,12 @@ pub struct StreetBuilder {
     lane_length: f32 
 }
 impl NodeBuilderTrait for StreetBuilder {
-    fn build(&self) -> Node {
-        Street {
+    fn build(&self) -> Box<dyn NodeTrait> {
+        Box::new(Street {
             connection: Vec::new(),
             lanes: self.lanes,
             car_lane: Traversible::<RandCar>::new(self.lane_length),
-        }.into()
+        })
     }
     fn get_connections(&self) -> &Vec<usize> {
         &self.connection
@@ -62,12 +60,12 @@ pub struct IONodeBuilder {
     connections: Vec<usize>
 }
 impl NodeBuilderTrait for IONodeBuilder {
-    fn build(&self) -> Node {
-        IONode {
+    fn build(&self) -> Box<dyn NodeTrait>{
+        Box::new(IONode {
             connections: Vec::new(),
             spawn_rate: 1.0,
             time_since_last_spawn: 0.0
-        }.into()
+        })
     }
     fn get_connections(&self) -> &Vec<usize> {
         &self.connections
@@ -91,11 +89,11 @@ pub struct CrossingBuilder {
     length: f32
 }
 impl NodeBuilderTrait for CrossingBuilder {
-    fn build(&self) -> Node {
-        Crossing {
+    fn build(&self) -> Box<dyn NodeTrait> {
+        Box::new(Crossing {
             connections: Vec::new(),
             car_lane: Traversible::<RandCar>::new(self.length)
-        }.into()
+        })
     }
     fn get_connections(&self) -> &Vec<usize> {
         &self.connections

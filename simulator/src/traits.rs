@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::error::Error;
+use dyn_clone::DynClone;
 
 
 use crate::simple::movable::RandCar;
@@ -27,7 +28,7 @@ use super::simple::node::*;
 /// ```
 /// (Of course, all the trait implementations are ommited, but even with,
 /// using traits the first example wouldn't be too different)
-pub trait NodeTrait<Car=RandCar> : Debug {
+pub trait NodeTrait<Car=RandCar> : Debug + DynClone {
     fn is_connected(&self, other: &usize) -> bool;
     fn connect(&mut self, other: &usize);
     fn update_cars(&mut self, t: f64) -> Vec<Car>;
@@ -35,27 +36,8 @@ pub trait NodeTrait<Car=RandCar> : Debug {
     fn add_car(&mut self, car: Car);
 }
 
-
-trait MyTraitClone {
-    fn clone_box(&self) -> Box<NodeTrait>;
-}
-
-impl<T> for MyTraitClone for T where
-    T: 'static + MyTrait + Clone {
-        fn clone_box(&self) -> Box<NodeTrait> {
-            Box::new(self.clone())
-        }
-    }
-impl Clone for Box<MyTrait> {
-    fn clone(&self) -> Box<MyTrait> {
-        self.clone_box()
-    }
-}
-impl Clone for Box<dyn NodeTrait> {
-    fn clone(&self) -> Self {
-        
-    }
-}
+// make it possible to derive Clone for structs with Box<dyn NodeTrait>
+dyn_clone::clone_trait_object!(NodeTrait);
 
 
 /// This trait represents some kind of movable

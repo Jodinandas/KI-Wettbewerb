@@ -5,7 +5,7 @@ use std::rc::Rc;
 use std::{cmp, ptr, thread};
 use std::time::{Duration, SystemTime};
 use crate::traits::NodeTrait;
-use super::super::traits::Movable;
+use crate::traits::Movable;
 use super::movable::RandCar;
 
 
@@ -45,17 +45,18 @@ impl Simulator {
     /// nodes
     pub fn update_all_nodes(&mut self, dt: f64) {
         for i in 0..self.nodes.len() {
-            let mut node =  self.nodes[i];
+            let node = &mut self.nodes[i];
             let mut cars_at_end = node.update_cars(dt);
-            let options = node.get_connections();
+            // TODO: Use something more efficient than cloning the whole Vec here
+            let options = node.get_connections().clone();
             for j in cars_at_end.len()..0 {
-                let next_i = cars_at_end[j].decide_next(options);
+                let next_i: Result<usize, Box<dyn Error>> = cars_at_end[j].decide_next(&options);
                 match next_i {
-                    Err(error) => {
+                    Err(_) => {
                         println!("Unable to decide next node for car with index {} at node {}", j, i);
                     },
                     Ok(next_node) => {
-                        let mut node = self.nodes[next_node];
+                        let node = &mut self.nodes[next_node];
                         node.add_car(cars_at_end.pop().unwrap())
                     }
 
