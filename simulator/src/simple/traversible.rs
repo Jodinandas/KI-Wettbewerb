@@ -4,7 +4,7 @@ use super::{super::traits::Movable, movable::RandCar};
 /// This structs represents a sidewalk, a street or something else that can be walked on
 #[derive(Debug)]
 #[derive(Clone)]
-pub struct Traversible<T: Movable> {
+pub struct Traversible<T=RandCar> where T: Movable{
     /// These are for example people, cars, bycicles etc.
     movables: Vec<(T, f32)>,
     /// The total length of the traversible

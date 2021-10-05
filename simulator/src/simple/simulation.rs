@@ -1,12 +1,9 @@
-use std::cell::RefCell;
 use std::error::Error;
 use std::fmt::{self, Display};
-use std::rc::Rc;
 use std::{cmp, ptr, thread};
 use std::time::{Duration, SystemTime};
 use crate::traits::NodeTrait;
 use crate::traits::Movable;
-use super::movable::RandCar;
 
 
 /// A struct representing the street network

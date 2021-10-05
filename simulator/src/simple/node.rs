@@ -1,4 +1,4 @@
-use std::{ptr, vec};
+use std::vec;
 
 use super::super::traits::NodeTrait;
 use super::traversible::Traversible;
@@ -30,6 +30,7 @@ impl NodeTrait for Crossing {
     fn connect(&mut self, other: &usize) {
         self.connections.push(*other)
     }
+    
     fn get_connections(&self) -> &Vec<usize> {
         &self.connections
     }
@@ -54,17 +55,12 @@ pub struct IONode{
     pub time_since_last_spawn: f64
 }
 impl IONode{
-    pub fn new() -> IONode {
-        IONode {
+    pub fn new() -> Self {
+        Self {
             connections: vec![],
             spawn_rate: 1.0,
             time_since_last_spawn: 0.0
         }
-    }
-    // Spawn rate in cars / second
-    pub fn spawn_rate(&mut self, rate: f64) -> &mut IONode {
-        self.spawn_rate = rate;
-        self
     }
 }
 impl NodeTrait for IONode {
@@ -91,6 +87,7 @@ impl NodeTrait for IONode {
         }
         new_cars
     }
+
     fn add_car(&mut self, car: RandCar) {
         drop(car)
     }
@@ -107,6 +104,7 @@ pub struct Street{
     pub lanes: u8,
     pub car_lane: Traversible<RandCar>
 } 
+
 impl Street {
     pub fn new() -> Street{
         Street {
@@ -114,10 +112,6 @@ impl Street {
             lanes: 1,
             car_lane: Traversible::<RandCar>::new(100.0)
         }
-    }
-    pub fn lanes(mut self, lanes: u8) -> Street {
-        self.lanes = lanes;
-        self
     }
 }
 impl NodeTrait for Street {
@@ -138,6 +132,7 @@ impl NodeTrait for Street {
     fn update_cars(&mut self, t: f64) -> Vec<RandCar> {
         self.car_lane.update_movables(t)
     }
+
     fn add_car(&mut self, car: RandCar) {
         self.car_lane.add(car);
     }
