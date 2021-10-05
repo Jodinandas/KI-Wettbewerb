@@ -1,11 +1,6 @@
-use std::fmt::Result;
 use std::{ptr, vec};
-use std::cell::RefCell;
-use std::rc::{Rc, Weak};
 
 use super::super::traits::NodeTrait;
-use enum_dispatch::enum_dispatch;
-use rand::Error;
 use super::traversible::Traversible;
 use super::movable::RandCar;
 
@@ -27,8 +22,8 @@ impl Crossing {
 }
 impl NodeTrait for Crossing {
     fn is_connected(&self, other: &usize) -> bool {
-        self.connections.iter().find_map(|c| {
-            Some(ptr::eq(c, other))
+        self.connections.iter().find(|c| {
+           *c == other 
         }).is_some()
     }
 
@@ -74,8 +69,8 @@ impl IONode{
 }
 impl NodeTrait for IONode {
     fn is_connected(&self, other: &usize) -> bool {
-        self.connections.iter().find_map(|c| {
-            Some(ptr::eq(c, other))
+        self.connections.iter().find(|c| {
+           *c == other 
         }).is_some()
     }
 
@@ -127,8 +122,8 @@ impl Street {
 }
 impl NodeTrait for Street {
     fn is_connected(&self, other: &usize) -> bool {
-        self.connection.iter().find_map(|c| {
-            Some(ptr::eq(c, other))
+        self.connection.iter().find(|c| {
+           *c == other 
         }).is_some()
     }
 
