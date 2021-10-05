@@ -29,7 +29,7 @@ dyn_clone::clone_trait_object!(NodeTrait);
 ///  use the delta t when updating to weigh a chance of 
 /// come action taking place internally. Example: Going into a shop
 /// for 10 min or maybe someone tripping 
-pub trait Movable : Debug + Sized {
+pub trait Movable : Debug + DynClone {
     fn get_speed(&self) -> f32;
     fn set_speed(&mut self, s: f32);
     fn update(&mut self, t: f64);
@@ -39,3 +39,6 @@ pub trait Movable : Debug + Sized {
     /// if the part of the program that figures out the paths makes a mistake
     fn decide_next(&mut self, connections: &Vec<usize>) -> Result<usize, Box<dyn Error>>;
 }
+
+// make it possible to derive Clone for structs with Box<dyn Movable>
+dyn_clone::clone_trait_object!(Movable);
