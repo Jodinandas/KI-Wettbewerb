@@ -38,16 +38,16 @@ impl NodeBuilderTrait for StreetBuilder {
 }
 
 impl StreetBuilder {
-    pub fn length(mut self, length: f32) -> StreetBuilder {
+    pub fn length(mut self, length: f32) -> Self {
         self.lane_length = length;
         self
     }
-    pub fn lanes(mut self, lanes: u8) -> StreetBuilder  {
+    pub fn lanes(mut self, lanes: u8) -> Self {
         self.lanes = lanes;
         self
     }
-    pub fn new() -> StreetBuilder {
-        StreetBuilder {
+    pub fn new() -> Self {
+        Self {
             connection: Vec::new(),
             lanes: 1,
             lane_length: 100.0
@@ -57,13 +57,14 @@ impl StreetBuilder {
 
 #[derive(Debug)]
 pub struct IONodeBuilder {
-    connections: Vec<usize>
+    connections: Vec<usize>,
+    spawn_rate: f64
 }
 impl NodeBuilderTrait for IONodeBuilder {
     fn build(&self) -> Box<dyn NodeTrait>{
         Box::new(IONode {
             connections: Vec::new(),
-            spawn_rate: 1.0,
+            spawn_rate: self.spawn_rate,
             time_since_last_spawn: 0.0
         })
     }
@@ -77,8 +78,14 @@ impl NodeBuilderTrait for IONodeBuilder {
 impl IONodeBuilder {
     pub fn new() -> IONodeBuilder {
         IONodeBuilder {
-            connections: Vec::new()
+            connections: Vec::new(),
+            spawn_rate: 1.0
         }
+    }
+    // Spawn rate in cars / second
+    pub fn spawn_rate(&mut self, rate: f64) -> &mut Self {
+        self.spawn_rate = rate;
+        self
     }
 }
 
