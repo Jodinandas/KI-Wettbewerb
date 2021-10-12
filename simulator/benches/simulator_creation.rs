@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use simulator::build_grid::build_grid_sim;
+use simulator::debug::build_grid_sim;
 
 fn performance_simulation_creation(c: &mut Criterion) {
     let mut group = c.benchmark_group("performance_simulation_creation");

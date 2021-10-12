@@ -11,7 +11,7 @@ use crate::simple::movable::RandCar;
 /// All Node variants must implement this trait
 /// 
 /// The nodes are mostly used in the form of `Box<dyn Node>`
-pub trait NodeTrait<Car=RandCar> : Debug + DynClone {
+pub trait NodeTrait<Car=RandCar> : Debug + DynClone + Send + Sync {
     fn is_connected(&self, other: &usize) -> bool;
     fn connect(&mut self, other: &usize);
     fn update_cars(&mut self, t: f64) -> Vec<Car>;

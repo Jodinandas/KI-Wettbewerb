@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
+use simulator::simple::simulation::Simulator;
 use wasm_bindgen::prelude::*;
+use simulator;
 
 #[derive(PartialEq)]
 pub enum Theme {
@@ -21,16 +23,18 @@ pub struct UIState {
 #[wasm_bindgen]
 pub fn run() {
     let mut app = App::build();
-    app.add_plugins(DefaultPlugins);
-    app.add_plugin(EguiPlugin);
-    app.init_resource::<UIState>();
+    app.add_plugins(DefaultPlugins)
+    .add_plugin(EguiPlugin)
+    .init_resource::<UIState>()
     //app.add_plugins(bevy_webgl2::DefaultPlugins);
     // when building for Web, use WebGL2 rendering
     //#[cfg(target_arch = "wasm32")]
     //app.add_plugin(bevy_webgl2::WebGL2Plugin);
-    app.add_system(ui_example.system());
-    app.insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)));
-    app.run();
+    .add_startup_system(generate_simulation.system())
+    .insert_resource(simulator::debug::build_grid_sim(10).build())
+    .add_system(ui_example.system())
+    .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
+    .run();
 }
 
 /// Draws the ui
@@ -61,4 +65,21 @@ fn ui_example(egui_context: ResMut<EguiContext>, mut ui_state: ResMut<UIState>,)
             ui.separator();
             
         });
+}
+
+fn generate_simulation() {}
+
+pub struct NodeComponent;
+pub struct SimulationIndex(usize);
+
+pub trait Render {
+    fn render(&mut self, node_query: Query<(&SimulationIndex, &Transform), With<NodeComponent>>, sim: Res<Simulator>);
+}
+
+impl Render for Simulator {
+    fn render(&mut self, node_query: Query<(&SimulationIndex, &Transform), With<NodeComponent>>, sim: Res<Simulator>) {
+        for (node_i, transform) in node_query.iter() {
+            
+        }
+    }
 }

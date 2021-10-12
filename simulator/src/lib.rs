@@ -1,4 +1,7 @@
 pub mod simple;
 pub mod traits;
-pub mod build_grid;
+mod build_grid;
 pub mod macros;
+pub mod debug {
+    pub use super::build_grid::*;
+}

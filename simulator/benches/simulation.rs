@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId};
-use simulator::build_grid::build_grid_sim;
+use simulator::debug::build_grid_sim;
 
 
 fn simulation_performance_bench(c: &mut Criterion) {
