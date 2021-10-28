@@ -31,21 +31,7 @@ pub struct Simulator {
 
 
 /// The simulator, the top level struct that is instaniated to simulate traffic
-/// 
-/// # Examples
-/// ## From JSON file
-/// ```
-/// use simulator::simple::simulation::Simulator;
-/// let json: &str = r#"
-/// {"crossings": [
-///     {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]},
-///     {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]},
-///     {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]},
-///     {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]},
-///     {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]},
-///     {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
-/// let mut simulator = Simulator::from_json(json);
-/// ```
+
 impl Simulator {
     
     /// Update all nodes moving the cars and people to the next 
