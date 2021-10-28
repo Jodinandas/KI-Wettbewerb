@@ -1,8 +1,10 @@
-use bevy::prelude::*;
+use std::borrow::BorrowMut;
+
+use bevy::{ecs::system::EntityCommands, math::XYZ, prelude::*};
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
 use simulator::{debug::build_grid_sim, simple::{simulation::Simulator, simulation_builder::SimulatorBuilder}};
 use wasm_bindgen::prelude::*;
-use bevy_prototype_lyon::{prelude::*, shapes::{Polygon, RegularPolygon}};
+use bevy_prototype_lyon::{entity::ShapeBundle, prelude::*, shapes::{Polygon, RegularPolygon}};
 use simulator::simple::node;
 use simulator;
 
@@ -112,56 +114,91 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 /// that is later used to create simulations
 /// 
 /// It also generates the graphics for it
-fn spawn_simulation_builder(mut commands: Commands)  {
+fn spawn_simulation_builder(mut commands: Commands, asset_server: Res<AssetServer>)  {
     // for testing purposes 
     let side_len = 5;
     let spacing = 100;
-    let new_builder = build_grid_sim(5);
+    let new_builder = build_grid_sim(side_len as u32);
+    
+    let calc_x =  | ie | (ie / side_len * spacing) as f32;
+    let calc_y =  | ie | (ie % side_len * spacing ) as f32;// - 4. * (spacing as f32);
 
     
-    new_builder.nodes.iter().enumerate().map(
+    new_builder.nodes.iter().enumerate().for_each(
         | (i, n_builder) | {
+            //const PATH: [usize; 11] = [2, 32, 7, 46, 12, 60, 17, 63, 18, 66, 19];
+            //const PATH: [usize; 7] = [1, 28, 6, 31, 7, 30, 2];
+            //if PATH.contains(&i) {
+            //    return;
+            //}
             match n_builder.generate_graphics_info() {
                 node::graphics::Info::Crossing(_) => {
+                    let test_shape = shapes::RegularPolygon {
+                        sides: 7,
+                        feature: shapes::RegularPolygonFeature::Radius(50.0),
+                        ..shapes::RegularPolygon::default()
+                    };
+                    let geometry = GeometryBuilder::build_as(
+                        &test_shape, 
+                        ShapeColors::outlined(Color::rgb(100., 50., 0.), Color::WHITE), 
+                        DrawMode::Fill(FillOptions::default())
+                        //DrawMode::Outlined {
+                        //    fill_options: FillOptions::default(),
+                        //    outline_options: StrokeOptions::default().with_line_width(10.0)
+                        //}
+                        , Transform::from_xyz(calc_x(i), calc_y(i) ,0.)
+                    );
+                    commands.spawn_bundle(geometry).insert(SimulationIndex(i));
+                    },
+
+                node::graphics::Info::IONode(ninfo) => {
                     let test_shape = shapes::RegularPolygon {
                             sides: 7,
                             feature: shapes::RegularPolygonFeature::Radius(50.0),
                             ..shapes::RegularPolygon::default()
-                        };
-                        let geometry = GeometryBuilder::build_as(
-                            &test_shape, 
-                            ShapeColors::outlined(Color::rgb(100., 50., 0.), Color::WHITE), 
-                            DrawMode::Fill(FillOptions::default())
-                            //DrawMode::Outlined {
-                            //    fill_options: FillOptions::default(),
-                            //    outline_options: StrokeOptions::default().with_line_width(10.0)
-                            //}
-                            , Transform::from_xyz((i % side_len * spacing) as f32, (i / side_len * spacing) as f32 ,0.)
+                    };
+                    let geometry = GeometryBuilder::build_as(
+                        &test_shape, 
+                        ShapeColors::outlined(Color::rgb(0., 100., 0.), Color::WHITE), 
+                        DrawMode::Fill(FillOptions::default())
+                        //DrawMode::Outlined {
+                        //    fill_options: FillOptions::default(),
+                        //    outline_options: StrokeOptions::default().with_line_width(10.0)
+                        //}
+                        , Transform::from_xyz(calc_x(i), calc_y(i) ,0.)
+                    );
+                    commands.spawn_bundle(geometry).insert(SimulationIndex(i));
+                },
+                node::graphics::Info::Street(ninfo) => {
+                    // find node that the street starts at
+                    new_builder.nodes.iter().enumerate()
+                        .filter( | (j, n) | { n.get_connections().contains(&i) } )
+                        .for_each( 
+                            | (j, _n) | {
+                                let end_index = new_builder.nodes[i].get_connections()[0];
+                                let pos_j = Vec2::new(calc_x(j), calc_y(j));
+                                let pos_i = Vec2::new(calc_x(end_index), calc_y(end_index));
+                                println!("I({}): {:?}, J({}): {:?}", i, pos_i, j, pos_j);
+                                let test_shape = shapes::Line(pos_i, pos_j);
+                                let geometry = GeometryBuilder::build_as(
+                                    &test_shape, 
+                                    ShapeColors::outlined(Color::rgb(0., 100., 0.), Color::WHITE), 
+                                    //DrawMode::Fill(FillOptions::default()),
+                                    DrawMode::Outlined {
+                                        fill_options: FillOptions::default(),
+                                        outline_options: StrokeOptions::default().with_line_width(2.0)
+                                    },
+                                    Transform::default()
+                                    // Transform::from_xyz(calc_x(i), calc_y(i), 0.0)
+                                );
+                                commands.spawn_bundle(geometry).insert(SimulationIndex(i));
+                                            
+                            }
                         );
-                        commands.spawn_bundle(geometry).insert(SimulationIndex(i));
-                    },
-                    node::graphics::Info::IONode(ninfo) => {
-                        let test_shape = shapes::RegularPolygon {
-                                sides: 7,
-                                feature: shapes::RegularPolygonFeature::Radius(50.0),
-                                ..shapes::RegularPolygon::default()
-                            };
-                            let geometry = GeometryBuilder::build_as(
-                                &test_shape, 
-                                ShapeColors::outlined(Color::rgb(0., 100., 0.), Color::WHITE), 
-                                DrawMode::Fill(FillOptions::default())
-                                //DrawMode::Outlined {
-                                //    fill_options: FillOptions::default(),
-                                //    outline_options: StrokeOptions::default().with_line_width(10.0)
-                                //}
-                                , Transform::from_xyz((i % side_len * spacing) as f32, (i / side_len * spacing) as f32 ,0.)
-                            );
-                            commands.spawn_bundle(geometry).insert(SimulationIndex(i));
-                        },
-                    node::graphics::Info::Street(ninfo) => {} 
-                }
+                } 
+            }
         }
-    ).for_each(drop);
+    );
     commands.insert_resource(new_builder);
 }
 

@@ -25,7 +25,7 @@ pub fn build_grid_sim(grid_side_len: u32) -> SimulatorBuilder {
             let is_higher_edge =  i == grid_side_len-1 || j == grid_side_len-1;
             let is_edge = is_lower_edge || is_higher_edge;
             if is_corner {
-                sim.add_node(boxed_node![StreetBuilder]);
+                sim.add_node(boxed_node![IONodeBuilder]);
                 continue;
             }
             match is_edge {
