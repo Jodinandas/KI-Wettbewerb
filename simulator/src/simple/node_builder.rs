@@ -1,18 +1,22 @@
 use std::fmt::Debug;
 
-use enum_dispatch::enum_dispatch;
 use crate::traits::NodeTrait;
 
-use super::{movable::RandCar, node::{Crossing, IONode, Street, graphics::StreetInfo}, traversible::Traversible};
+use super::{movable::RandCar, node::{Crossing, IONode, Street}, traversible::Traversible};
 use super::node::graphics;
 
 
-#[enum_dispatch]
+pub enum NodeBuilderType {
+    IONode,
+    Crossing,
+    Street,
+}
 pub trait NodeBuilderTrait : Debug + Send + Sync {
     fn build(&self) -> Box<dyn NodeTrait>;
     fn get_connections(&self) -> &Vec<usize>;
     fn connect(&mut self, i: usize);
     fn generate_graphics_info(&self) -> graphics::Info;
+    fn get_node_type(&self) -> NodeBuilderType;
 }
 
 #[derive(Debug)]
@@ -41,6 +45,9 @@ impl NodeBuilderTrait for StreetBuilder {
         graphics::Info::Street( graphics::StreetInfo {
             lanes: self.lanes
         })
+    }
+    fn get_node_type(&self) -> NodeBuilderType {
+        NodeBuilderType::Street
     }
 }
 
@@ -86,6 +93,9 @@ impl NodeBuilderTrait for IONodeBuilder {
 
         })
     }
+    fn get_node_type(&self) -> NodeBuilderType {
+        NodeBuilderType::IONode
+    }
 }
 impl IONodeBuilder {
     pub fn new() -> IONodeBuilder {
@@ -124,6 +134,9 @@ impl NodeBuilderTrait for CrossingBuilder {
         graphics::Info::Crossing( graphics::CrossingInfo{
 
         })
+    }
+    fn get_node_type(&self) -> NodeBuilderType {
+        NodeBuilderType::Crossing
     }
 }
 
