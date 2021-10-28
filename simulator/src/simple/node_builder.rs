@@ -7,7 +7,7 @@ use super::{movable::RandCar, node::{IONode, Street, Crossing}, traversible::Tra
 
 
 #[enum_dispatch]
-pub trait NodeBuilderTrait : Debug {
+pub trait NodeBuilderTrait : Debug + Send + Sync {
     fn build(&self) -> Box<dyn NodeTrait>;
     fn get_connections(&self) -> &Vec<usize>;
     fn connect(&mut self, i: usize);

@@ -4,6 +4,33 @@ use super::super::traits::NodeTrait;
 use super::traversible::Traversible;
 use super::movable::RandCar;
 
+/// Objects for storing data relevant for rendering
+/// different nodes
+/// 
+/// This is necessary, as functions for rendering the nodes
+/// can't be implemented here, as it would require to import
+/// bevy as a dependency. It is not a good to import the graphics
+/// engine in the backend just to be able to use the correct
+/// function signatures.
+/// 
+/// # Performance
+/// Performance is in this case not as important, as only one Simulation
+/// at a time will be displayed.
+pub mod graphics {
+    pub struct CrossingInfo;
+    pub struct IONodeInfo;
+    pub struct StreetInfo {
+        pub lanes: u8 
+    }
+    pub enum Info {
+        Crossing (CrossingInfo), 
+        IONode (IONodeInfo),
+        Street (StreetInfo)
+    }
+
+}
+
+
 
 /// A simple crossing
 #[derive(Debug)]
@@ -41,6 +68,14 @@ impl NodeTrait for Crossing {
     
     fn add_car(&mut self, car: RandCar) {
         self.car_lane.add(car)
+    }
+    
+    fn generate_graphics_info(&self) -> graphics::Info {
+        graphics::Info::Crossing(
+            graphics::CrossingInfo {
+               // Not much to display at the moment 
+            }
+        )
     }
     
 }
@@ -91,6 +126,14 @@ impl NodeTrait for IONode {
     fn add_car(&mut self, car: RandCar) {
         drop(car)
     }
+    
+    fn generate_graphics_info(&self) -> graphics::Info {
+        graphics::Info::IONode(
+            graphics::IONodeInfo {
+                
+            }
+        )
+    }
 }
 
 /// A `Street` is mostly used to connect `IONode`s or `Crossing`s
@@ -135,5 +178,13 @@ impl NodeTrait for Street {
 
     fn add_car(&mut self, car: RandCar) {
         self.car_lane.add(car);
+    }
+    
+    fn generate_graphics_info(&self) -> graphics::Info {
+        graphics::Info::Street(
+            graphics::StreetInfo {
+                lanes: self.lanes
+            }
+        )
     }
 }

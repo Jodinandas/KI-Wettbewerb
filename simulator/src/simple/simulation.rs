@@ -10,11 +10,21 @@ use crate::traits::Movable;
 ///
 /// implementing functions for simulating the traffic
 /// (moving cars, spawning new ones, moving pedestrians)
+///
+/// The Street System is defined as as list of Nodes that
+/// can hold traffic and people and move them. These Nodes
+/// are connected to each other. Cars are spawned and destroyed 
+/// by so called IONodes
 #[derive(Debug)]
 pub struct Simulator {
-    /// A list of all the crossings
+    /// A list of all the crossings.
+    ///
+    /// The crossings themselves save the index themselves
     pub nodes: Vec<Box<dyn NodeTrait>>,
+    /// The simulation can be set to stop after simulation
+    /// a set amount of steps
     pub max_iter: Option<usize>,
+    /// An optional delay between each iteration
     pub delay: u64
 }
 
@@ -88,13 +98,16 @@ impl Simulator {
         }
         Ok(())
     }
+
+    /// a single iteration
     pub fn sim_iter(&mut self, dt: f64) {
+        // At the moment all nodes are updated
         self.update_all_nodes(dt);
     }
     
 }
 
-
+/// just returns the name of the of the type passed in
 fn get_type_of<T>(_: &T) -> &'static str {
     std::any::type_name::<T>()
 }
@@ -136,17 +149,6 @@ impl Display for Simulator {
         s.push_str("\t]\n}");
         write!(f, "{}", s)
     }
-}
-
-
-/// This trait should be implemented for a frontend and signal
-/// 
-/// TODO: Actually implement it
-///  It should be thread safe, potentially using a channel
-///  Performance is not a priority, as this will be called only
-///  if we look at an agent in detail
-pub trait StreetDisplay {
-    
 }
 
 

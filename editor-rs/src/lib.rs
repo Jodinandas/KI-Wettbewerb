@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
-use simulator::simple::simulation::Simulator;
+use simulator::{debug::build_grid_sim, simple::{simulation::Simulator, simulation_builder::SimulatorBuilder}};
 use wasm_bindgen::prelude::*;
 use bevy_prototype_lyon::{prelude::*, shapes::{Polygon, RegularPolygon}};
 use simulator;
@@ -33,6 +33,7 @@ pub fn run() {
     //#[cfg(target_arch = "wasm32")]
     //app.add_plugin(bevy_webgl2::WebGL2Plugin);
     .add_startup_system(setup.system())
+    .add_startup_system(spawn_simulation_builder.system())
     .insert_resource(simulator::debug::build_grid_sim(10).build())
     .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
     .add_system(ui_example.system())
@@ -100,8 +101,17 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 commands.spawn_bundle(
                     geometry
                 ).insert(ExamplePolygon);
-            }
+        }
     }
+}
+
+/// This function spawns the simultation builder instance
+/// that is later used to create simulations
+fn spawn_simulation_builder(mut commands: Commands)  {
+    // for testing purposes 
+    let new_builder = build_grid_sim(5);
+    
+    commands.insert_resource(new_builder);
 }
 
 struct ExamplePolygon;
@@ -117,13 +127,15 @@ pub struct NodeComponent;
 pub struct SimulationIndex(usize);
 
 pub trait Render {
-    fn render(&mut self, node_query: Query<(&SimulationIndex, &Transform), With<NodeComponent>>, sim: Res<Simulator>);
+    fn render(&mut self, node_query: Query<(&SimulationIndex, &Transform), With<NodeComponent>>, sim: Res<SimulatorBuilder>);
 }
 
-impl Render for Simulator {
-    fn render(&mut self, node_query: Query<(&SimulationIndex, &Transform), With<NodeComponent>>, sim: Res<Simulator>) {
+impl Render for SimulatorBuilder {
+    fn render(&mut self, node_query: Query<(&SimulationIndex, &Transform), With<NodeComponent>>, sim: Res<SimulatorBuilder>) {
         for (node_i, transform) in node_query.iter() {
-            
+            let node = self.get_node(node_i.0);
+            match *node.generate_graphics_info() {
+            }
         }
     }
 }

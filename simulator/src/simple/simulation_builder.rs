@@ -43,12 +43,17 @@ impl fmt::Display for IndexError {
 
 impl Error for IndexError {}
 
+/// A struct for creating simulators
+/// 
+/// To seperate simulation creation from actual simulation logic,
+/// the builder pattern is used. This enables additional optimisations,
+/// as things like nodes can be cached
 #[derive(Debug)]
-pub struct SimulatorBuilder {
-    /// A list of all the crossings
+pub struct SimulatorBuilder{
+    /// A list of all the nodes
     nodes: Vec<Box<dyn NodeBuilderTrait>>,
     max_iter: Option<usize>,
-    pub cache: Option<Vec<Box<dyn NodeTrait>>>,
+    cache: Option<Vec<Box<dyn NodeTrait>>>,
     delay: u64
 }
 
@@ -67,8 +72,9 @@ impl SimulatorBuilder {
     /// to see how the json must be formatted, look at the fields of
     /// `JsonCrossing` and `JsonRepresentation`
     /// 
-    /// #TODO
-    /// Reformat the json representation
+    /// # NOTE:
+    /// This function is deprecated, as the old python frontend
+    /// is being replaced by a new frontend 
     pub fn from_json(json: &str) -> Result<SimulatorBuilder, Box<dyn Error>> {
         // Generate object holding all the data, still formatted in json way
         let json_representation: JsonRepresentation = serde_json::from_str(json)?;
@@ -130,6 +136,8 @@ impl SimulatorBuilder {
         self.nodes[inode1].connect(street_i);
         Ok(())
     }
+
+    /// Creates a new simulator from the templates
     pub fn build(&mut self) -> Simulator {
         if let Some(cache) = &self.cache {
             return Simulator {
@@ -160,8 +168,15 @@ impl SimulatorBuilder {
             delay: self.delay
         }
     }
-    /// Add a new node
+    /// Drops the internal node cache
+    pub fn drop_cache(&mut self) {
+        self.cache = None
+    }
+
     pub fn add_node(&mut self, node: Box<dyn NodeBuilderTrait>) -> &mut SimulatorBuilder {
+        // the cache cannot be used if
+        // the internals change
+        self.drop_cache();
         self.nodes.push(node);
         self
     }
@@ -172,6 +187,12 @@ impl SimulatorBuilder {
     pub fn max_iter(&mut self, value: Option<usize>) ->  &mut SimulatorBuilder {
         self.max_iter = value;
         self
+    }
+    pub fn iter_nodes(&self) -> std::slice::Iter<'_, Box<dyn NodeBuilderTrait>> {
+        self.nodes.iter()
+    }
+    pub fn get_node(&self, i: usize) -> &Box<dyn NodeBuilderTrait> {
+        &self.nodes[i]
     }
 }
 
