@@ -4,6 +4,7 @@ use crate::traits::NodeTrait;
 
 use super::{movable::RandCar, node::{Crossing, IONode, Street}, traversible::Traversible};
 use super::node::graphics;
+use dyn_clone::DynClone;
 
 
 pub enum NodeBuilderType {
@@ -11,15 +12,18 @@ pub enum NodeBuilderType {
     Crossing,
     Street,
 }
-pub trait NodeBuilderTrait : Debug + Send + Sync {
+pub trait NodeBuilderTrait : Debug + Send + Sync + DynClone{
     fn build(&self) -> Box<dyn NodeTrait>;
     fn get_connections(&self) -> &Vec<usize>;
     fn connect(&mut self, i: usize);
     fn generate_graphics_info(&self) -> graphics::Info;
     fn get_node_type(&self) -> NodeBuilderType;
+    fn get_weight(&self) -> f32;
 }
 
-#[derive(Debug)]
+dyn_clone::clone_trait_object!(NodeBuilderTrait);
+
+#[derive(Debug, Clone)]
 pub struct StreetBuilder {
     /// indices in SimulationBuilder
     connection: Vec<usize>,
@@ -49,6 +53,10 @@ impl NodeBuilderTrait for StreetBuilder {
     fn get_node_type(&self) -> NodeBuilderType {
         NodeBuilderType::Street
     }
+
+    fn get_weight(&self) -> f32 {
+        self.lanes as f32
+    }
 }
 
 impl StreetBuilder {
@@ -69,7 +77,7 @@ impl StreetBuilder {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IONodeBuilder {
     connections: Vec<usize>,
     spawn_rate: f64
@@ -96,6 +104,10 @@ impl NodeBuilderTrait for IONodeBuilder {
     fn get_node_type(&self) -> NodeBuilderType {
         NodeBuilderType::IONode
     }
+
+    fn get_weight(&self) -> f32 {
+        self.spawn_rate as f32
+    }
 }
 impl IONodeBuilder {
     pub fn new() -> IONodeBuilder {
@@ -111,7 +123,7 @@ impl IONodeBuilder {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CrossingBuilder {
     connections: Vec<usize>,
     /// ???? why length,
@@ -137,6 +149,10 @@ impl NodeBuilderTrait for CrossingBuilder {
     }
     fn get_node_type(&self) -> NodeBuilderType {
         NodeBuilderType::Crossing
+    }
+
+    fn get_weight(&self) -> f32 {
+        1.0
     }
 }
 
