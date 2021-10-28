@@ -17,9 +17,9 @@ use crate::traits::Movable;
 /// by so called IONodes
 #[derive(Debug)]
 pub struct Simulator {
-    /// A list of all the crossings.
+    /// A list of all the nodes.
     ///
-    /// The crossings themselves save the index themselves
+    /// The nodes themselves save the index themselves
     pub nodes: Vec<Box<dyn NodeTrait>>,
     /// The simulation can be set to stop after simulation
     /// a set amount of steps

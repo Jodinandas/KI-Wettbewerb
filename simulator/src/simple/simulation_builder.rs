@@ -51,7 +51,7 @@ impl Error for IndexError {}
 #[derive(Debug)]
 pub struct SimulatorBuilder{
     /// A list of all the nodes
-    nodes: Vec<Box<dyn NodeBuilderTrait>>,
+    pub nodes: Vec<Box<dyn NodeBuilderTrait>>,
     max_iter: Option<usize>,
     cache: Option<Vec<Box<dyn NodeTrait>>>,
     delay: u64

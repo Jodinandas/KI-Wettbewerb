@@ -3,6 +3,7 @@ use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
 use simulator::{debug::build_grid_sim, simple::{simulation::Simulator, simulation_builder::SimulatorBuilder}};
 use wasm_bindgen::prelude::*;
 use bevy_prototype_lyon::{prelude::*, shapes::{Polygon, RegularPolygon}};
+use simulator::simple::node;
 use simulator;
 
 #[derive(PartialEq)]
@@ -80,6 +81,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let (x, y) = (7, 7);
     let (offsetx, offsety) = (500.0, 500.0);
     
+    return;
+    
     for i in 0..x{
         for j in 0..y {
             let test_shape = shapes::RegularPolygon {
@@ -107,12 +110,61 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 /// This function spawns the simultation builder instance
 /// that is later used to create simulations
+/// 
+/// It also generates the graphics for it
 fn spawn_simulation_builder(mut commands: Commands)  {
     // for testing purposes 
+    let side_len = 5;
+    let spacing = 100;
     let new_builder = build_grid_sim(5);
+
     
+    new_builder.nodes.iter().enumerate().map(
+        | (i, n_builder) | {
+            match n_builder.generate_graphics_info() {
+                node::graphics::Info::Crossing(_) => {
+                    let test_shape = shapes::RegularPolygon {
+                            sides: 7,
+                            feature: shapes::RegularPolygonFeature::Radius(50.0),
+                            ..shapes::RegularPolygon::default()
+                        };
+                        let geometry = GeometryBuilder::build_as(
+                            &test_shape, 
+                            ShapeColors::outlined(Color::rgb(100., 50., 0.), Color::WHITE), 
+                            DrawMode::Fill(FillOptions::default())
+                            //DrawMode::Outlined {
+                            //    fill_options: FillOptions::default(),
+                            //    outline_options: StrokeOptions::default().with_line_width(10.0)
+                            //}
+                            , Transform::from_xyz((i % side_len * spacing) as f32, (i / side_len * spacing) as f32 ,0.)
+                        );
+                        commands.spawn_bundle(geometry).insert(SimulationIndex(i));
+                    },
+                    node::graphics::Info::IONode(ninfo) => {
+                        let test_shape = shapes::RegularPolygon {
+                                sides: 7,
+                                feature: shapes::RegularPolygonFeature::Radius(50.0),
+                                ..shapes::RegularPolygon::default()
+                            };
+                            let geometry = GeometryBuilder::build_as(
+                                &test_shape, 
+                                ShapeColors::outlined(Color::rgb(0., 100., 0.), Color::WHITE), 
+                                DrawMode::Fill(FillOptions::default())
+                                //DrawMode::Outlined {
+                                //    fill_options: FillOptions::default(),
+                                //    outline_options: StrokeOptions::default().with_line_width(10.0)
+                                //}
+                                , Transform::from_xyz((i % side_len * spacing) as f32, (i / side_len * spacing) as f32 ,0.)
+                            );
+                            commands.spawn_bundle(geometry).insert(SimulationIndex(i));
+                        },
+                    node::graphics::Info::Street(ninfo) => {} 
+                }
+        }
+    ).for_each(drop);
     commands.insert_resource(new_builder);
 }
+
 
 struct ExamplePolygon;
 
@@ -134,7 +186,12 @@ impl Render for SimulatorBuilder {
     fn render(&mut self, node_query: Query<(&SimulationIndex, &Transform), With<NodeComponent>>, sim: Res<SimulatorBuilder>) {
         for (node_i, transform) in node_query.iter() {
             let node = self.get_node(node_i.0);
-            match *node.generate_graphics_info() {
+            match node.generate_graphics_info() {
+                node::graphics::Info::Crossing(_) => {},
+                node::graphics::Info::IONode(_) => {},
+                node::graphics::Info::Street(street) => {
+                    // Implement something here
+                } 
             }
         }
     }
