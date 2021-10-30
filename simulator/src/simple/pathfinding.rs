@@ -1,16 +1,11 @@
-use std::borrow::Borrow;
 use std::collections::hash_map::Entry;
-use std::hash::Hash;
-use std::path::Path;
 use crate::simple::node_builder::NodeBuilderTrait;
 use crate::simple::node_builder;
 use crate::traits::Movable;
 use std::error::Error;
 use rand::prelude::*;
 use rand::distributions::WeightedIndex;
-use dyn_clone::DynClone;
 use pathfinding::directed::dijkstra::dijkstra;
-use serde_json::map::{OccupiedEntry, VacantEntry};
 use std::fmt::{Debug, Formatter, Display};
 use std::collections::HashMap;
 
@@ -44,8 +39,8 @@ impl Movable for PathAwareCar {
         self.speed = s
     }
 
-    fn update(&mut self, t: f64) {
-        // lol
+    fn update(&mut self, t:f64) {
+        panic!("Not yet implemented! Consider using decide_next() instead");
     }
 
     fn decide_next(&mut self, connections: &Vec<usize>) -> Result<usize, Box<dyn Error>> {
@@ -95,8 +90,8 @@ impl MovableServer{
                 }
             }
         ).collect();
-        let mut weights= io_nodes.iter()
-            .map(| (i,n) | { (*n).get_weight() });
+        let weights= io_nodes.iter()
+            .map(| (_i,n) | { (*n).get_weight() });
         let dist = WeightedIndex::new(weights).unwrap();
         let mut rng = thread_rng();
         // you are the chosen one!
@@ -138,7 +133,6 @@ mod tests{
         use crate::debug::build_grid_sim;
         let simbuilder = build_grid_sim(4);
         let mut test = MovableServer::new(simbuilder.nodes);
-        // was ist ein ionode?
         println!("{:?}", test.generate_movable(4));
         println!("{:?}", test.generate_movable(4));
         println!("{:?}", test.generate_movable(4));
@@ -148,5 +142,6 @@ mod tests{
         println!("{:?}", test.generate_movable(4));
         println!("lol");
         println!("{:?}", test.cache);
+        panic!("Not yet implemented properly. This test only serves as an example.")
     }
 }
