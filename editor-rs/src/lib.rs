@@ -23,9 +23,36 @@ impl Default for Theme {
     }
 }
 
+/*
+#[derive(Default)]
+pub struct Apps {
+    editor: TODO,
+    control_room: TODO,
+}
+*/
+
+enum UIMode {
+    Editor,
+    Simulator
+}
+impl Default for UIMode {
+    fn default() -> Self {
+        UIMode::Editor
+    }
+}
+impl UIMode {
+    pub fn toggle(&mut self) {
+        *self = match self {
+            UIMode::Editor => UIMode::Simulator,
+            UIMode::Simulator => UIMode::Editor
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct UIState {
-    toolbar: toolbar::Toolbar
+    toolbar: toolbar::Toolbar,
+    mode: UIMode
 }
 
 
@@ -65,28 +92,37 @@ fn ui_example(egui_context: ResMut<EguiContext>, mut ui_state: ResMut<UIState>,)
                     egui::menu::menu(ui, "File", | ui | {
                         ui.label("Nothing here yet...");
                     });
+                    if ui.button("Toggle Mode").clicked() {
+                        ui_state.mode.toggle();
+                    };
             });
         });
-    // Left Side panel, mainly for displaying the item editor
-    egui::SidePanel::left("item_editor")
-        .default_width(300.0)
-        .show(egui_context.ctx(), |ui| {
-            ui.horizontal(|ui| {
-                ui.heading("ItemEditor");
-                egui::warn_if_debug_build(ui);
-            });
-            ui.separator();
-            
-        });
-    // Toolbar
-    egui::SidePanel::right("toolbar")
-        .default_width(50.0)
-        .show(egui_context.ctx(), | ui | {
-            ui.vertical_centered( | ui | {
-                ui_state.toolbar.render_tools(ui)
-            });
-            ui.separator();
-        });
+        match ui_state.mode {
+            UIMode::Editor => {
+// Left Side panel, mainly for displaying the item editor
+egui::SidePanel::left("item_editor")
+.default_width(300.0)
+.show(egui_context.ctx(), |ui| {
+    ui.horizontal(|ui| {
+        ui.heading("ItemEditor");
+        egui::warn_if_debug_build(ui);
+    });
+    ui.separator();
+    
+});
+// Toolbar
+egui::SidePanel::right("toolbar")
+.default_width(50.0)
+.show(egui_context.ctx(), | ui | {
+    ui.vertical_centered( | ui | {
+        ui_state.toolbar.render_tools(ui)
+    });
+    ui.separator();
+});
+            },
+            UIMode::Simulator => {},
+        }
+    
 }
 
 fn generate_simulation() {}
