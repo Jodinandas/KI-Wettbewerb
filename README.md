@@ -27,12 +27,12 @@ Have dedicated "ports" for streets in each crossing per direction, like with ble
         If all simulations apart from the displayed one have finished (The main one will be slower, because it hast to draw the simulation in addition to simulating it), add a button to **maybe** (depending on how hard this feature would be to implement) abort the displayed simulation and continue with all others or to stop displaying the simulation. If one generation takes a long time to simulate, this won't do much.
         ```
 
-## Backend
-### Must-Have
+### Backend
+#### Must-Have
 * Ampelschaltung
 * GA, preferably multithread
 * Jede Straße 1 IONode (Auch in Editor angezeigt, würde ich sagen [Jonas])
 * Fußgänger
 
-### Optional
+#### Optional
 * Do not use optimal path for cars each time, because more realistic 
