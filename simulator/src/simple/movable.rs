@@ -1,6 +1,6 @@
-use std::error::Error;
+use std::{sync::Mutex, error::Error, sync::{Arc, Weak}};
 
-use super::{super::traits::Movable};
+use super::{super::traits::Movable, node::Node};
 use rand::Rng;
 
 #[derive(Debug)]
@@ -13,9 +13,9 @@ impl Movable for RandPerson {
     fn get_speed(&self) -> f32 {self.speed}
     fn set_speed(&mut self, s: f32) {self.speed = s}
     fn update(&mut self, _t: f64) {}
-    fn decide_next(&mut self, connections: &Vec<usize>) -> Result<usize, Box<dyn Error>> {
+    fn decide_next(&mut self, connections: &Vec<Weak<Mutex<Node>>>) -> Result<Weak<Mutex<Node>>, Box<dyn Error>> {
         let i = rand::thread_rng().gen_range(0..connections.len());
-        Ok(connections[i])
+        Ok(connections[i].clone())
     }
 }
 
@@ -37,7 +37,7 @@ impl Movable for RandCar {
     fn get_speed(&self) -> f32 {self.speed}
     fn set_speed(&mut self, s: f32) {self.speed = s}
     fn update(&mut self, _t: f64) {}
-    fn decide_next(&mut self, connections: &Vec<usize>) -> Result<usize, Box<dyn Error>> {
+    fn decide_next(&mut self, connections: &Vec<Weak<Mutex<Node>>>) -> Result<Weak<Mutex<Node>>, Box<dyn Error>> {
         let i = rand::thread_rng().gen_range(0..connections.len());
         Ok(connections[i].clone())
     }

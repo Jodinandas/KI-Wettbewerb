@@ -42,7 +42,6 @@ pub fn run() {
     //app.add_plugin(bevy_webgl2::WebGL2Plugin);
     .add_startup_system(setup.system())
     .add_startup_system(spawn_simulation_builder.system())
-    .insert_resource(simulator::debug::build_grid_sim(10).build())
     .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
     .insert_resource(bevy::input::InputSystem)
     .add_system(ui_example.system())
