@@ -1,11 +1,20 @@
-use egui::Ui;
+use std::ops::Add;
 
+use bevy_egui::egui::Ui;
+
+pub enum ToolType {
+    Pan,
+    AddStreet
+}
 
 pub trait Tool: Send + Sync {
     fn name<'a>(&'a self) -> &'a str;
-    fn render(&self, ui: &mut Ui) {
-        ui.label(self.name());
+    fn render(&self, ui: &mut Ui, selected_index: &mut Option<usize>, this_index: usize) {
+        if ui.button(self.name()).clicked() {
+            *selected_index = Some(this_index)
+        }
     }
+    fn get_type(&self) -> ToolType;
 }
 
 
@@ -30,9 +39,9 @@ impl Toolbar {
         }
     }
     
-    pub fn render_tools(&self, ui: &mut Ui) {
-        for tool in self.tools.iter() {
-            tool.render(ui);
+    pub fn render_tools(&mut self, ui: &mut Ui) {
+        for (i, tool) in self.tools.iter().enumerate() {
+            tool.render(ui, &mut self.selected, i);
         }
     }
 }
@@ -40,7 +49,8 @@ impl Toolbar {
 impl Default for Toolbar {
     fn default() -> Toolbar {
         let tools: Vec<Box<dyn Tool>> = vec![
-            Box::new(PanTool::new())
+            Box::new(PanTool::new()),
+            Box::new(AddStreetTool::new()),
         ];
 
         Toolbar {
@@ -56,10 +66,29 @@ impl Tool for PanTool {
     fn name<'a>(&'a self) -> &'a str {
         "Pan"
     }
+    fn get_type(&self) -> ToolType {
+        ToolType::Pan
+    }
 }
 impl PanTool {
     pub fn new() -> PanTool {
         PanTool {}
+    }
+}
+
+pub struct AddStreetTool;
+
+impl Tool for AddStreetTool {
+    fn name<'a>(&'a self) -> &'a str {
+        "Add Street"
+    }
+    fn get_type(&self) -> ToolType {
+        ToolType::AddStreet
+    }
+}
+impl AddStreetTool {
+    pub fn new() -> AddStreetTool {
+        AddStreetTool {}
     }
 }
 

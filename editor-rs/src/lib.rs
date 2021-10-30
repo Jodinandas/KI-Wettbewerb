@@ -1,8 +1,11 @@
 use std::borrow::BorrowMut;
-
+use bevy::prelude::*;
+use bevy::input::mouse::{self, MouseButtonInput, MouseMotion};
 use bevy::{ecs::system::EntityCommands, math::XYZ, prelude::*};
+use bevy::{input, transform};
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
 use simulator::{debug::build_grid_sim, simple::{simulation::Simulator, simulation_builder::SimulatorBuilder}};
+use toolbar::ToolType;
 use wasm_bindgen::prelude::*;
 use bevy_prototype_lyon::{entity::ShapeBundle, prelude::*, shapes::{Polygon, RegularPolygon}};
 use simulator::simple::node;
@@ -25,6 +28,7 @@ pub struct UIState {
     toolbar: toolbar::Toolbar
 }
 
+
 #[wasm_bindgen]
 pub fn run() {
     let mut app = App::build();
@@ -39,8 +43,10 @@ pub fn run() {
     .add_startup_system(setup.system())
     .add_startup_system(spawn_simulation_builder.system())
     .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
+    .insert_resource(bevy::input::InputSystem)
     .add_system(ui_example.system())
     .add_system(rotation_test.system())
+    .add_system(panning.system())
     .run();
 }
 
@@ -77,7 +83,7 @@ fn ui_example(egui_context: ResMut<EguiContext>, mut ui_state: ResMut<UIState>,)
         .default_width(50.0)
         .show(egui_context.ctx(), | ui | {
             ui.vertical_centered( | ui | {
-
+                ui_state.toolbar.render_tools(ui)
             });
             ui.separator();
         });
@@ -87,7 +93,7 @@ fn generate_simulation() {}
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // camera
-    commands.spawn_bundle(OrthographicCameraBundle::new_2d());
+    commands.spawn_bundle(OrthographicCameraBundle::new_2d()).insert(Camera);
     let step = 100.0;
     let (x, y) = (7, 7);
     let (offsetx, offsety) = (500.0, 500.0);
@@ -212,7 +218,52 @@ fn spawn_simulation_builder(mut commands: Commands, asset_server: Res<AssetServe
 }
 
 
+struct Camera;
+// pans canvas
+fn panning(keyboard_input: Res<Input<KeyCode>>, mut camera: Query<&mut Transform, With<Camera>>)   {
+    let speed:f32 = 4.0;
+    for mut transform in camera.iter_mut() {
+        let s:Vec3<> = transform.scale;
+        if keyboard_input.pressed(KeyCode::Right) || keyboard_input.pressed(KeyCode::D){
+           transform.translation.x -= speed*s.x; 
+        }
+        if keyboard_input.pressed(KeyCode::Left) || keyboard_input.pressed(KeyCode::A){
+            transform.translation.x += speed*s.x; 
+        }
+        if keyboard_input.pressed(KeyCode::Up) || keyboard_input.pressed(KeyCode::W){
+            transform.translation.y -= speed*s.y; 
+        }
+        if keyboard_input.pressed(KeyCode::Down) || keyboard_input.pressed(KeyCode::S) {
+            transform.translation.y += speed*s.y; 
+        }
+        if keyboard_input.pressed(KeyCode::Q) {
+            transform.scale += Vec3::from((0.1*s.x, 0.1*s.y, 0.1*s.z)); 
+        }
+        if keyboard_input.pressed(KeyCode::E) {
+            transform.scale -= Vec3::from((0.1*s.x, 0.1*s.y, 0.1*s.z)); 
+        }
+    }
+}
 struct ExamplePolygon;
+
+/*
+fn toolbarsystem(mouse_input: Res<Input<mouse::MouseButton>>,
+      mouse_movement: Res<Input<>>,
+      mut camera: Query<&mut Transform, With<Camera>>,
+      mut uistate: ResMut<UIState>){
+    
+    if let Some(tool) = uistate.toolbar.get_selected() {
+        match tool.get_type() {
+            ToolType::Pan => {
+                if mouse_input.pressed(MouseButton::Left){
+                    let dpos = mouse_movement;
+                }
+            },
+            _ => {}
+        }
+    }
+}
+*/
 
 fn rotation_test(polygon_query: Query<&mut Transform, With<ExamplePolygon>>, time: Res<Time>) {
     polygon_query.for_each_mut( | mut t | {
