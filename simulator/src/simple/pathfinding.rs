@@ -1,13 +1,20 @@
+use std::any::Any;
+use std::borrow::Borrow;
+use std::sync::Mutex;
 use std::collections::hash_map::Entry;
+use std::sync::{Arc, Weak};
 use crate::simple::node_builder::NodeBuilderTrait;
 use crate::simple::node_builder;
-use crate::traits::Movable;
+use crate::traits::{Movable, NodeTrait};
 use std::error::Error;
 use rand::prelude::*;
 use rand::distributions::WeightedIndex;
 use pathfinding::directed::dijkstra::dijkstra;
 use std::fmt::{Debug, Formatter, Display};
 use std::collections::HashMap;
+
+use super::node::Node;
+use super::simulation::NodeDoesntExistError;
 
 #[derive(Debug, Clone)]
 struct PathAwareCar {
@@ -43,25 +50,42 @@ impl Movable for PathAwareCar {
         panic!("Not yet implemented! Consider using decide_next() instead");
     }
 
-    fn decide_next(&mut self, connections: &Vec<usize>) -> Result<usize, Box<dyn Error>> {
+    fn decide_next(&mut self, connections: &Vec<Weak<Mutex<Node>>>) -> Result<Weak<Mutex<Node>>, Box<dyn Error>> { 
+        // upgrade references to be able to access the id field
+        let mut connections_upgraded = Vec::with_capacity(connections.len());
+        for c in connections.iter() {
+            connections_upgraded.push(
+                match c.upgrade() {
+                    Some(value) => value, 
+                    None => return Err(Box::new(NodeDoesntExistError{})), 
+                }
+            )
+        }
+        let connection_ids =connections_upgraded.iter().map(
+            | n| (**n).lock().unwrap().id()
+        ).collect();
+
         // epische logik hier
         let to_return = match self.path.pop() {
             Some(value) => value,
             None => {return Err(Box::new(PathError {
                 msg: "Path is empty, but next connection was requested.",
                 expected_node: None,
-                available_nodes: connections.clone()
+                available_nodes: connection_ids
             }))}
         };
 
-        if !connections.contains(&to_return){
+        if !connection_ids.contains(&to_return){
             return Err(Box::new(PathError{
                 msg: "Requested connection not present in current available in node",
                 expected_node: Some(to_return),
-                available_nodes: connections.clone(),
+                available_nodes: connection_ids.clone(),
             }))
         }
-        Ok(to_return)
+        
+        let (index, _) = connection_ids.iter().enumerate().find(| (_, i) | **i == to_return).unwrap();
+
+        Ok(connections[index].clone())
     }
 }
 

@@ -1,8 +1,9 @@
-use std::vec;
+use std::sync::{Arc, Weak, Mutex};
+use std::{ptr, vec};
 
-use super::super::traits::NodeTrait;
 use super::traversible::Traversible;
 use super::movable::RandCar;
+use crate::traits::NodeTrait;
 
 /// Objects for storing data relevant for rendering
 /// different nodes
@@ -30,54 +31,137 @@ pub mod graphics {
 
 }
 
+#[derive(Debug, Clone)]
+pub enum Node {
+    Street(Street),
+    IONode(IONode),
+    Crossing(Crossing)
+}
 
+impl NodeTrait for Node {
+    fn is_connected(&self, other: &Arc<Mutex<Node>>) -> bool {
+        match self {
+            Node::Street(street) => {
+                street.end.iter().find(
+                | n |
+                    ptr::eq(n.as_ptr(), &**other)
+                ).is_some()
+            },
+            Node::IONode(io_node) => {
+                io_node.connections.iter().find(
+                | n |
+                    ptr::eq(n.as_ptr(), &**other)
+                ).is_some()
+            },
+            Node::Crossing(crossing) => {
+                crossing.connections.iter().find(
+                | n |
+                    ptr::eq(n.as_ptr(), &**other)
+                ).is_some()
+            }
+        }
+    }
+
+    fn connect(&mut self, other: &Arc<Mutex<Node>>) {
+        match self {
+            Node::Street(street) => {
+                street.end = vec!(Arc::downgrade(other))
+            },
+            Node::IONode(io_node) => {
+                io_node.connections.push(
+                    Arc::downgrade(other)
+                )
+            },
+            Node::Crossing(crossing) => {
+                crossing.connections.push(
+                    Arc::downgrade(other)
+                )
+            }
+        }
+    }
+    
+    fn get_connections<'a>(&'a self) -> &'a Vec<Weak<Mutex<Node>>> {
+        match self {
+            Node::Street(street) => &street.end,
+            Node::IONode(io_node) => &io_node.connections,
+            Node::Crossing(crossing) => &crossing.connections
+        }
+    }
+    
+    fn update_cars(&mut self, t: f64) -> Vec<RandCar> {
+        match self {
+            Node::Street(street) => street.car_lane.update_movables(t),
+            Node::IONode(io_node) => {
+                // create new car
+                io_node.time_since_last_spawn += t;
+                let mut new_cars = Vec::<RandCar>::new();
+                if io_node.time_since_last_spawn >= io_node.spawn_rate {
+                    new_cars.push(
+                        RandCar::new()
+                    )
+                }
+                new_cars
+            },
+            Node::Crossing(crossing) => crossing.car_lane.update_movables(t),
+        }
+        
+    }
+    
+    fn add_car(&mut self, car: RandCar) {
+        match self {
+            Node::Street(street) => street.car_lane.add(car),
+            Node::IONode(io_node) => {io_node.absorbed_cars += 1}
+            Node::Crossing(crossing) => crossing.car_lane.add(car),
+        }
+    }
+    
+    fn generate_graphics_info(&self) -> graphics::Info {
+        match self {
+            Node::Street(street) => 
+                graphics::Info::Street(
+                    graphics::StreetInfo {
+                        lanes: street.lanes
+                    }
+                ),
+            Node::IONode(io_node) => 
+                graphics::Info::IONode(
+                    graphics::IONodeInfo {
+                        
+                    }
+                ),
+            Node::Crossing(crossing) => 
+                graphics::Info::Crossing(
+                    graphics::CrossingInfo {
+                       // Not much to display at the moment 
+                    }
+                )
+        }
+    }
+    fn id(&self) -> usize {
+        match self {
+            Node::Street(inner) => inner.id,
+            Node::IONode(inner) => inner.id,
+            Node::Crossing(inner) => inner.id,
+        }
+    }
+}
 
 /// A simple crossing
 #[derive(Debug)]
 #[derive(Clone)]
 pub struct Crossing {
-    pub connections: Vec<usize>,
-    pub car_lane: Traversible<RandCar>
+    pub connections: Vec<Weak<Mutex<Node>>>,
+    pub car_lane: Traversible<RandCar>,
+    pub id: usize
 }
 impl Crossing {
     pub fn new() -> Crossing {
         Crossing {
-            connections: vec![],
-            car_lane: Traversible::<RandCar>::new(100.0)
+            connections: Vec::new(),
+            car_lane: Traversible::<RandCar>::new(100.0),
+            id: 0
         }
     }
-}
-impl NodeTrait for Crossing {
-    fn is_connected(&self, other: &usize) -> bool {
-        self.connections.iter().find(|c| {
-           *c == other 
-        }).is_some()
-    }
-
-    fn connect(&mut self, other: &usize) {
-        self.connections.push(*other)
-    }
-    
-    fn get_connections(&self) -> &Vec<usize> {
-        &self.connections
-    }
-    
-    fn update_cars(&mut self, t: f64) -> Vec<RandCar> {
-        self.car_lane.update_movables(t)
-    }
-    
-    fn add_car(&mut self, car: RandCar) {
-        self.car_lane.add(car)
-    }
-    
-    fn generate_graphics_info(&self) -> graphics::Info {
-        graphics::Info::Crossing(
-            graphics::CrossingInfo {
-               // Not much to display at the moment 
-            }
-        )
-    }
-    
 }
 /// A Node that represents either the start of the simulation or the end of it
 /// 
@@ -85,54 +169,21 @@ impl NodeTrait for Crossing {
 #[derive(Debug)]
 #[derive(Clone)]
 pub struct IONode{
-    pub connections: Vec<usize>,
+    pub connections: Vec<Weak<Mutex<Node>>>,
     pub spawn_rate: f64,
-    pub time_since_last_spawn: f64
+    pub time_since_last_spawn: f64,
+    pub absorbed_cars: usize,
+    pub id: usize
 }
 impl IONode{
     pub fn new() -> Self {
         Self {
-            connections: vec![],
+            connections: Vec::new(),
             spawn_rate: 1.0,
-            time_since_last_spawn: 0.0
+            time_since_last_spawn: 0.0,
+            absorbed_cars: 0,
+            id: 0
         }
-    }
-}
-impl NodeTrait for IONode {
-    fn is_connected(&self, other: &usize) -> bool {
-        self.connections.iter().find(|c| {
-           *c == other 
-        }).is_some()
-    }
-
-    fn connect(&mut self, other: &usize) {
-        self.connections.push(*other)
-    }
-    fn get_connections(&self) -> &Vec<usize> {
-        &self.connections
-    }
-    /// Spawn cars
-    fn update_cars(&mut self, dt: f64) -> Vec<RandCar> {
-        self.time_since_last_spawn += dt;
-        let mut new_cars = Vec::<RandCar>::new();
-        if self.time_since_last_spawn >= self.spawn_rate {
-            new_cars.push(
-                RandCar::new()
-            )
-        }
-        new_cars
-    }
-
-    fn add_car(&mut self, car: RandCar) {
-        drop(car)
-    }
-    
-    fn generate_graphics_info(&self) -> graphics::Info {
-        graphics::Info::IONode(
-            graphics::IONodeInfo {
-                
-            }
-        )
     }
 }
 
@@ -143,48 +194,19 @@ impl NodeTrait for IONode {
 #[derive(Debug)]
 #[derive(Clone)]
 pub struct Street{
-    pub connection: Vec<usize>,
+    pub end: Vec<Weak<Mutex<Node>>>,
     pub lanes: u8,
-    pub car_lane: Traversible<RandCar>
+    pub car_lane: Traversible<RandCar>,
+    pub id: usize
 } 
 
 impl Street {
-    pub fn new() -> Street{
+    pub fn new(end: &Arc<Mutex<Node>>) -> Street{
         Street {
-            connection: Vec::new(),
+            end: vec!(Arc::downgrade(end)),
             lanes: 1,
-            car_lane: Traversible::<RandCar>::new(100.0)
+            car_lane: Traversible::<RandCar>::new(100.0),
+            id: 0
         }
-    }
-}
-impl NodeTrait for Street {
-    fn is_connected(&self, other: &usize) -> bool {
-        self.connection.iter().find(|c| {
-           *c == other 
-        }).is_some()
-    }
-
-    fn connect(&mut self, other: &usize) {
-        self.connection.clear();
-        self.connection.push(*other)
-    }
-    fn get_connections(&self) -> &Vec<usize> {
-        &self.connection
-    }
-
-    fn update_cars(&mut self, t: f64) -> Vec<RandCar> {
-        self.car_lane.update_movables(t)
-    }
-
-    fn add_car(&mut self, car: RandCar) {
-        self.car_lane.add(car);
-    }
-    
-    fn generate_graphics_info(&self) -> graphics::Info {
-        graphics::Info::Street(
-            graphics::StreetInfo {
-                lanes: self.lanes
-            }
-        )
     }
 }

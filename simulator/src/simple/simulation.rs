@@ -1,9 +1,14 @@
+use std::borrow::BorrowMut;
+use std::sync::Mutex;
 use std::error::Error;
-use std::fmt::{self, Display};
+use std::fmt::{self, Display, write};
+use std::sync::{Arc, Weak};
 use std::{cmp, ptr, thread};
 use std::time::{Duration, SystemTime};
 use crate::traits::NodeTrait;
 use crate::traits::Movable;
+
+use super::node::Node;
 
 
 /// A struct representing the street network
@@ -20,7 +25,7 @@ pub struct Simulator {
     /// A list of all the nodes.
     ///
     /// The nodes themselves save the index themselves
-    pub nodes: Vec<Box<dyn NodeTrait>>,
+    pub nodes: Vec<Arc<Mutex<Node>>>,
     /// The simulation can be set to stop after simulation
     /// a set amount of steps
     pub max_iter: Option<usize>,
@@ -28,6 +33,15 @@ pub struct Simulator {
     pub delay: u64
 }
 
+// Error is thrown when a node that should exist, doesn't exist anymore
+#[derive(Debug)]
+pub struct NodeDoesntExistError;
+impl Error for NodeDoesntExistError {}
+impl Display for NodeDoesntExistError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Tried to access Node that doesnt't exist (anymore).")
+    }
+}
 
 
 /// The simulator, the top level struct that is instaniated to simulate traffic
@@ -38,19 +52,19 @@ impl Simulator {
     /// nodes
     pub fn update_all_nodes(&mut self, dt: f64) {
         for i in 0..self.nodes.len() {
-            let node = &mut self.nodes[i];
+            let mut node = (*self.nodes[i]).lock().unwrap();
             let mut cars_at_end = node.update_cars(dt);
             // TODO: Use something more efficient than cloning the whole Vec here
-            let options = node.get_connections().clone();
+            let options = node.get_connections();
             for j in cars_at_end.len()..0 {
-                let next_i: Result<usize, Box<dyn Error>> = cars_at_end[j].decide_next(&options);
-                match next_i {
+                let next: Result<Weak<Mutex<Node>>, Box<dyn Error>> = cars_at_end[j].decide_next(&options);
+                match next {
                     Err(_) => {
                         println!("Unable to decide next node for car with index {} at node {}", j, i);
                     },
                     Ok(next_node) => {
-                        let node = &mut self.nodes[next_node];
-                        node.add_car(cars_at_end.pop().unwrap())
+                        (*next_node.upgrade().expect("Referenced connection does not exist"))
+                            .lock().unwrap().add_car(cars_at_end.pop().unwrap())
                     }
 
                 }
@@ -116,7 +130,7 @@ impl Display for Simulator {
             s.push_str(
                 &format!("\t\t{}: {} ->\t", i, name)
             );
-            for _connection in (**n).get_connections().iter() {
+            for _connection in n.lock().unwrap().get_connections().iter() {
                 // find the index
                 let mut index = 0;
                 for (i, node) in self.nodes.iter().enumerate() {

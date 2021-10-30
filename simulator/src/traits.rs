@@ -1,7 +1,8 @@
 use std::fmt::Debug;
 use std::error::Error;
+use std::sync::{Arc, Weak, Mutex};
 use dyn_clone::DynClone;
-use crate::simple::node::graphics;
+use crate::simple::node::{Node, graphics};
 
 
 use crate::simple::movable::RandCar;
@@ -12,13 +13,19 @@ use crate::simple::movable::RandCar;
 ///
 /// All Node variants must implement this trait
 /// The nodes are mostly used in the form of `Box<dyn Node>`
-pub trait NodeTrait<Car=RandCar> : Debug + DynClone + Send + Sync {
-    fn is_connected(&self, other: &usize) -> bool;
-    fn connect(&mut self, other: &usize);
+pub trait NodeTrait<Car=RandCar> : Debug + Sync + Send + DynClone {
+    fn is_connected(&self, other: &Arc<Mutex<Node>>) -> bool;
+    fn connect(&mut self, other: &Arc<Mutex<Node>>);
     fn update_cars(&mut self, t: f64) -> Vec<Car>;
-    fn get_connections(&self) -> &Vec<usize>;
+    fn get_connections<'a>(&'a self) -> &'a Vec<Weak<Mutex<Node>>>;
     fn add_car(&mut self, car: Car);
     fn generate_graphics_info(&self) -> graphics::Info;
+    /// a unique node id 
+    /// 
+    /// (the id stored in the SimulationBuilder at the beginning)
+    /// is used to simplify the path algorithm used to generate
+    /// paths for cars
+    fn id(&self) -> usize;
 }
 
 // make it possible to derive Clone for structs with Box<dyn NodeTrait>
@@ -39,7 +46,7 @@ pub trait Movable : Debug + DynClone {
     ///
     /// It can very well happen that the next node can't be determined
     /// if the part of the program that figures out the paths makes a mistake
-    fn decide_next(&mut self, connections: &Vec<usize>) -> Result<usize, Box<dyn Error>>;
+    fn decide_next(&mut self, connections: &Vec<Weak<Mutex<Node>>>) -> Result<Weak<Mutex<Node>>, Box<dyn Error>>;
 }
 
 // make it possible to derive Clone for structs with Box<dyn Movable>

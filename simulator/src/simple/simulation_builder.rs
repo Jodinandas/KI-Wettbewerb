@@ -1,9 +1,12 @@
 use super::super::traits::NodeTrait;
+use super::node::Node;
 use super::node_builder::{CrossingBuilder, IONodeBuilder, StreetBuilder};
 use super::node_builder::NodeBuilderTrait;
 use super::simulation::Simulator;
+use std::sync::Mutex;
 use std::fmt;
 use std::error::Error;
+use std::sync::Arc;
 
 use serde::Deserialize;
 
@@ -68,7 +71,7 @@ pub struct SimulatorBuilder{
     /// A list of all the nodes
     pub nodes: Vec<Box<dyn NodeBuilderTrait>>,
     max_iter: Option<usize>,
-    cache: Option<Vec<Box<dyn NodeTrait>>>,
+    cache: Option<Vec<Arc<Mutex<Node>>>>,
     delay: u64
 }
 
@@ -161,19 +164,19 @@ impl SimulatorBuilder {
                 delay: self.delay
             }
         }
-        let mut sim_nodes: Vec<Box<dyn NodeTrait>> = Vec::new();
+        let mut sim_nodes: Vec<Arc<Mutex<Node>>> = Vec::new();
         sim_nodes.reserve(self.nodes.len());
         // create the nodes
         self.nodes.iter().for_each(|n| {
             sim_nodes.push(
-                n.build()
+                Arc::new(Mutex::new(n.build()))
             )
         });
         // create the connections
         self.nodes.iter().enumerate().for_each(|(i, n)| {
-            let starting_node = &mut sim_nodes[i];
+            let starting_node = &sim_nodes[i];
             n.get_connections().iter().for_each(|c| {
-                starting_node.connect(c);
+                starting_node.lock().unwrap().connect(&sim_nodes[*c]);
             });
         });
         self.cache = Some(sim_nodes.clone());
@@ -188,10 +191,12 @@ impl SimulatorBuilder {
         self.cache = None
     }
 
-    pub fn add_node(&mut self, node: Box<dyn NodeBuilderTrait>) -> &mut SimulatorBuilder {
+    pub fn add_node(&mut self, mut node: Box<dyn NodeBuilderTrait>) -> &mut SimulatorBuilder {
         // the cache cannot be used if
         // the internals change
         self.drop_cache();
+        // set the internal id. Is later used for calculating paths
+        node.set_id(self.nodes.len());
         self.nodes.push(node);
         self
     }
