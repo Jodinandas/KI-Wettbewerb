@@ -1,4 +1,4 @@
-use std::vec;
+ use std::vec;
 
 use super::super::traits::NodeTrait;
 use super::traversible::Traversible;
