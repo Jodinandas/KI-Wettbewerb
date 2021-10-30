@@ -6,6 +6,7 @@ use simulator::{debug::build_grid_sim, simple::{simulation::Simulator, simulatio
 use wasm_bindgen::prelude::*;
 use bevy_prototype_lyon::{entity::ShapeBundle, prelude::*, shapes::{Polygon, RegularPolygon}};
 use simulator::simple::node;
+mod toolbar;
 use simulator;
 
 #[derive(PartialEq)]
@@ -21,7 +22,7 @@ impl Default for Theme {
 
 #[derive(Default)]
 pub struct UIState {
-    theme: Theme
+    toolbar: toolbar::Toolbar
 }
 
 #[wasm_bindgen]
@@ -71,6 +72,15 @@ fn ui_example(egui_context: ResMut<EguiContext>, mut ui_state: ResMut<UIState>,)
             });
             ui.separator();
             
+        });
+    // Toolbar
+    egui::SidePanel::right("toolbar")
+        .default_width(50.0)
+        .show(egui_context.ctx(), | ui | {
+            ui.vertical_centered( | ui | {
+
+            });
+            ui.separator();
         });
 }
 
@@ -178,7 +188,7 @@ fn spawn_simulation_builder(mut commands: Commands, asset_server: Res<AssetServe
                                 let end_index = new_builder.nodes[i].get_connections()[0];
                                 let pos_j = Vec2::new(calc_x(j), calc_y(j));
                                 let pos_i = Vec2::new(calc_x(end_index), calc_y(end_index));
-                                println!("I({}): {:?}, J({}): {:?}", i, pos_i, j, pos_j);
+                                //println!("I({}): {:?}, J({}): {:?}", i, pos_i, j, pos_j);
                                 let test_shape = shapes::Line(pos_i, pos_j);
                                 let geometry = GeometryBuilder::build_as(
                                     &test_shape, 
