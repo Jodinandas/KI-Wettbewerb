@@ -1,6 +1,6 @@
 use super::super::traits::NodeTrait;
-use super::node::Node;
-use super::node_builder::{CrossingBuilder, IONodeBuilder, StreetBuilder};
+use super::node::{self, IONode, Node};
+use super::node_builder::{CrossingBuilder, IONodeBuilder, NodeBuilder, StreetBuilder};
 use super::node_builder::NodeBuilderTrait;
 use super::simulation::Simulator;
 use std::sync::Mutex;
@@ -69,7 +69,7 @@ impl Error for IndexError {}
 #[derive(Debug)]
 pub struct SimulatorBuilder{
     /// A list of all the nodes
-    pub nodes: Vec<Box<dyn NodeBuilderTrait>>,
+    pub nodes: Vec<Arc<Mutex<NodeBuilder>>>,
     max_iter: Option<usize>,
     cache: Option<Vec<Arc<Mutex<Node>>>>,
     delay: u64
@@ -96,15 +96,15 @@ impl SimulatorBuilder {
     pub fn from_json(json: &str) -> Result<SimulatorBuilder, Box<dyn Error>> {
         // Generate object holding all the data, still formatted in json way
         let json_representation: JsonRepresentation = serde_json::from_str(json)?;
-        let mut crossings: Vec<Box<dyn NodeBuilderTrait>> = Vec::new();    
+        let mut crossings: Vec<Arc<Mutex<NodeBuilder>>> = Vec::new();    
         // generate all crossings
         for json_crossing in json_representation.crossings.iter() {
             // create nodes from json object
-            let new_crossing: Box<dyn NodeBuilderTrait>  = match json_crossing.is_io_node {
-                true => Box::new(IONodeBuilder::new()),
-                false => Box::new(CrossingBuilder::new())
+            let new_crossing  = match json_crossing.is_io_node {
+                true => NodeBuilder::IONode(IONodeBuilder::new()),
+                false => NodeBuilder::Crossing(CrossingBuilder::new())
             };
-            crossings.push(new_crossing);
+            crossings.push(Arc::new(Mutex::new(new_crossing)));
         }
         let mut builder = SimulatorBuilder::new(); 
         builder.nodes = crossings;
@@ -123,13 +123,17 @@ impl SimulatorBuilder {
                         )
                     );
                 }
-                // Make sure the connection doesn't already exist
-                if builder.nodes[i].get_connections().contains(connection_index) {
-                    return Err(
-                        Box::new(
-                            JsonError("Attempt to create the same connection multiple times".to_string())
-                        )
-                    );
+                {
+                    // Make sure the connection doesn't already exist
+                    let node = &builder.nodes[i].lock().unwrap();
+                    let connected = &builder.nodes[*connection_index];
+                    if node.is_connected(&connected) {
+                        return Err(
+                            Box::new(
+                                JsonError("Attempt to create the same connection multiple times".to_string())
+                            )
+                        );
+                    }
                 }
                 builder.connect_with_street(i, *connection_index, *lanes)?;
             }
@@ -146,12 +150,15 @@ impl SimulatorBuilder {
                 )
             );
         } 
+        let mut node2 = &self.nodes[inode2];
         // create a new street to connect them
         let mut new_street= StreetBuilder::new().lanes(lanes);
-        new_street.connect(inode2);
-        self.nodes.push(Box::new(new_street));
+        new_street.connect(node2);
+        self.nodes.push(Arc::new(Mutex::new(NodeBuilder::Street(new_street))));
+        // self.nodes.push(Arc::new(Mutex::new(NodeBuilder::Street(new_street))));
         let street_i = self.nodes.len() - 1;
-        self.nodes[inode1].connect(street_i);
+        let mut node1 = &self.nodes[inode1];
+        node1.lock().unwrap().connect(&self.nodes[street_i]);
         Ok(())
     }
 
@@ -169,14 +176,17 @@ impl SimulatorBuilder {
         // create the nodes
         self.nodes.iter().for_each(|n| {
             sim_nodes.push(
-                Arc::new(Mutex::new(n.build()))
+                Arc::new(Mutex::new((**n).lock().unwrap().build()))
             )
         });
         // create the connections
         self.nodes.iter().enumerate().for_each(|(i, n)| {
-            let starting_node = &sim_nodes[i];
-            n.get_connections().iter().for_each(|c| {
-                starting_node.lock().unwrap().connect(&sim_nodes[*c]);
+            let mut starting_node = sim_nodes[i].lock().unwrap();
+            (**n).lock().unwrap().get_connections().iter().for_each(|c| {
+                // get strong reference to get the id
+                let arc_node = c.upgrade().unwrap();
+                let node = arc_node.lock().unwrap();
+                starting_node.connect(&sim_nodes[node.id()]);
             });
         });
         self.cache = Some(sim_nodes.clone());
@@ -191,13 +201,13 @@ impl SimulatorBuilder {
         self.cache = None
     }
 
-    pub fn add_node(&mut self, mut node: Box<dyn NodeBuilderTrait>) -> &mut SimulatorBuilder {
+    pub fn add_node(&mut self, mut node: NodeBuilder) -> &mut SimulatorBuilder {
         // the cache cannot be used if
         // the internals change
         self.drop_cache();
         // set the internal id. Is later used for calculating paths
         node.set_id(self.nodes.len());
-        self.nodes.push(node);
+        self.nodes.push(Arc::new(Mutex::new(node)));
         self
     }
     pub fn delay(&mut self, value: u64) ->  &mut SimulatorBuilder{
@@ -208,10 +218,10 @@ impl SimulatorBuilder {
         self.max_iter = value;
         self
     }
-    pub fn iter_nodes(&self) -> std::slice::Iter<'_, Box<dyn NodeBuilderTrait>> {
+    pub fn iter_nodes(&self) -> std::slice::Iter<'_, Arc<Mutex<NodeBuilder>>> {
         self.nodes.iter()
     }
-    pub fn get_node(&self, i: usize) -> &Box<dyn NodeBuilderTrait> {
+    pub fn get_node(&self, i: usize) -> &Arc<Mutex<NodeBuilder>> {
         &self.nodes[i]
     }
 }
@@ -229,11 +239,11 @@ mod tests {
     #[test]
     fn connect_with_streets() {
         use crate::simple::simulation_builder::SimulatorBuilder;
-        use crate::simple::node_builder::{CrossingBuilder, IONodeBuilder, StreetBuilder};
+        use crate::simple::node_builder::{CrossingBuilder, IONodeBuilder, StreetBuilder, NodeBuilder};
         let mut simulator = SimulatorBuilder::new();
-        simulator.add_node(Box::new(IONodeBuilder::new()))
-        .add_node(Box::new(CrossingBuilder::new()))
-        .add_node(Box::new(StreetBuilder::new()));
+        simulator.add_node(NodeBuilder::IONode(IONodeBuilder::new()))
+        .add_node(NodeBuilder::Crossing(CrossingBuilder::new()))
+        .add_node(NodeBuilder::Street(StreetBuilder::new()));
         simulator.connect_with_street(0, 1, 2).unwrap();
         simulator.connect_with_street(1, 2, 3).unwrap();
         simulator.connect_with_street(2, 0, 4).unwrap();

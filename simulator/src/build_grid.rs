@@ -1,6 +1,7 @@
 use super::simple::node_builder::{IONodeBuilder, StreetBuilder, CrossingBuilder};
 use super::simple::simulation_builder::SimulatorBuilder;
 use crate::boxed_node;
+use crate::simple::node_builder::NodeBuilder;
 
 /// Builds a grid with side length `grid_side_len` 
 /// The edges are IONodes, the crossings and IONodes
@@ -25,12 +26,12 @@ pub fn build_grid_sim(grid_side_len: u32) -> SimulatorBuilder {
             let is_higher_edge =  i == grid_side_len-1 || j == grid_side_len-1;
             let is_edge = is_lower_edge || is_higher_edge;
             if is_corner {
-                sim.add_node(boxed_node![IONodeBuilder]);
+                sim.add_node(NodeBuilder::IONode(IONodeBuilder::new()));
                 continue;
             }
             match is_edge {
-                true => sim.add_node(boxed_node![IONodeBuilder]),
-                false => sim.add_node(boxed_node![CrossingBuilder])
+                true => sim.add_node(NodeBuilder::IONode(IONodeBuilder::new())),
+                false => sim.add_node(NodeBuilder::Crossing(CrossingBuilder::new()))
             };
 
         }

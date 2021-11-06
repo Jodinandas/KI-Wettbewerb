@@ -1,5 +1,7 @@
 use std::any::Any;
 use std::borrow::Borrow;
+use std::iter::Filter;
+use std::ops::RangeBounds;
 use std::sync::Mutex;
 use std::collections::hash_map::Entry;
 use std::sync::{Arc, Weak};
@@ -14,6 +16,7 @@ use std::fmt::{Debug, Formatter, Display};
 use std::collections::HashMap;
 
 use super::node::Node;
+use super::node_builder::NodeBuilder;
 use super::simulation::NodeDoesntExistError;
 
 #[derive(Debug, Clone)]
@@ -89,49 +92,97 @@ impl Movable for PathAwareCar {
     }
 }
 
+// A Data Structure representing the connections with indexes to make
+// using path finding algorithms easier
+struct IndexedNodeNetwork {
+    // connections acvvvvvvvvvvvvvvvn bbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    pub connections: Vec<Vec<(usize, usize)>>,
+    pub io_nodes: Vec<usize>,
+    pub io_node_weights: Vec<f32>
+}
+
+impl IndexedNodeNetwork {
+    fn new(nodes: &Vec<Arc<Mutex<NodeBuilder>>>) -> IndexedNodeNetwork {
+        let mut connections: Vec<Vec<(usize, usize)>> = Vec::with_capacity(nodes.len());
+        let mut io_nodes: Vec<usize> = Vec::new();
+        let mut io_node_weights: Vec<f32> = Vec::new();
+        nodes.iter().for_each( | n | {
+            let node = n.lock().unwrap();
+            connections.push(
+                {
+                    // get the indices and weights of all connections
+                    node.get_connections()
+                    .iter().map( 
+                        | n | {
+                            let arc_c_node = n.upgrade().unwrap();
+                            let c_node = arc_c_node.lock().unwrap();
+                            (
+                                c_node.id(),
+                                // funny weights calculation (dijkstra expects a cost as usize
+                                // instead of the float weights we use)
+                                ((1.0 / c_node.get_weight()) * 100000.0) as usize
+                            )
+                        }
+                    ).collect()
+                }
+                    
+            );
+            match *node {
+                NodeBuilder::IONode(_) => {
+                    io_nodes.push(node.id());
+                    io_node_weights.push(node.get_weight())
+                },
+                _ => {}
+            } 
+        });
+        IndexedNodeNetwork {
+            connections, io_nodes, io_node_weights
+        }
+    }
+    fn all_except(&self, i: usize) -> Vec<usize> {
+        (0..(self.connections.len()-1)).filter(
+            | n | *n != i 
+        ).collect()
+    }
+}
+
+
 /// generates new movables with a given path
 struct MovableServer{
-    nodes: Vec<Box<dyn NodeBuilderTrait>>,
+    nodes: Vec<Arc<Mutex<NodeBuilder>>>,
+    indexed: IndexedNodeNetwork,
     cache: HashMap<(usize, usize), PathAwareCar>,
 }
 
 impl MovableServer{
-    fn new(nodes: Vec<Box<dyn NodeBuilderTrait>>) -> MovableServer{
+    fn new(nodes: Vec<Arc<Mutex<NodeBuilder>>>) -> MovableServer{
         MovableServer {
+            indexed: IndexedNodeNetwork::new(&nodes),
             nodes,
             cache: HashMap::new(),
         }
     }
     fn generate_movable(&mut self, index: usize) -> PathAwareCar{
         // choose random IoNode to drive to
-        let io_nodes: Vec<(usize, &Box<dyn NodeBuilderTrait>)> = self.nodes.iter().enumerate().filter(
-            | (i, node) | {
-                match node.get_node_type() {
-                    node_builder::NodeBuilderType::IONode => {
-                        *i != index
-                    },
-                    _ => {false}
-                }
-            }
-        ).collect();
-        let weights= io_nodes.iter()
-            .map(| (_i,n) | { (*n).get_weight() });
-        let dist = WeightedIndex::new(weights).unwrap();
+        // prevent start node from being the end node at the same time
+        let choices = self.indexed.all_except(index);
+        let dist = WeightedIndex::new(self.indexed.io_node_weights.clone()).unwrap();
         let mut rng = thread_rng();
         // you are the chosen one!
-        let end_node_index = io_nodes[dist.sample(&mut rng)].0;
-        let start_node_index = index;
-        println!("{}, {}", start_node_index, end_node_index);
-        let cache_entry = self.cache.entry((start_node_index, end_node_index));
+        let start_node = self.indexed.io_nodes[index];
+        let end_node = dist.sample(&mut rng);
+        println!("{}, {}", start_node, end_node);
+        let cache_entry = self.cache.entry(
+            (start_node, end_node)
+        );
         if let Entry::Occupied( entry ) = cache_entry{
             return entry.get().clone()
         }else{
             // weight needs to be 1/weights, because dijkstra takes cost and not weight of nodes
             let mut path = dijkstra(
-                &start_node_index,
-                |p| self.nodes[*p].get_connections().iter()
-                    .map(| c_index | { (*c_index, ((1.0 / self.nodes[*c_index].get_weight()) * 100000.0) as usize) }),
-                |i| *i == end_node_index
+                &start_node,
+                |p| self.indexed.connections[*p].clone(),
+                |i| *i == end_node
             ).expect("Unable to compute path").0;
             // Reverse list of nodes to be able to pop off the last element
             path.reverse();
@@ -141,7 +192,7 @@ impl MovableServer{
                 speed: 1.0,
                 path,
             };
-            self.cache.insert((start_node_index, end_node_index), car.clone());
+            self.cache.insert((start_node, end_node), car.clone());
             return car   
         }
     }
