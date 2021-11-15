@@ -101,8 +101,8 @@ dyn_clone::clone_trait_object!(NodeBuilderTrait);
 
 #[derive(Debug, Clone)]
 pub struct StreetBuilder {
-    conn_out: Option<Weak<Mutex<NodeBuilder>>>,
-    conn_in: Option<Weak<Mutex<NodeBuilder>>>,
+    pub conn_out: Option<Weak<Mutex<NodeBuilder>>>,
+    pub conn_in: Option<Weak<Mutex<NodeBuilder>>>,
     lanes: u8,
     lane_length: f32,
     id: usize,
@@ -156,7 +156,6 @@ impl StreetBuilder {
 }
 
 impl StreetBuilder {
-    
     pub fn length(mut self, length: f32) -> Self {
         self.lane_length = length;
         self
@@ -318,24 +317,25 @@ impl<T> CrossingConnections<T> {
             .is_some()
     }
     /// Returns `Some(Direction)` for an item if it is saved in the connections
-    pub fn get_direction_for_item(&self, conn_type: InOut, item: &Arc<Mutex<T>>) -> Option<Direction>{
+    pub fn get_direction_for_item(
+        &self,
+        conn_type: InOut,
+        item: &Arc<Mutex<T>>,
+    ) -> Option<Direction> {
         let connection: &HashMap<Direction, Weak<Mutex<T>>>;
         match conn_type {
             InOut::IN => connection = &self.input,
             InOut::OUT => connection = &self.output,
         }
-        let search_results = connection.iter().find(| &(k, v) |
-            {
-                // Both point to the same internal T
-                ptr::eq(v.as_ptr(), &**item)
-            }
-        );
+        let search_results = connection.iter().find(|&(k, v)| {
+            // Both point to the same internal T
+            ptr::eq(v.as_ptr(), &**item)
+        });
         // Transform the results to match the function signature
         match search_results {
             Some((k, v)) => Some(k.clone()),
             None => None,
         }
-
     }
 }
 // impl Debug for CrossingConnections {

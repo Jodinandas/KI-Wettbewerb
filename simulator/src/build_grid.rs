@@ -82,25 +82,25 @@ pub fn build_grid_sim(grid_side_len: u32) -> SimulatorBuilder {
                     ((i * grid_side_len + j - 1) as usize, Direction::E),
                     1,
                 )
-                    .expect("p5");
+                .expect("p5");
                 sim.connect_with_street(
                     ((i * grid_side_len + j) as usize, Direction::N),
                     (((i - 1) * grid_side_len + j) as usize, Direction::S),
                     1,
                 )
-                    .expect("p6");
+                .expect("p6");
                 sim.connect_with_street(
                     ((i * grid_side_len + j - 1) as usize, Direction::E),
                     ((i * grid_side_len + j) as usize, Direction::W),
                     1,
                 )
-                    .expect("p7");
+                .expect("p7");
                 sim.connect_with_street(
                     (((i - 1) * grid_side_len + j) as usize, Direction::S),
-                    ((grid_side_len + j) as usize, Direction::N),
+                    ((i * grid_side_len + j) as usize, Direction::N),
                     1,
                 )
-                    .expect("p8");
+                .expect("p8");
             }
         }
     }

@@ -6,8 +6,8 @@ use std::{ptr, vec};
 use super::movable::RandCar;
 use super::node_builder::{CrossingConnections, Direction, InOut};
 use super::traversible::Traversible;
-use crate::traits::NodeTrait;
 use crate::simple::pathfinding::PathAwareCar;
+use crate::traits::NodeTrait;
 
 /// Objects for storing data relevant for rendering
 /// different nodes
@@ -43,10 +43,9 @@ pub enum Node {
 
 impl NodeTrait for Node {
     fn is_connected(&self, other: &Arc<Mutex<Node>>) -> bool {
-        self
-            .get_connections()
+        self.get_connections()
             .iter()
-            .find( |n| ptr::eq(n.as_ptr(), &**other))
+            .find(|n| ptr::eq(n.as_ptr(), &**other))
             .is_some()
     }
     fn get_connections(&self) -> Vec<Weak<Mutex<Node>>> {
@@ -179,7 +178,7 @@ impl Street {
             conn_in: None,
             lanes: 1,
             id: 0,
-            car_lane: Traversible::<PathAwareCar>::new(100.0)
+            car_lane: Traversible::<PathAwareCar>::new(100.0),
         }
     }
     pub fn connect(&mut self, conn_type: InOut, other: &Arc<Mutex<Node>>) -> &mut Self {

@@ -41,13 +41,17 @@ impl Error for JsonError {}
 pub struct ConnectionError {
     start: usize,
     end: usize,
-    msg: Option<String>
+    msg: Option<String>,
 }
 
 impl fmt::Display for ConnectionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.msg {
-            Some(msg) => write!(f, "ConnectionError: {} -> {} ({})", self.start, self.end, msg),
+            Some(msg) => write!(
+                f,
+                "ConnectionError: {} -> {} ({})",
+                self.start, self.end, msg
+            ),
             None => write!(f, "ConnectionError: {} -> {}", self.start, self.end),
         }
     }
@@ -187,24 +191,32 @@ impl SimulatorBuilder {
                 inner.connect(&new_street);
             }
             NodeBuilder::Crossing(inner) => {
-                inner.connect(dir1, InOut::OUT, &new_street).map_err(|er| {Box::new(
-                    ConnectionError {
+                inner.connect(dir1, InOut::OUT, &new_street).map_err(|er| {
+                    Box::new(ConnectionError {
                         start: inode1,
                         end: inode2,
-                        msg: Some(format!("Unable to connect OUT -> IN. (Failed at OUT): {}", er))
-                    })})?;
+                        msg: Some(format!(
+                            "Unable to connect OUT -> IN. (Failed at OUT): {}",
+                            er
+                        )),
+                    })
+                })?;
             }
             NodeBuilder::Street(_) => panic!("Can't connect street with street"),
         }
         match &mut *node2.lock().unwrap() {
             NodeBuilder::IONode(inner) => {}
             NodeBuilder::Crossing(inner) => {
-                inner.connect(dir2, InOut::IN, &new_street).map_err(|er| {Box::new(
-                    ConnectionError {
+                inner.connect(dir2, InOut::IN, &new_street).map_err(|er| {
+                    Box::new(ConnectionError {
                         start: inode1,
                         end: inode2,
-                        msg: Some(format!("Unable to connect OUT -> IN. (Failed at IN): {}", er))
-                    })})?;
+                        msg: Some(format!(
+                            "Unable to connect OUT -> IN. (Failed at IN): {}",
+                            er
+                        )),
+                    })
+                })?;
             }
             NodeBuilder::Street(_) => panic!("Can't connect street with street"),
         }
