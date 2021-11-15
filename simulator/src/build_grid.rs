@@ -55,26 +55,26 @@ pub fn build_grid_sim(grid_side_len: u32) -> SimulatorBuilder {
                         ((i * grid_side_len + j - 1) as usize, Direction::E),
                         1,
                     )
-                    .unwrap();
+                    .expect("p1");
                     sim.connect_with_street(
                         ((i * grid_side_len + j - 1) as usize, Direction::E),
                         ((i * grid_side_len + j) as usize, Direction::W),
                         1,
                     )
-                    .unwrap();
+                    .expect("p2");
                 } else if is_bottom_edge && (j != 0 && j != grid_side_len - 1) {
                     sim.connect_with_street(
-                        ((i * grid_side_len + j) as usize, Direction::S),
-                        (((i - 1) * grid_side_len + j) as usize, Direction::N),
+                        ((i * grid_side_len + j) as usize, Direction::N),
+                        (((i - 1) * grid_side_len + j) as usize, Direction::S),
                         1,
                     )
-                    .unwrap();
+                    .expect("p3");
                     sim.connect_with_street(
-                        (((i - 1) * grid_side_len + j) as usize, Direction::N),
-                        ((grid_side_len + j) as usize, Direction::S),
+                        (((i - 1) * grid_side_len + j) as usize, Direction::S),
+                        ((i * grid_side_len + j) as usize, Direction::N),
                         1,
                     )
-                    .unwrap();
+                    .expect("p4");
                 }
             } else {
                 sim.connect_with_street(
@@ -82,25 +82,25 @@ pub fn build_grid_sim(grid_side_len: u32) -> SimulatorBuilder {
                     ((i * grid_side_len + j - 1) as usize, Direction::E),
                     1,
                 )
-                .unwrap();
+                    .expect("p5");
                 sim.connect_with_street(
                     ((i * grid_side_len + j) as usize, Direction::N),
                     (((i - 1) * grid_side_len + j) as usize, Direction::S),
                     1,
                 )
-                .unwrap();
+                    .expect("p6");
                 sim.connect_with_street(
                     ((i * grid_side_len + j - 1) as usize, Direction::E),
                     ((i * grid_side_len + j) as usize, Direction::W),
                     1,
                 )
-                .unwrap();
+                    .expect("p7");
                 sim.connect_with_street(
                     (((i - 1) * grid_side_len + j) as usize, Direction::S),
                     ((grid_side_len + j) as usize, Direction::N),
                     1,
                 )
-                .unwrap();
+                    .expect("p8");
             }
         }
     }

@@ -273,6 +273,7 @@ impl<T> CrossingConnections<T> {
             InOut::IN => connection = &mut self.input,
             InOut::OUT => connection = &mut self.output,
         }
+        println!("Trying to set {:?}, {:?}", conn_type, dir);
         match connection.get(&dir) {
             Some(_value) => {
                 return Err(format!(
