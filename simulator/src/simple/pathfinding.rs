@@ -20,7 +20,7 @@ use super::node_builder::NodeBuilder;
 use super::simulation::NodeDoesntExistError;
 
 #[derive(Debug, Clone)]
-struct PathAwareCar {
+pub struct PathAwareCar {
     speed: f32,
     path: Vec<usize>,
 }

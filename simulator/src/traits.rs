@@ -13,9 +13,8 @@ use crate::simple::movable::RandCar;
 /// The nodes are mostly used in the form of `Box<dyn Node>`
 pub trait NodeTrait<Car = RandCar>: Debug + Sync + Send + DynClone {
     fn is_connected(&self, other: &Arc<Mutex<Node>>) -> bool;
-    fn connect(&mut self, other: &Arc<Mutex<Node>>);
     fn update_cars(&mut self, t: f64) -> Vec<Car>;
-    fn get_connections<'a>(&'a self) -> &'a Vec<Weak<Mutex<Node>>>;
+    fn get_connections(&self) -> Vec<Weak<Mutex<Node>>>;
     fn add_car(&mut self, car: Car);
     fn generate_graphics_info(&self) -> graphics::Info;
     /// a unique node id

@@ -112,7 +112,8 @@ impl NodeBuilderTrait for StreetBuilder {
         Node::Street(Street {
             lanes: self.lanes,
             car_lane: Traversible::<RandCar>::new(self.lane_length),
-            end: vec![Weak::new()],
+            conn_in: None,
+            conn_out: None,
             id: self.id,
         })
     }
@@ -155,6 +156,7 @@ impl StreetBuilder {
 }
 
 impl StreetBuilder {
+    
     pub fn length(mut self, length: f32) -> Self {
         self.lane_length = length;
         self
@@ -315,6 +317,26 @@ impl<T> CrossingConnections<T> {
             .find(|v| ptr::eq(v.as_ptr(), &**node))
             .is_some()
     }
+    /// Returns `Some(Direction)` for an item if it is saved in the connections
+    pub fn get_direction_for_item(&self, conn_type: InOut, item: &Arc<Mutex<T>>) -> Option<Direction>{
+        let connection: &HashMap<Direction, Weak<Mutex<T>>>;
+        match conn_type {
+            InOut::IN => connection = &self.input,
+            InOut::OUT => connection = &self.output,
+        }
+        let search_results = connection.iter().find(| &(k, v) |
+            {
+                // Both point to the same internal T
+                ptr::eq(v.as_ptr(), &**item)
+            }
+        );
+        // Transform the results to match the function signature
+        match search_results {
+            Some((k, v)) => Some(k.clone()),
+            None => None,
+        }
+
+    }
 }
 // impl Debug for CrossingConnections {
 //     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -347,7 +369,7 @@ impl<T> CrossingConnections<T> {
 
 #[derive(Debug, Clone)]
 pub struct CrossingBuilder {
-    connections: CrossingConnections,
+    pub connections: CrossingConnections,
     /// ???? why length,
     length: f32,
     id: usize,
@@ -355,7 +377,7 @@ pub struct CrossingBuilder {
 impl NodeBuilderTrait for CrossingBuilder {
     fn build(&self) -> Node {
         Node::Crossing(Crossing {
-            connections: Vec::new(),
+            connections: CrossingConnections::new(),
             car_lane: Traversible::<RandCar>::new(self.length),
             id: self.id,
         })
