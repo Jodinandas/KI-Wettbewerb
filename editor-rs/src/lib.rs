@@ -62,10 +62,7 @@ impl UIMode {
 #[derive(Default)]
 pub struct UIState {
     toolbar: toolbar::Toolbar,
-<<<<<<< HEAD
-=======
     mode: UIMode
->>>>>>> refs/remotes/origin/main
 }
 
 #[wasm_bindgen]
@@ -92,42 +89,6 @@ pub fn run() {
 /// Draws the ui
 ///
 /// Nice reference: [Examples](https://github.com/mvlabat/bevy_egui/blob/main/examples/ui.rs)
-<<<<<<< HEAD
-fn ui_example(egui_context: ResMut<EguiContext>, mut ui_state: ResMut<UIState>) {
-    egui::TopBottomPanel::top("menu_top_panel").show(egui_context.ctx(), |ui| {
-        ui.horizontal(|ui| {
-            let new_visuals = ui
-                .style_mut()
-                .visuals
-                .clone()
-                .light_dark_small_toggle_button(ui);
-            if let Some(visuals) = new_visuals {
-                ui.ctx().set_visuals(visuals);
-            };
-            ui.separator();
-            egui::menu::menu(ui, "File", |ui| {
-                ui.label("Nothing here yet...");
-            });
-        });
-    });
-    // Left Side panel, mainly for displaying the item editor
-    egui::SidePanel::left("item_editor")
-        .default_width(300.0)
-        .show(egui_context.ctx(), |ui| {
-            ui.horizontal(|ui| {
-                ui.heading("ItemEditor");
-                egui::warn_if_debug_build(ui);
-            });
-            ui.separator();
-        });
-    // Toolbar
-    egui::SidePanel::right("toolbar")
-        .default_width(50.0)
-        .show(egui_context.ctx(), |ui| {
-            ui.vertical_centered(|ui| ui_state.toolbar.render_tools(ui));
-            ui.separator();
-        });
-=======
 fn ui_example(egui_context: ResMut<EguiContext>, mut ui_state: ResMut<UIState>,) {
     egui::TopBottomPanel::top("menu_top_panel")
         .show(egui_context.ctx(), |ui| {
@@ -171,7 +132,6 @@ egui::SidePanel::right("toolbar")
             UIMode::Simulator => {},
         }
     
->>>>>>> refs/remotes/origin/main
 }
 
 fn generate_simulation() {}

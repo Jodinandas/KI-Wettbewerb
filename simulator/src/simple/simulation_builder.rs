@@ -209,18 +209,82 @@ impl SimulatorBuilder {
             .iter()
             .for_each(|n| sim_nodes.push(Arc::new(Mutex::new((**n).lock().unwrap().build()))));
         // create the connections
-        self.nodes.iter().enumerate().for_each(|(i, n)| {
-            let mut starting_node = sim_nodes[i].lock().unwrap();
-            (**n)
+        self.nodes.iter().enumerate().for_each(|(i, start_node_arc)| {
+            (**start_node_arc)
                 .lock()
                 .unwrap()
                 .get_connections()
                 .iter()
                 .for_each(|c| {
                     // get strong reference to get the id
-                    let arc_node = c.upgrade().unwrap();
-                    let node = arc_node.lock().unwrap();
-                    starting_node.connect(&sim_nodes[node.get_id()]);
+                    let end_node_builder_arc = c.upgrade().unwrap();
+                    let end_node_builder = end_node_builder_arc.lock().unwrap();
+                    let starting_node = &sim_nodes[i];
+                    let end_node = &sim_nodes[end_node_builder.get_id()];
+                    let starting_node_unwrapped = &mut *starting_node.try_lock().unwrap();
+                    // we will connect using the out connections and set the in connections
+                    // at the same time
+                    match &mut *start_node_arc.try_lock().unwrap() {
+                        NodeBuilder::Street(street_builder) => {
+                            let street = match starting_node_unwrapped{
+                                Node::Street(s) => s,
+                                Node::IONode(_) => panic!("NodeBuilders and Nodes not in same position in list."),
+                                Node::Crossing(_) => panic!("NodeBuilders and Nodes not in same position in list.")
+                            };
+                            // streets are only connected to one other node
+                            // set out connection
+                            street.connect(InOut::OUT, end_node);
+                            // set in connection of target node
+                            match &mut *(**end_node).try_lock().unwrap() {
+                                Node::Street(target) => {
+                                    target.connect(InOut::IN, &starting_node);
+                                },
+                                Node::IONode(target) => {
+                                    // doesn't have an in connection
+                                },
+                                Node::Crossing(target) => {
+                                    let crossing_builder= match &*end_node_builder {
+                                        NodeBuilder::Street(_) => panic!("NodeBuilders and Nodes not in same position in list."),
+                                        NodeBuilder::IONode(_) => panic!("NodeBuilders and Nodes not in same position in list."),
+                                        NodeBuilder::Crossing(n) => n
+                                    };
+                                    // Here we need to keep the structure that is saved
+                                    // in the CrossingConnections of the NodeBuilder
+
+                                    // get direction of input
+                                    let direction = crossing_builder.connections.get_direction_for_item(InOut::IN, start_node_arc)
+                                        .expect("Street output is connected to Crossing, but the Crossing input is not connected to street.");
+                                    target.connect(direction, InOut::IN, starting_node);
+                                },
+                            }
+
+                        }
+                        // We will work under the assumption that crossings and io_nodes can only
+                        // be connected with streets and not directly between each other
+                        NodeBuilder::IONode(io_node_builder) => {
+                            let io_node = match starting_node_unwrapped {
+                                Node::Street(_) => panic!("NodeBuilders and Nodes not in same position in list."),
+                                Node::IONode(n) => n,
+                                Node::Crossing(_) => panic!("NodeBuilders and Nodes not in same position in list.")
+                            };
+                            io_node.connect(end_node);
+                        },
+                        NodeBuilder::Crossing(crossing_builder) => {
+                            let crossing = match starting_node_unwrapped {
+                                Node::Street(_) => panic!("NodeBuilders and Nodes not in same position in list."),
+                                Node::IONode(_) => panic!("NodeBuilders and Nodes not in same position in list."),
+                                Node::Crossing(n) => n 
+                            };
+                            let direction = crossing_builder.connections.get_direction_for_item(InOut::OUT, &end_node_builder_arc).unwrap();
+                            crossing.connect(direction, InOut::OUT, end_node);
+                            match &mut *end_node.try_lock().unwrap() {
+                                Node::Street(street) => {street.connect(InOut::IN, starting_node);},
+                                Node::IONode(_) => panic!("NodeBuilders and Nodes not in same position in list."),
+                                Node::Crossing(_) => panic!("NodeBuilders and Nodes not in same position in list."),
+                            }
+                            
+                        },
+                    }
                 });
         });
         self.cache = Some(sim_nodes.clone());

@@ -1,9 +1,13 @@
+use std::collections::HashMap;
+use std::error::Error;
 use std::sync::{Arc, Mutex, Weak};
 use std::{ptr, vec};
 
 use super::movable::RandCar;
+use super::node_builder::{CrossingConnections, Direction, InOut};
 use super::traversible::Traversible;
 use crate::traits::NodeTrait;
+use crate::simple::pathfinding::PathAwareCar;
 
 /// Objects for storing data relevant for rendering
 /// different nodes
@@ -39,38 +43,17 @@ pub enum Node {
 
 impl NodeTrait for Node {
     fn is_connected(&self, other: &Arc<Mutex<Node>>) -> bool {
-        match self {
-            Node::Street(street) => street
-                .end
-                .iter()
-                .find(|n| ptr::eq(n.as_ptr(), &**other))
-                .is_some(),
-            Node::IONode(io_node) => io_node
-                .connections
-                .iter()
-                .find(|n| ptr::eq(n.as_ptr(), &**other))
-                .is_some(),
-            Node::Crossing(crossing) => crossing
-                .connections
-                .iter()
-                .find(|n| ptr::eq(n.as_ptr(), &**other))
-                .is_some(),
-        }
+        self
+            .get_connections()
+            .iter()
+            .find( |n| ptr::eq(n.as_ptr(), &**other))
+            .is_some()
     }
-
-    fn connect(&mut self, other: &Arc<Mutex<Node>>) {
+    fn get_connections(&self) -> Vec<Weak<Mutex<Node>>> {
         match self {
-            Node::Street(street) => street.end = vec![Arc::downgrade(other)],
-            Node::IONode(io_node) => io_node.connections.push(Arc::downgrade(other)),
-            Node::Crossing(crossing) => crossing.connections.push(Arc::downgrade(other)),
-        }
-    }
-
-    fn get_connections<'a>(&'a self) -> &'a Vec<Weak<Mutex<Node>>> {
-        match self {
-            Node::Street(street) => &street.end,
-            Node::IONode(io_node) => &io_node.connections,
-            Node::Crossing(crossing) => &crossing.connections,
+            Node::Street(street) => street.get_connections(),
+            Node::IONode(io_node) => io_node.connections.clone(),
+            Node::Crossing(crossing) => crossing.get_connections(),
         }
     }
 
@@ -121,17 +104,33 @@ impl NodeTrait for Node {
 /// A simple crossing
 #[derive(Debug, Clone)]
 pub struct Crossing {
-    pub connections: Vec<Weak<Mutex<Node>>>,
+    pub connections: CrossingConnections<Node>,
     pub car_lane: Traversible<RandCar>,
     pub id: usize,
 }
 impl Crossing {
     pub fn new() -> Crossing {
         Crossing {
-            connections: Vec::new(),
-            car_lane: Traversible::<RandCar>::new(100.0),
+            connections: CrossingConnections::new(),
+            car_lane: Traversible::<PathAwareCar>::new(1.0),
             id: 0,
         }
+    }
+    pub fn get_connections(&self) -> Vec<std::sync::Weak<Mutex<Node>>> {
+        self.connections
+            .output
+            .values()
+            .map(|c| Weak::clone(c))
+            .collect()
+    }
+    pub fn connect(
+        &mut self,
+        dir: Direction,
+        conn_type: InOut,
+        other: &Arc<Mutex<Node>>,
+    ) -> Result<&mut Self, Box<dyn Error>> {
+        self.connections.add(dir, conn_type, other)?;
+        Ok(self)
     }
 }
 /// A Node that represents either the start of the simulation or the end of it
@@ -155,6 +154,9 @@ impl IONode {
             id: 0,
         }
     }
+    pub fn connect(&mut self, n: &Arc<Mutex<Node>>) {
+        self.connections.push(Arc::downgrade(n))
+    }
 }
 
 /// A `Street` is mostly used to connect `IONode`s or `Crossing`s
@@ -163,7 +165,8 @@ impl IONode {
 /// - `lanes` stores how many lanes the `Street` has
 #[derive(Debug, Clone)]
 pub struct Street {
-    pub end: Vec<Weak<Mutex<Node>>>,
+    pub conn_out: Option<Weak<Mutex<Node>>>,
+    pub conn_in: Option<Weak<Mutex<Node>>>,
     pub lanes: u8,
     pub car_lane: Traversible<RandCar>,
     pub id: usize,
@@ -172,10 +175,26 @@ pub struct Street {
 impl Street {
     pub fn new(end: &Arc<Mutex<Node>>) -> Street {
         Street {
-            end: vec![Arc::downgrade(end)],
+            conn_out: None,
+            conn_in: None,
             lanes: 1,
-            car_lane: Traversible::<RandCar>::new(100.0),
             id: 0,
+            car_lane: Traversible::<PathAwareCar>::new(100.0)
         }
+    }
+    pub fn connect(&mut self, conn_type: InOut, other: &Arc<Mutex<Node>>) -> &mut Self {
+        let new_item = Some(Arc::downgrade(other));
+        match conn_type {
+            InOut::IN => self.conn_in = new_item,
+            InOut::OUT => self.conn_out = new_item,
+        }
+        self
+    }
+    pub fn get_connections<'a>(&'a self) -> Vec<std::sync::Weak<Mutex<Node>>> {
+        let mut out = Vec::new();
+        if let Some(conn) = &self.conn_out {
+            out.push(Weak::clone(conn));
+        }
+        out
     }
 }
