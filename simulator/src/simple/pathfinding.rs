@@ -1,19 +1,19 @@
+use crate::simple::node_builder;
+use crate::simple::node_builder::NodeBuilderTrait;
+use crate::traits::{Movable, NodeTrait};
+use pathfinding::directed::dijkstra::dijkstra;
+use rand::distributions::WeightedIndex;
+use rand::prelude::*;
 use std::any::Any;
 use std::borrow::Borrow;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
+use std::error::Error;
+use std::fmt::{Debug, Display, Formatter};
 use std::iter::Filter;
 use std::ops::RangeBounds;
 use std::sync::Mutex;
-use std::collections::hash_map::Entry;
 use std::sync::{Arc, Weak};
-use crate::simple::node_builder::NodeBuilderTrait;
-use crate::simple::node_builder;
-use crate::traits::{Movable, NodeTrait};
-use std::error::Error;
-use rand::prelude::*;
-use rand::distributions::WeightedIndex;
-use pathfinding::directed::dijkstra::dijkstra;
-use std::fmt::{Debug, Formatter, Display};
-use std::collections::HashMap;
 
 use super::node::Node;
 use super::node_builder::NodeBuilder;
@@ -29,7 +29,7 @@ struct PathAwareCar {
 struct PathError {
     msg: &'static str,
     expected_node: Option<usize>,
-    available_nodes: Vec<usize>
+    available_nodes: Vec<usize>,
 }
 
 impl Display for PathError {
@@ -49,56 +49,64 @@ impl Movable for PathAwareCar {
         self.speed = s
     }
 
-    fn update(&mut self, t:f64) {
+    fn update(&mut self, t: f64) {
         panic!("Not yet implemented! Consider using decide_next() instead");
     }
 
-    fn decide_next(&mut self, connections: &Vec<Weak<Mutex<Node>>>) -> Result<Weak<Mutex<Node>>, Box<dyn Error>> { 
+    fn decide_next(
+        &mut self,
+        connections: &Vec<Weak<Mutex<Node>>>,
+    ) -> Result<Weak<Mutex<Node>>, Box<dyn Error>> {
         // upgrade references to be able to access the id field
         let mut connections_upgraded = Vec::with_capacity(connections.len());
         for c in connections.iter() {
-            connections_upgraded.push(
-                match c.upgrade() {
-                    Some(value) => value, 
-                    None => return Err(Box::new(NodeDoesntExistError{})), 
-                }
-            )
+            connections_upgraded.push(match c.upgrade() {
+                Some(value) => value,
+                None => return Err(Box::new(NodeDoesntExistError {})),
+            })
         }
-        let connection_ids =connections_upgraded.iter().map(
-            | n| (**n).lock().unwrap().id()
-        ).collect();
+        let connection_ids = connections_upgraded
+            .iter()
+            .map(|n| (**n).lock().unwrap().id())
+            .collect();
 
         // epische logik hier
         let to_return = match self.path.pop() {
             Some(value) => value,
-            None => {return Err(Box::new(PathError {
-                msg: "Path is empty, but next connection was requested.",
-                expected_node: None,
-                available_nodes: connection_ids
-            }))}
+            None => {
+                return Err(Box::new(PathError {
+                    msg: "Path is empty, but next connection was requested.",
+                    expected_node: None,
+                    available_nodes: connection_ids,
+                }))
+            }
         };
 
-        if !connection_ids.contains(&to_return){
-            return Err(Box::new(PathError{
+        if !connection_ids.contains(&to_return) {
+            return Err(Box::new(PathError {
                 msg: "Requested connection not present in current available in node",
                 expected_node: Some(to_return),
                 available_nodes: connection_ids.clone(),
-            }))
+            }));
         }
-        
-        let (index, _) = connection_ids.iter().enumerate().find(| (_, i) | **i == to_return).unwrap();
+
+        let (index, _) = connection_ids
+            .iter()
+            .enumerate()
+            .find(|(_, i)| **i == to_return)
+            .unwrap();
 
         Ok(connections[index].clone())
     }
 }
 
-// A Data Structure representing the connections with indexes to make
+// A Data Structure representing the connections with indices to make
 // using path finding algorithms easier
 struct IndexedNodeNetwork {
-    // connections acvvvvvvvvvvvvvvvn bbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    // connections acvvvvvvvvvvvvvvvn bbbbbbbbbbbbbbbbbbbbbbbbbbbb (my cat)
     pub connections: Vec<Vec<(usize, usize)>>,
     pub io_nodes: Vec<usize>,
-    pub io_node_weights: Vec<f32>
+    pub io_node_weights: Vec<f32>,
 }
 
 impl IndexedNodeNetwork {
@@ -106,63 +114,61 @@ impl IndexedNodeNetwork {
         let mut connections: Vec<Vec<(usize, usize)>> = Vec::with_capacity(nodes.len());
         let mut io_nodes: Vec<usize> = Vec::new();
         let mut io_node_weights: Vec<f32> = Vec::new();
-        nodes.iter().for_each( | n | {
+        nodes.iter().for_each(|n| {
             let node = n.lock().unwrap();
-            connections.push(
-                {
-                    // get the indices and weights of all connections
-                    node.get_connections()
-                    .iter().map( 
-                        | n | {
-                            let arc_c_node = n.upgrade().unwrap();
-                            let c_node = arc_c_node.lock().unwrap();
-                            (
-                                c_node.id(),
-                                // funny weights calculation (dijkstra expects a cost as usize
-                                // instead of the float weights we use)
-                                ((1.0 / c_node.get_weight()) * 100000.0) as usize
-                            )
-                        }
-                    ).collect()
-                }
-                    
-            );
+            connections.push({
+                // get the indices and weights of all connections
+                node.get_connections()
+                    .iter()
+                    .map(|n| {
+                        let arc_c_node = n.upgrade().unwrap();
+                        let c_node = arc_c_node.lock().unwrap();
+                        (
+                            c_node.get_id(),
+                            // funny weights calculation (dijkstra expects a cost as usize
+                            // instead of the float weights we use)
+                            ((1.0 / c_node.get_weight()) * 100000.0) as usize,
+                        )
+                    })
+                    .collect()
+            });
             match *node {
                 NodeBuilder::IONode(_) => {
-                    io_nodes.push(node.id());
+                    io_nodes.push(node.get_id());
                     io_node_weights.push(node.get_weight())
-                },
+                }
                 _ => {}
-            } 
+            }
         });
         IndexedNodeNetwork {
-            connections, io_nodes, io_node_weights
+            connections,
+            io_nodes,
+            io_node_weights,
         }
     }
     fn all_except(&self, i: usize) -> Vec<usize> {
-        (0..(self.connections.len()-1)).filter(
-            | n | *n != i 
-        ).collect()
+        (0..(self.connections.len() - 1))
+            .filter(|n| *n != i)
+            .collect()
     }
 }
 
-
 /// generates new movables with a given path
-struct MovableServer{
+struct MovableServer {
     nodes: Vec<Arc<Mutex<NodeBuilder>>>,
     indexed: IndexedNodeNetwork,
     cache: HashMap<(usize, usize), PathAwareCar>,
 }
 
-impl MovableServer{
-    fn new(nodes: Vec<Arc<Mutex<NodeBuilder>>>) -> MovableServer{
+impl MovableServer {
+    fn new(nodes: Vec<Arc<Mutex<NodeBuilder>>>) -> MovableServer {
         MovableServer {
             indexed: IndexedNodeNetwork::new(&nodes),
             nodes,
             cache: HashMap::new(),
         }
     }
-    fn generate_movable(&mut self, index: usize) -> PathAwareCar{
+    fn generate_movable(&mut self, index: usize) -> PathAwareCar {
         // choose random IoNode to drive to
         // prevent start node from being the end node at the same time
         let choices = self.indexed.all_except(index);
@@ -172,36 +178,32 @@ impl MovableServer{
         let start_node = self.indexed.io_nodes[index];
         let end_node = dist.sample(&mut rng);
         println!("{}, {}", start_node, end_node);
-        let cache_entry = self.cache.entry(
-            (start_node, end_node)
-        );
-        if let Entry::Occupied( entry ) = cache_entry{
-            return entry.get().clone()
-        }else{
+        let cache_entry = self.cache.entry((start_node, end_node));
+        if let Entry::Occupied(entry) = cache_entry {
+            return entry.get().clone();
+        } else {
             // weight needs to be 1/weights, because dijkstra takes cost and not weight of nodes
             let mut path = dijkstra(
                 &start_node,
                 |p| self.indexed.connections[*p].clone(),
-                |i| *i == end_node
-            ).expect("Unable to compute path").0;
+                |i| *i == end_node,
+            )
+            .expect("Unable to compute path")
+            .0;
             // Reverse list of nodes to be able to pop off the last element
             path.reverse();
             // IONode is the first element
             path.pop();
-            let car = PathAwareCar{
-                speed: 1.0,
-                path,
-            };
+            let car = PathAwareCar { speed: 1.0, path };
             self.cache.insert((start_node, end_node), car.clone());
-            return car   
+            return car;
         }
     }
 }
 
-
-mod tests{
-    use crate::simple::pathfinding::MovableServer;
+mod tests {
     use crate::build_grid::build_grid_sim;
+    use crate::simple::pathfinding::MovableServer;
 
     #[test]
     fn generate_movable_test() {

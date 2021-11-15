@@ -1,6 +1,5 @@
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use simulator::debug::build_grid_sim;
-
 
 fn simulation_performance_bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("simulation_performance_bench");
@@ -16,14 +15,9 @@ fn simulation_performance_bench(c: &mut Criterion) {
         for _ in 0..100 {
             sim.sim_iter(1.0)
         }
-        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &_size|{
-            b.iter(
-                || {
-                    sim.sim_iter(1.0)
-                }
-            )
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &_size| {
+            b.iter(|| sim.sim_iter(1.0))
         });
-
     }
     group.finish()
 }

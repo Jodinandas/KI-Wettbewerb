@@ -4,7 +4,7 @@ use bevy_egui::egui::Ui;
 
 pub enum ToolType {
     Pan,
-    AddStreet
+    AddStreet,
 }
 
 pub trait Tool: Send + Sync {
@@ -17,7 +17,6 @@ pub trait Tool: Send + Sync {
     fn get_type(&self) -> ToolType;
 }
 
-
 pub struct Toolbar {
     tools: Vec<Box<dyn Tool>>,
     // Can be none if there are no tools
@@ -28,17 +27,17 @@ impl Toolbar {
     pub fn new() -> Toolbar {
         Toolbar {
             tools: vec![],
-            selected: None
+            selected: None,
         }
     }
-    
+
     pub fn get_selected<'a>(&'a mut self) -> Option<&'a Box<dyn Tool>> {
         match self.selected {
             Some(i) => Some(&self.tools[i]),
-            None => None
+            None => None,
         }
     }
-    
+
     pub fn render_tools(&mut self, ui: &mut Ui) {
         for (i, tool) in self.tools.iter().enumerate() {
             tool.render(ui, &mut self.selected, i);
@@ -48,15 +47,13 @@ impl Toolbar {
 
 impl Default for Toolbar {
     fn default() -> Toolbar {
-        let tools: Vec<Box<dyn Tool>> = vec![
-            Box::new(PanTool::new()),
-            Box::new(AddStreetTool::new()),
-        ];
+        let tools: Vec<Box<dyn Tool>> =
+            vec![Box::new(PanTool::new()), Box::new(AddStreetTool::new())];
 
         Toolbar {
             tools,
-            selected: Some(0)
-        }        
+            selected: Some(0),
+        }
     }
 }
 
@@ -91,4 +88,3 @@ impl AddStreetTool {
         AddStreetTool {}
     }
 }
-

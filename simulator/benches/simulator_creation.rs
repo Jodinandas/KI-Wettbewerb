@@ -1,4 +1,4 @@
-use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use simulator::debug::build_grid_sim;
 
 fn performance_simulation_creation(c: &mut Criterion) {
@@ -10,14 +10,9 @@ fn performance_simulation_creation(c: &mut Criterion) {
         // build once to populate the cache
         let build = sim_builder.build();
         println!("Build finished with {} nodes", build.nodes.len());
-        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &_size|{
-            b.iter(
-                || {
-                    sim_builder.build()
-                }
-            )
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &_size| {
+            b.iter(|| sim_builder.build())
         });
-
     }
     group.finish()
 }
