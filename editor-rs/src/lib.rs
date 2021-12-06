@@ -99,6 +99,12 @@ impl UITheme {
             CurrentTheme::DARK => UITheme::dark(),
         }
     }
+
+}
+enum NodeType {
+    CROSSING,
+    IONODE,
+    STREET
 }
 
 const GRID_NODE_SPACING: usize = 200;
@@ -142,6 +148,7 @@ fn ui_example(
     mut background: ResMut<ClearColor>,
     mut theme: ResMut<UITheme>,
     mut current_theme: ResMut<CurrentTheme>,
+    nodes: Query<(&mut ShapeColors, &NodeType)>
     //mut crossings: Query<, With<IONodeMarker>>
 ) {
     egui::TopBottomPanel::top("menu_top_panel").show(egui_context.ctx(), |ui| {
@@ -163,6 +170,16 @@ fn ui_example(
                     ui.ctx().set_visuals(visuals);
                     *theme = UITheme::from_enum(&*current_theme);
                     background.0 = theme.background;
+                    nodes.for_each_mut(
+                        | (mut shape_color, node_type) | {
+                            let color = match node_type {
+                                NodeType::CROSSING => theme.crossing,
+                                NodeType::IONODE => theme.io_node,
+                                NodeType::STREET => theme.street,
+                            };
+                            shape_color.main = color;
+                        }
+                    )
                 }
             };
             ui.separator();
@@ -282,7 +299,8 @@ fn spawn_simulation_builder(mut commands: Commands, asset_server: Res<AssetServe
                         //}
                         Transform::from_xyz(calc_x(i), calc_y(i), 0.),
                     );
-                    commands.spawn_bundle(geometry).insert(SimulationIndex(i));
+                    commands.spawn_bundle(geometry).insert(SimulationIndex(i))
+                        .insert(NodeType::CROSSING);
                 }
 
                 NodeBuilder::IONode(io_node) => {
@@ -305,7 +323,8 @@ fn spawn_simulation_builder(mut commands: Commands, asset_server: Res<AssetServe
                         //}
                         Transform::from_xyz(calc_x(i), calc_y(i), 0.),
                     );
-                    commands.spawn_bundle(geometry).insert(SimulationIndex(i));
+                    commands.spawn_bundle(geometry).insert(SimulationIndex(i))
+                        .insert(NodeType::IONODE);
                 }
                 NodeBuilder::Street(street) => {
                     // println!("   type=Street");
@@ -328,7 +347,8 @@ fn spawn_simulation_builder(mut commands: Commands, asset_server: Res<AssetServe
                                 },
                                 Transform::default(), // Transform::from_xyz(calc_x(i), calc_y(i), 0.0)
                             );
-                            commands.spawn_bundle(geometry).insert(SimulationIndex(i));
+                            commands.spawn_bundle(geometry).insert(SimulationIndex(i))
+                                .insert(NodeType::STREET);
                         }
                     }
                     return;
