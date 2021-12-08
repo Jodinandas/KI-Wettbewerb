@@ -1,20 +1,14 @@
 use bevy::prelude::*;
-use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
+use bevy_egui::{egui, EguiContext, EguiPlugin};
 use bevy_prototype_lyon::{
-    entity::ShapeBundle,
     prelude::*,
-    shapes::{Polygon, RegularPolygon},
 };
 use simulator::simple::node;
 use simulator::simple::node_builder::{NodeBuilder, NodeBuilderTrait};
 use simulator::{
     debug::build_grid_sim,
-    simple::{simulation::Simulator, simulation_builder::SimulatorBuilder},
+    simple::simulation_builder::SimulatorBuilder,
 };
-use std::borrow::BorrowMut;
-use std::ptr;
-use std::sync::{Arc, Weak};
-use toolbar::ToolType;
 use wasm_bindgen::prelude::*;
 mod toolbar;
 use simulator;
@@ -110,7 +104,7 @@ enum NodeType {
 const GRID_NODE_SPACING: usize = 200;
 const GRID_SIDE_LENGTH: usize = 70;
 const STREET_THICKNESS: f32 = 5.0;
-const STREET_SPACING: usize = 20;
+// const STREET_SPACING: usize = 20;
 const CROSSING_SIZE: f32 = 70.0;
 const IONODE_SIZE: f32 = 40.0;
 
@@ -127,7 +121,6 @@ pub fn run() {
         // when building for Web, use WebGL2 rendering
         //#[cfg(target_arch = "wasm32")]
         //app.add_plugin(bevy_webgl2::WebGL2Plugin);
-        .add_startup_system(setup.system())
         .add_startup_system(spawn_simulation_builder.system())
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .insert_resource(UITheme::dark()) // Theme
@@ -215,48 +208,12 @@ fn ui_example(
     }
 }
 
-fn generate_simulation() {}
-
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // camera
-    commands
-        .spawn_bundle(OrthographicCameraBundle::new_2d())
-        .insert(Camera);
-    let step = 100.0;
-    let (x, y) = (7, 7);
-    let (offsetx, offsety) = (500.0, 500.0);
-
-    return;
-
-    for i in 0..x {
-        for j in 0..y {
-            let test_shape = shapes::RegularPolygon {
-                sides: 7,
-                feature: shapes::RegularPolygonFeature::Radius(50.0),
-                ..shapes::RegularPolygon::default()
-            };
-            let mut geometry = GeometryBuilder::build_as(
-                &test_shape,
-                ShapeColors::outlined(Color::rgb(100., 50., 0.), Color::WHITE),
-                DrawMode::Fill(FillOptions::default()), //DrawMode::Outlined {
-                //    fill_options: FillOptions::default(),
-                //    outline_options: StrokeOptions::default().with_line_width(10.0)
-                //}
-                Transform::from_xyz(i as f32 * step - offsetx, j as f32 * step - offsety, 0.0),
-            );
-            geometry
-                .transform
-                .rotate(Quat::from_rotation_z(5.0 * i as f32 * j as f32));
-            commands.spawn_bundle(geometry).insert(ExamplePolygon);
-        }
-    }
-}
 
 /// This function spawns the simultation builder instance
 /// that is later used to create simulations
 ///
 /// It also generates the graphics for it
-fn spawn_simulation_builder(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn spawn_simulation_builder(mut commands: Commands) {
     // for testing purposes
     let side_len = GRID_SIDE_LENGTH;
     let spacing = GRID_NODE_SPACING;
@@ -278,7 +235,7 @@ fn spawn_simulation_builder(mut commands: Commands, asset_server: Res<AssetServe
             //    return;
             //}
             match &*(**n_builder).lock().unwrap() {
-                NodeBuilder::Crossing(crossing) => {
+                NodeBuilder::Crossing(_crossing) => {
                     // println!("   type=Crossing");
                     //let test_shape = shapes::RegularPolygon {
                     //    sides: 4,
@@ -303,7 +260,7 @@ fn spawn_simulation_builder(mut commands: Commands, asset_server: Res<AssetServe
                         .insert(NodeType::CROSSING);
                 }
 
-                NodeBuilder::IONode(io_node) => {
+                NodeBuilder::IONode(_io_node) => {
                     // println!("   type=IONode");
                     //let test_shape = shapes::RegularPolygon {
                     //    sides: 7,
@@ -384,8 +341,6 @@ fn panning(keyboard_input: Res<Input<KeyCode>>, mut camera: Query<&mut Transform
         }
     }
 }
-struct ExamplePolygon;
-
 /*
 fn toolbarsystem(mouse_input: Res<Input<mouse::MouseButton>>,
       mouse_movement: Res<Input<>>,
@@ -405,9 +360,6 @@ fn toolbarsystem(mouse_input: Res<Input<mouse::MouseButton>>,
 }
 */
 
-fn rotation_test(polygon_query: Query<&mut Transform, With<ExamplePolygon>>, time: Res<Time>) {
-    polygon_query.for_each_mut(|mut t| t.rotate(Quat::from_rotation_z(time.delta_seconds() * 0.5)));
-}
 
 pub struct NodeComponent;
 pub struct SimulationIndex(usize);
@@ -424,14 +376,14 @@ impl Render for SimulatorBuilder {
     fn render(
         &mut self,
         node_query: Query<(&SimulationIndex, &Transform), With<NodeComponent>>,
-        sim: Res<SimulatorBuilder>,
+        _sim: Res<SimulatorBuilder>,
     ) {
-        for (node_i, transform) in node_query.iter() {
+        for (node_i, _transform) in node_query.iter() {
             let node = self.get_node(node_i.0);
             match (**node).lock().unwrap().generate_graphics_info() {
                 node::graphics::Info::Crossing(_) => {}
                 node::graphics::Info::IONode(_) => {}
-                node::graphics::Info::Street(street) => {
+                node::graphics::Info::Street(_street) => {
                     // Implement something here
                 }
             }

@@ -1,17 +1,12 @@
-use crate::simple::node_builder;
 use crate::simple::node_builder::NodeBuilderTrait;
 use crate::traits::{Movable, NodeTrait};
 use pathfinding::directed::dijkstra::dijkstra;
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
-use std::any::Any;
-use std::borrow::Borrow;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use std::iter::Filter;
-use std::ops::RangeBounds;
 use std::sync::Mutex;
 use std::sync::{Arc, Weak};
 
@@ -19,6 +14,7 @@ use super::node::Node;
 use super::node_builder::NodeBuilder;
 use super::simulation::NodeDoesntExistError;
 
+/// A car with a predefined path.
 #[derive(Debug, Clone)]
 pub struct PathAwareCar {
     speed: f32,
@@ -49,7 +45,7 @@ impl Movable for PathAwareCar {
         self.speed = s
     }
 
-    fn update(&mut self, t: f64) {
+    fn update(&mut self, _t: f64) {
         panic!("Not yet implemented! Consider using decide_next() instead");
     }
 
@@ -100,16 +96,21 @@ impl Movable for PathAwareCar {
     }
 }
 
-// A Data Structure representing the connections with indices to make
-// using path finding algorithms easier
+/// A Data Structure representing the connections with indices to make
+/// using path finding algorithms easier
 struct IndexedNodeNetwork {
-    // connections acvvvvvvvvvvvvvvvn bbbbbbbbbbbbbbbbbbbbbbbbbbbb (my cat)
+    /// connections acvvvvvvvvvvvvvvvn bbbbbbbbbbbbbbbbbbbbbbbbbbbb (my cat)
+    /// 
+    /// contains a list of connections for each given index, with the first element
+    /// of the contained tuple being the index of the connection, and the second one
+    /// being the cost of moving to the specified connection
     pub connections: Vec<Vec<(usize, usize)>>,
     pub io_nodes: Vec<usize>,
     pub io_node_weights: Vec<f32>,
 }
 
 impl IndexedNodeNetwork {
+    /// generates a new [IndexedNodeNetwork] from a list of [NodeBuilders](NodeBuilder)
     fn new(nodes: &Vec<Arc<Mutex<NodeBuilder>>>) -> IndexedNodeNetwork {
         let mut connections: Vec<Vec<(usize, usize)>> = Vec::with_capacity(nodes.len());
         let mut io_nodes: Vec<usize> = Vec::new();
@@ -146,6 +147,7 @@ impl IndexedNodeNetwork {
             io_node_weights,
         }
     }
+    /// returns all connections apart from the one specified by the index
     fn all_except(&self, i: usize) -> Vec<usize> {
         (0..(self.connections.len() - 1))
             .filter(|n| *n != i)
@@ -154,6 +156,10 @@ impl IndexedNodeNetwork {
 }
 
 /// generates new movables with a given path
+/// 
+/// It provides a way for multiple Simulations to request new cars
+/// without paths having to generate a new path each time. It caches
+/// paths.
 struct MovableServer {
     nodes: Vec<Arc<Mutex<NodeBuilder>>>,
     indexed: IndexedNodeNetwork,
@@ -161,6 +167,9 @@ struct MovableServer {
 }
 
 impl MovableServer {
+    /// indexes and copies the given nodes and returns a new [MovableServer]
+    /// 
+    /// it is important to note that this 
     fn new(nodes: Vec<Arc<Mutex<NodeBuilder>>>) -> MovableServer {
         MovableServer {
             indexed: IndexedNodeNetwork::new(&nodes),
@@ -171,7 +180,6 @@ impl MovableServer {
     fn generate_movable(&mut self, index: usize) -> PathAwareCar {
         // choose random IoNode to drive to
         // prevent start node from being the end node at the same time
-        let choices = self.indexed.all_except(index);
         let dist = WeightedIndex::new(self.indexed.io_node_weights.clone()).unwrap();
         let mut rng = thread_rng();
         // you are the chosen one!
@@ -202,12 +210,10 @@ impl MovableServer {
 }
 
 mod tests {
-    use crate::build_grid::build_grid_sim;
-    use crate::simple::pathfinding::MovableServer;
-
     #[test]
     fn generate_movable_test() {
         use crate::debug::build_grid_sim;
+        use crate::simple::pathfinding::MovableServer;
         let simbuilder = build_grid_sim(4);
         let mut test = MovableServer::new(simbuilder.nodes);
         println!("{:?}", test.generate_movable(4));

@@ -1,6 +1,5 @@
-use super::simple::node_builder::{CrossingBuilder, IONodeBuilder, StreetBuilder};
+use super::simple::node_builder::{CrossingBuilder, IONodeBuilder};
 use super::simple::simulation_builder::SimulatorBuilder;
-use crate::boxed_node;
 use crate::simple::node_builder::{Direction, NodeBuilder};
 
 /// Builds a grid with side length `grid_side_len`
@@ -18,7 +17,7 @@ pub fn build_grid_sim(grid_side_len: u32) -> SimulatorBuilder {
     // 6 IO C  C  C  C  C  C  IO
     // 7    IO IO IO IO IO IO
     let mut sim = SimulatorBuilder::new();
-    sim.delay(0).max_iter(Some(10000));
+    sim.with_delay(0).with_max_iter(Some(10000));
     for i in 0..grid_side_len {
         for j in 0..grid_side_len {
             let is_corner =

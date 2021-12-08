@@ -1,12 +1,11 @@
 use crate::simple::node_builder::InOut;
 
-use super::super::traits::NodeTrait;
-use super::node::{self, IONode, Node};
+use super::node::Node;
 use super::node_builder::{CrossingBuilder, IONodeBuilder, NodeBuilder, StreetBuilder};
 use super::node_builder::{Direction, NodeBuilderTrait};
 use super::simulation::Simulator;
 use std::error::Error;
-use std::fmt::{self, format};
+use std::fmt::{self};
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -37,6 +36,7 @@ impl fmt::Display for JsonError {
 }
 impl Error for JsonError {}
 
+/// An error that is raised when the simulation fails to connect nodes
 #[derive(Debug, Clone)]
 pub struct ConnectionError {
     start: usize,
@@ -59,6 +59,7 @@ impl fmt::Display for ConnectionError {
 
 impl Error for ConnectionError {}
 
+/// 
 #[derive(Debug, Clone)]
 pub struct IndexError(String);
 impl fmt::Display for IndexError {
@@ -137,7 +138,7 @@ impl SimulatorBuilder {
         // connect the crossings with streets
         for (i, json_crossing) in json_representation.crossings.iter().enumerate() {
             // form all the connections defined in `JsonCrossing.connected`
-            for (connection_index, lanes) in json_crossing.connected.iter() {
+            for (connection_index, _lanes) in json_crossing.connected.iter() {
                 // check if `Crossing`/`IONode` the street ends in actually exists
                 if *connection_index > inital_nodes {
                     return Err(Box::new(JsonError(
@@ -176,7 +177,7 @@ impl SimulatorBuilder {
         let node1 = &self.nodes[inode1];
         let node2 = &self.nodes[inode2];
         // create a new street to connect them
-        let mut new_street = StreetBuilder::new().lanes(lanes);
+        let mut new_street = StreetBuilder::new().with_lanes(lanes);
         new_street
             .connect(InOut::IN, node1)
             .connect(InOut::OUT, node2);
@@ -184,7 +185,6 @@ impl SimulatorBuilder {
 
         // wrap the street (this is how it is stored internally)
         let new_street = Arc::new(Mutex::new(NodeBuilder::Street(new_street)));
-        let street_i = self.nodes.len() - 1;
         // add the connection the the street in the nodes
         match &mut *node1.lock().unwrap() {
             NodeBuilder::IONode(inner) => {
@@ -205,7 +205,7 @@ impl SimulatorBuilder {
             NodeBuilder::Street(_) => panic!("Can't connect street with street"),
         }
         match &mut *node2.lock().unwrap() {
-            NodeBuilder::IONode(inner) => {}
+            NodeBuilder::IONode(_inner) => {}
             NodeBuilder::Crossing(inner) => {
                 inner.connect(dir2, InOut::IN, &new_street).map_err(|er| {
                     Box::new(ConnectionError {
@@ -257,7 +257,7 @@ impl SimulatorBuilder {
                     // we will connect using the out connections and set the in connections
                     // at the same time
                     match &mut *start_node_arc.try_lock().unwrap() {
-                        NodeBuilder::Street(street_builder) => {
+                        NodeBuilder::Street(_street_builder) => {
                             let street = match starting_node_unwrapped{
                                 Node::Street(s) => s,
                                 Node::IONode(_) => panic!("NodeBuilders and Nodes not in same position in list."),
@@ -271,7 +271,7 @@ impl SimulatorBuilder {
                                 Node::Street(target) => {
                                     target.connect(InOut::IN, &starting_node);
                                 },
-                                Node::IONode(target) => {
+                                Node::IONode(_target) => {
                                     // doesn't have an in connection
                                 },
                                 Node::Crossing(target) => {
@@ -286,14 +286,15 @@ impl SimulatorBuilder {
                                     // get direction of input
                                     let direction = crossing_builder.connections.get_direction_for_item(InOut::IN, start_node_arc)
                                         .expect("Street output is connected to Crossing, but the Crossing input is not connected to street.");
-                                    target.connect(direction, InOut::IN, starting_node);
+                                    target.connect(direction, InOut::IN, starting_node)
+                                        .unwrap();
                                 },
                             }
 
                         }
                         // We will work under the assumption that crossings and io_nodes can only
                         // be connected with streets and not directly between each other
-                        NodeBuilder::IONode(io_node_builder) => {
+                        NodeBuilder::IONode(_io_node_builder) => {
                             let io_node = match starting_node_unwrapped {
                                 Node::Street(_) => panic!("NodeBuilders and Nodes not in same position in list."),
                                 Node::IONode(n) => n,
@@ -308,7 +309,7 @@ impl SimulatorBuilder {
                                 Node::Crossing(n) => n 
                             };
                             let direction = crossing_builder.connections.get_direction_for_item(InOut::OUT, &end_node_builder_arc).unwrap();
-                            crossing.connect(direction, InOut::OUT, end_node);
+                            crossing.connect(direction, InOut::OUT, end_node).unwrap();
                             match &mut *end_node.try_lock().unwrap() {
                                 Node::Street(street) => {street.connect(InOut::IN, starting_node);},
                                 Node::IONode(_) => panic!("NodeBuilders and Nodes not in same position in list."),
@@ -331,6 +332,7 @@ impl SimulatorBuilder {
         self.cache = None
     }
 
+    /// adds a node to the Simulation and sets the correct id
     pub fn add_node(&mut self, mut node: NodeBuilder) -> &mut SimulatorBuilder {
         // the cache cannot be used if
         // the internals change
@@ -340,24 +342,27 @@ impl SimulatorBuilder {
         self.nodes.push(Arc::new(Mutex::new(node)));
         self
     }
-    pub fn delay(&mut self, value: u64) -> &mut SimulatorBuilder {
+    /// an optional delay between each iteration
+    pub fn with_delay(&mut self, value: u64) -> &mut SimulatorBuilder {
         self.delay = value;
         self
     }
-    pub fn max_iter(&mut self, value: Option<usize>) -> &mut SimulatorBuilder {
+    /// Makes the simulation stop after `value` iterations
+    pub fn with_max_iter(&mut self, value: Option<usize>) -> &mut SimulatorBuilder {
         self.max_iter = value;
         self
     }
+    /// Returns an iterator over all nodes
     pub fn iter_nodes(&self) -> std::slice::Iter<'_, Arc<Mutex<NodeBuilder>>> {
         self.nodes.iter()
     }
+    /// returns a reference to the node with id `i`
     pub fn get_node(&self, i: usize) -> &Arc<Mutex<NodeBuilder>> {
         &self.nodes[i]
     }
 }
 
 mod tests {
-    use crate::simple::node_builder::Direction;
 
     #[test]
     fn simulation_builder_from_json() {
@@ -368,8 +373,9 @@ mod tests {
 
     #[test]
     fn connect_with_streets() {
+        use crate::simple::node_builder::Direction;
         use crate::simple::node_builder::{
-            CrossingBuilder, IONodeBuilder, NodeBuilder, StreetBuilder,
+            CrossingBuilder, IONodeBuilder, NodeBuilder,
         };
         use crate::simple::simulation_builder::SimulatorBuilder;
         let mut simulator = SimulatorBuilder::new();

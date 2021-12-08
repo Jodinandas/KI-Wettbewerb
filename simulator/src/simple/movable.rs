@@ -1,12 +1,13 @@
 use std::{
     error::Error,
     sync::Mutex,
-    sync::{Arc, Weak},
+    sync::Weak,
 };
 
 use super::{super::traits::Movable, node::Node};
 use rand::Rng;
 
+/// A person that takes turn at random
 #[derive(Debug, Clone)]
 pub struct RandPerson {
     speed: f32,
@@ -29,12 +30,14 @@ impl Movable for RandPerson {
     }
 }
 
+/// A car that takes turn at random
 #[derive(Debug, Clone)]
 pub struct RandCar {
     speed: f32,
 }
 
 impl RandCar {
+    /// returns a car with default speed
     pub fn new() -> RandCar {
         RandCar { speed: 2.0 }
     }

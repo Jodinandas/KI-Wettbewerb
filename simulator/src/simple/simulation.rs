@@ -1,8 +1,7 @@
 use crate::traits::Movable;
 use crate::traits::NodeTrait;
-use std::borrow::BorrowMut;
 use std::error::Error;
-use std::fmt::{self, write, Display};
+use std::fmt::{self, Display};
 use std::sync::Mutex;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, SystemTime};
@@ -32,7 +31,7 @@ pub struct Simulator {
     pub delay: u64,
 }
 
-// Error is thrown when a node that should exist, doesn't exist anymore
+/// Error is thrown when a node that should exist, doesn't exist anymore
 #[derive(Debug)]
 pub struct NodeDoesntExistError;
 impl Error for NodeDoesntExistError {}
@@ -74,6 +73,7 @@ impl Simulator {
         }
     }
 
+    /// Simulates until a stop condition is met
     pub fn simulation_loop(&mut self) -> Result<(), Box<dyn Error>> {
         let mut counter = 0;
         let mut iteration_compute_time;
@@ -156,7 +156,7 @@ mod tests {
         use super::super::simulation_builder::SimulatorBuilder;
         let json: &str = r#"{"crossings": [{"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]}, {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
         let mut sim_builder = SimulatorBuilder::from_json(&json).unwrap();
-        sim_builder.delay(1).max_iter(Some(1000));
+        sim_builder.with_delay(1).with_max_iter(Some(1000));
         let mut sim = sim_builder.build();
         sim.simulation_loop().unwrap();
     }

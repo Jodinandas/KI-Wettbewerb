@@ -12,10 +12,15 @@ use crate::simple::movable::RandCar;
 /// All Node variants must implement this trait
 /// The nodes are mostly used in the form of `Box<dyn Node>`
 pub trait NodeTrait<Car = RandCar>: Debug + Sync + Send + DynClone {
+    /// returns true, if the given node is connected
     fn is_connected(&self, other: &Arc<Mutex<Node>>) -> bool;
+    /// advances the car position
     fn update_cars(&mut self, t: f64) -> Vec<Car>;
+    /// returns a list of all the other nodes connected to the node
     fn get_connections(&self) -> Vec<Weak<Mutex<Node>>>;
+    /// adds a new car to the beginning of the node
     fn add_car(&mut self, car: Car);
+    /// info for displaying
     fn generate_graphics_info(&self) -> graphics::Info;
     /// a unique node id
     ///
@@ -35,8 +40,11 @@ dyn_clone::clone_trait_object!(NodeTrait);
 /// come action taking place internally. Example: Going into a shop
 /// for 10 min or maybe someone tripping
 pub trait Movable: Debug + DynClone {
+    /// unused
     fn get_speed(&self) -> f32;
+    /// unused
     fn set_speed(&mut self, s: f32);
+    /// advances the time
     fn update(&mut self, t: f64);
     /// Decides the next node for the movable to move to
     ///

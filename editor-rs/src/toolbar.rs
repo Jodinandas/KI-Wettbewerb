@@ -1,5 +1,3 @@
-use std::ops::Add;
-
 use bevy_egui::egui::Ui;
 
 pub enum ToolType {

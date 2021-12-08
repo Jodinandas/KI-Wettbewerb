@@ -13,6 +13,7 @@ where
 }
 
 impl<T: Movable> Traversible<T> {
+    /// returns a new traversible with given length
     pub fn new<E: Movable>(length: f32) -> Traversible<E> {
         Traversible {
             movables: Vec::new(),
@@ -34,6 +35,8 @@ impl<T: Movable> Traversible<T> {
         }
         out
     }
+
+    /// puts a movable on the beginning of the road
     pub fn add(&mut self, movable: T) {
         self.movables.push((movable, 0.0));
     }
