@@ -1,6 +1,6 @@
 use std::error::Error;
-use std::sync::{Arc, Mutex, Weak};
 use std::ptr;
+use std::sync::{Arc, Mutex, Weak};
 
 use super::movable::RandCar;
 use super::node_builder::{CrossingConnections, Direction, InOut};
@@ -118,7 +118,7 @@ impl NodeTrait for Node {
 #[derive(Debug, Clone)]
 pub struct Crossing {
     /// The other nodes the Crossing is connected to
-    /// 
+    ///
     /// A crossing is a rectangle and each of the 4 sides
     /// can have one input and one output connection
     pub connections: CrossingConnections<Node>,
@@ -137,7 +137,7 @@ impl Crossing {
         }
     }
     /// Returns a list of only OUTPUT connecitons
-    /// 
+    ///
     /// This function is deprecated and will be removed soon
     pub fn get_connections(&self) -> Vec<std::sync::Weak<Mutex<Node>>> {
         self.connections

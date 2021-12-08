@@ -1,8 +1,4 @@
-use std::{
-    error::Error,
-    sync::Mutex,
-    sync::Weak,
-};
+use std::{error::Error, sync::Mutex, sync::Weak};
 
 use super::{super::traits::Movable, node::Node};
 use rand::Rng;

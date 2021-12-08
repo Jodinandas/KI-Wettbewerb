@@ -59,7 +59,7 @@ impl fmt::Display for ConnectionError {
 
 impl Error for ConnectionError {}
 
-/// 
+///
 #[derive(Debug, Clone)]
 pub struct IndexError(String);
 impl fmt::Display for IndexError {
@@ -306,7 +306,7 @@ impl SimulatorBuilder {
                             let crossing = match starting_node_unwrapped {
                                 Node::Street(_) => panic!("NodeBuilders and Nodes not in same position in list."),
                                 Node::IONode(_) => panic!("NodeBuilders and Nodes not in same position in list."),
-                                Node::Crossing(n) => n 
+                                Node::Crossing(n) => n
                             };
                             let direction = crossing_builder.connections.get_direction_for_item(InOut::OUT, &end_node_builder_arc).unwrap();
                             crossing.connect(direction, InOut::OUT, end_node).unwrap();
@@ -315,7 +315,6 @@ impl SimulatorBuilder {
                                 Node::IONode(_) => panic!("NodeBuilders and Nodes not in same position in list."),
                                 Node::Crossing(_) => panic!("NodeBuilders and Nodes not in same position in list."),
                             }
-                            
                         },
                     }
                 });
@@ -374,9 +373,7 @@ mod tests {
     #[test]
     fn connect_with_streets() {
         use crate::simple::node_builder::Direction;
-        use crate::simple::node_builder::{
-            CrossingBuilder, IONodeBuilder, NodeBuilder,
-        };
+        use crate::simple::node_builder::{CrossingBuilder, IONodeBuilder, NodeBuilder};
         use crate::simple::simulation_builder::SimulatorBuilder;
         let mut simulator = SimulatorBuilder::new();
         simulator

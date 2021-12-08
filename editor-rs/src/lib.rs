@@ -1,14 +1,9 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
-use bevy_prototype_lyon::{
-    prelude::*,
-};
+use bevy_prototype_lyon::prelude::*;
 use simulator::simple::node;
 use simulator::simple::node_builder::{NodeBuilder, NodeBuilderTrait};
-use simulator::{
-    debug::build_grid_sim,
-    simple::simulation_builder::SimulatorBuilder,
-};
+use simulator::{debug::build_grid_sim, simple::simulation_builder::SimulatorBuilder};
 use wasm_bindgen::prelude::*;
 mod toolbar;
 use simulator;
@@ -93,12 +88,11 @@ impl UITheme {
             CurrentTheme::DARK => UITheme::dark(),
         }
     }
-
 }
 enum NodeType {
     CROSSING,
     IONODE,
-    STREET
+    STREET,
 }
 
 const GRID_NODE_SPACING: usize = 200;
@@ -141,8 +135,7 @@ fn ui_example(
     mut background: ResMut<ClearColor>,
     mut theme: ResMut<UITheme>,
     mut current_theme: ResMut<CurrentTheme>,
-    nodes: Query<(&mut ShapeColors, &NodeType)>
-    //mut crossings: Query<, With<IONodeMarker>>
+    nodes: Query<(&mut ShapeColors, &NodeType)>, //mut crossings: Query<, With<IONodeMarker>>
 ) {
     egui::TopBottomPanel::top("menu_top_panel").show(egui_context.ctx(), |ui| {
         ui.horizontal(|ui| {
@@ -163,16 +156,14 @@ fn ui_example(
                     ui.ctx().set_visuals(visuals);
                     *theme = UITheme::from_enum(&*current_theme);
                     background.0 = theme.background;
-                    nodes.for_each_mut(
-                        | (mut shape_color, node_type) | {
-                            let color = match node_type {
-                                NodeType::CROSSING => theme.crossing,
-                                NodeType::IONODE => theme.io_node,
-                                NodeType::STREET => theme.street,
-                            };
-                            shape_color.main = color;
-                        }
-                    )
+                    nodes.for_each_mut(|(mut shape_color, node_type)| {
+                        let color = match node_type {
+                            NodeType::CROSSING => theme.crossing,
+                            NodeType::IONODE => theme.io_node,
+                            NodeType::STREET => theme.street,
+                        };
+                        shape_color.main = color;
+                    })
                 }
             };
             ui.separator();
@@ -207,7 +198,6 @@ fn ui_example(
         UIMode::Simulator => {}
     }
 }
-
 
 /// This function spawns the simultation builder instance
 /// that is later used to create simulations
@@ -256,7 +246,9 @@ fn spawn_simulation_builder(mut commands: Commands) {
                         //}
                         Transform::from_xyz(calc_x(i), calc_y(i), 0.),
                     );
-                    commands.spawn_bundle(geometry).insert(SimulationIndex(i))
+                    commands
+                        .spawn_bundle(geometry)
+                        .insert(SimulationIndex(i))
                         .insert(NodeType::CROSSING);
                 }
 
@@ -280,7 +272,9 @@ fn spawn_simulation_builder(mut commands: Commands) {
                         //}
                         Transform::from_xyz(calc_x(i), calc_y(i), 0.),
                     );
-                    commands.spawn_bundle(geometry).insert(SimulationIndex(i))
+                    commands
+                        .spawn_bundle(geometry)
+                        .insert(SimulationIndex(i))
                         .insert(NodeType::IONODE);
                 }
                 NodeBuilder::Street(street) => {
@@ -304,7 +298,9 @@ fn spawn_simulation_builder(mut commands: Commands) {
                                 },
                                 Transform::default(), // Transform::from_xyz(calc_x(i), calc_y(i), 0.0)
                             );
-                            commands.spawn_bundle(geometry).insert(SimulationIndex(i))
+                            commands
+                                .spawn_bundle(geometry)
+                                .insert(SimulationIndex(i))
                                 .insert(NodeType::STREET);
                         }
                     }
@@ -359,7 +355,6 @@ fn toolbarsystem(mouse_input: Res<Input<mouse::MouseButton>>,
     }
 }
 */
-
 
 pub struct NodeComponent;
 pub struct SimulationIndex(usize);

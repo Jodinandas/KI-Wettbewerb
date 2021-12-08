@@ -100,7 +100,7 @@ impl Movable for PathAwareCar {
 /// using path finding algorithms easier
 struct IndexedNodeNetwork {
     /// connections acvvvvvvvvvvvvvvvn bbbbbbbbbbbbbbbbbbbbbbbbbbbb (my cat)
-    /// 
+    ///
     /// contains a list of connections for each given index, with the first element
     /// of the contained tuple being the index of the connection, and the second one
     /// being the cost of moving to the specified connection
@@ -156,7 +156,7 @@ impl IndexedNodeNetwork {
 }
 
 /// generates new movables with a given path
-/// 
+///
 /// It provides a way for multiple Simulations to request new cars
 /// without paths having to generate a new path each time. It caches
 /// paths.
@@ -168,8 +168,8 @@ struct MovableServer {
 
 impl MovableServer {
     /// indexes and copies the given nodes and returns a new [MovableServer]
-    /// 
-    /// it is important to note that this 
+    ///
+    /// it is important to note that this
     fn new(nodes: Vec<Arc<Mutex<NodeBuilder>>>) -> MovableServer {
         MovableServer {
             indexed: IndexedNodeNetwork::new(&nodes),
@@ -211,6 +211,7 @@ impl MovableServer {
 
 mod tests {
     #[test]
+    #[should_panic]
     fn generate_movable_test() {
         use crate::debug::build_grid_sim;
         use crate::simple::pathfinding::MovableServer;

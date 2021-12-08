@@ -1,3 +1,5 @@
+/// wrapper for interior mutability
+pub mod connection;
 /// logic for cars and pedestrians
 pub mod movable;
 /// provides nodes in the simulations (crossings, streets...)

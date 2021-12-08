@@ -26,7 +26,7 @@ pub enum NodeBuilder {
     Street(StreetBuilder),
 }
 
-/// A Trait defining the behaviour of the subvariants of [NodeBuilder] 
+/// A Trait defining the behaviour of the subvariants of [NodeBuilder]
 pub trait NodeBuilderTrait: Debug + DynClone + Sync + Send {
     /// constructs a node with the same settings
     fn build(&self) -> Node;
@@ -38,20 +38,20 @@ pub trait NodeBuilderTrait: Debug + DynClone + Sync + Send {
     /// returns a [graphics::Info] with information useful for rendering
     fn generate_graphics_info(&self) -> graphics::Info;
     /// returns the weight
-    /// 
+    ///
     /// The weight is a measure of how likely cars will got through this node
     fn get_weight(&self) -> f32;
     /// id in the global list of nodebuilders
     ///
     /// This is necessary in some parts of the code to
-    /// distinguish between nodes. 
+    /// distinguish between nodes.
     /// TODO: It might be possible to remove
     /// this usize later on.
     fn get_id(&self) -> usize;
     /// sets the id to the given number
-    /// 
+    ///
     /// This should NOT be used manually. This method
-    /// is for use in the SimulationBuilder. 
+    /// is for use in the SimulationBuilder.
     fn set_id(&mut self, id: usize);
 }
 
@@ -169,9 +169,9 @@ impl NodeBuilderTrait for StreetBuilder {
 }
 impl StreetBuilder {
     /// sets the connection to the new value
-    /// 
+    ///
     /// if the specified connection is already present, it is simply overwritten
-    /// 
+    ///
     /// FIXME: Check if the [NodeBuilder] the connection points to already exists. If
     /// this is the case, remove the connection from this [NodeBuilder]
     pub fn connect(&mut self, conn_type: InOut, other: &Arc<Mutex<NodeBuilder>>) -> &mut Self {
@@ -208,7 +208,7 @@ impl StreetBuilder {
 }
 
 /// [IONode]s represent either an input or an output of the simulation
-/// 
+///
 /// # Usage
 /// ## Creating IONodes
 #[derive(Debug, Clone)]
@@ -295,7 +295,7 @@ pub enum InOut {
 
 /// This struct encapsulates logic to hande the rather complex way
 /// Crossings can be connected to streets or other nodes
-/// 
+///
 /// The idea is that a Crossing has a square shape of which each
 /// side can connect to one input street and one output street.
 #[derive(Clone, Debug)]
@@ -352,7 +352,7 @@ impl<T> CrossingConnections<T> {
         }
         connection.remove(&dir)
     }
-    
+
     /// removes all connections that point to `conn`
     pub fn remove_connection(&mut self, conn_type: InOut, conn: &Arc<Mutex<T>>) {
         let connection: &mut HashMap<Direction, Weak<Mutex<T>>>;
