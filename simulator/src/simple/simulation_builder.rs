@@ -1,14 +1,12 @@
 use crate::simple::node_builder::InOut;
 
-use super::int_mut::{IntMut, WeakIntMut};
+use super::int_mut::IntMut;
 use super::node::Node;
 use super::node_builder::{CrossingBuilder, IONodeBuilder, NodeBuilder, StreetBuilder};
 use super::node_builder::{Direction, NodeBuilderTrait};
 use super::simulation::Simulator;
 use std::error::Error;
 use std::fmt::{self};
-use std::sync::Arc;
-use std::sync::Mutex;
 
 use serde::Deserialize;
 

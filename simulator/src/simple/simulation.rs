@@ -1,9 +1,9 @@
+use crate::traits::Movable;
+use crate::traits::NodeTrait;
 use std::error::Error;
 use std::fmt::{self, Display};
 use std::time::{Duration, SystemTime};
 use std::{cmp, ptr, thread};
-use crate::traits::Movable;
-use crate::traits::NodeTrait;
 
 use super::int_mut::{IntMut, WeakIntMut};
 use super::node::Node;
@@ -64,7 +64,8 @@ impl Simulator {
                     Ok(next_node) => (next_node
                         .try_upgrade()
                         .expect("Referenced connection does not exist"))
-                    .get().add_car(cars_at_end.pop().unwrap()),
+                    .get()
+                    .add_car(cars_at_end.pop().unwrap()),
                 }
             }
         }

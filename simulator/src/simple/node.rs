@@ -1,37 +1,10 @@
-use std::error::Error;
 use super::int_mut::{IntMut, WeakIntMut};
 use super::movable::RandCar;
 use super::node_builder::{CrossingConnections, Direction, InOut};
 use super::traversible::Traversible;
 use crate::simple::pathfinding::PathAwareCar;
 use crate::traits::NodeTrait;
-
-/// Objects for storing data relevant for rendering
-/// different nodes
-///
-/// # Performance
-/// Performance is in this case not as important, as only one Simulation
-/// at a time will be displayed.
-pub mod graphics {
-    /// Info for Crossing
-    pub struct CrossingInfo;
-    /// Info for IONode
-    pub struct IONodeInfo;
-    /// Info for Street
-    pub struct StreetInfo {
-        /// info for the number of lanes
-        pub lanes: u8,
-    }
-    /// Contains graphics Info mor different Node Types
-    pub enum Info {
-        /// Wrapper
-        Crossing(CrossingInfo),
-        /// Wrapper
-        IONode(IONodeInfo),
-        /// Wrapper
-        Street(StreetInfo),
-    }
-}
+use std::error::Error;
 
 /// A node is any kind of logical object in the Simulation
 ///  ([Streets](Street), [IONodes](IONode), [Crossings](Crossing))
@@ -70,7 +43,7 @@ impl NodeTrait for Node {
 
     fn update_cars(&mut self, t: f64) -> Vec<RandCar> {
         match self {
-            Node::Street(street) => street.car_lane.update_movables(t),
+            Node::Street(street) => street.update_movables(t),
             Node::IONode(io_node) => {
                 // create new car
                 io_node.time_since_last_spawn += t;
@@ -86,23 +59,12 @@ impl NodeTrait for Node {
 
     fn add_car(&mut self, car: RandCar) {
         match self {
-            Node::Street(street) => street.car_lane.add(car),
+            Node::Street(street) => street.add_movable(car),
             Node::IONode(io_node) => io_node.absorbed_cars += 1,
             Node::Crossing(crossing) => crossing.car_lane.add(car),
         }
     }
 
-    fn generate_graphics_info(&self) -> graphics::Info {
-        match self {
-            Node::Street(street) => graphics::Info::Street(graphics::StreetInfo {
-                lanes: street.lanes,
-            }),
-            Node::IONode(_io_node) => graphics::Info::IONode(graphics::IONodeInfo {}),
-            Node::Crossing(_crossing) => graphics::Info::Crossing(graphics::CrossingInfo {
-                       // Not much to display at the moment 
-                    }),
-        }
-    }
     fn id(&self) -> usize {
         match self {
             Node::Street(inner) => inner.id,
@@ -200,11 +162,9 @@ pub struct Street {
     pub conn_out: Option<WeakIntMut<Node>>,
     /// The node where the road starts at
     pub conn_in: Option<WeakIntMut<Node>>,
-    /// The number of lanes the road has. This can later be used
-    /// to calculate the throughput
-    pub lanes: u8,
     /// This field handles the actual logic of moving cars etc.
-    pub car_lane: Traversible<RandCar>,
+    /// it contains a list of all the lanes
+    pub lanes: Vec<Traversible<RandCar>>,
     /// The index in the simulation
     pub id: usize,
 }
@@ -215,9 +175,8 @@ impl Street {
         Street {
             conn_out: None,
             conn_in: None,
-            lanes: 1,
+            lanes: vec![Traversible::<RandCar>::new(100.0)],
             id: 0,
-            car_lane: Traversible::<PathAwareCar>::new(100.0),
         }
     }
     /// Connects a node at the specifed position. If a node is already
@@ -239,5 +198,30 @@ impl Street {
             out.push(conn.clone());
         }
         out
+    }
+    /// Advances the movables on all lanes
+    pub fn update_movables(&mut self, t: f64) -> Vec<RandCar> {
+        self.lanes
+            .iter_mut()
+            .flat_map(|traversible| (*traversible).update_movables(t))
+            .collect()
+    }
+    /// Adds a movable to the street
+    ///
+    /// The movable is put on the lane with the leas amount of cars
+    /// This should pretty closely resemble how people drive in real life
+    /// as you won't drive to the lane that has the most cars in it
+    pub fn add_movable(&mut self, movable: RandCar) {
+        // get the index of the lane with the least movables on it
+        let trav_most_movables = self
+            .lanes
+            .iter()
+            .enumerate()
+            .min_by_key(|(_i, traversible)| traversible.num_movables());
+        let i = match trav_most_movables {
+            Some((i, _)) => i,
+            None => return,
+        };
+        self.lanes[i].add(movable)
     }
 }

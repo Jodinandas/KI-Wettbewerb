@@ -40,4 +40,9 @@ impl<T: Movable> Traversible<T> {
     pub fn add(&mut self, movable: T) {
         self.movables.push((movable, 0.0));
     }
+
+    /// returns the number of movables on the traversible
+    pub fn num_movables(&self) -> usize {
+        self.movables.len()
+    }
 }

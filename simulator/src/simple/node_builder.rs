@@ -1,11 +1,6 @@
-use std::{
-    collections::HashMap,
-    error::Error,
-    fmt::Debug,
-    hash::Hash,
-};
+use std::{collections::HashMap, error::Error, fmt::Debug, hash::Hash};
 
-use super::{node::graphics, int_mut::{WeakIntMut, IntMut}};
+use super::int_mut::{IntMut, WeakIntMut};
 use super::{
     movable::RandCar,
     node::{Crossing, IONode, Node, Street},
@@ -32,9 +27,6 @@ pub trait NodeBuilderTrait: Debug + DynClone + Sync + Send {
     fn get_connections(&self) -> Vec<WeakIntMut<NodeBuilder>>;
     /// returns true if the given [NodeBuilder] is in the list of connections
     fn is_connected(&self, other: &IntMut<NodeBuilder>) -> bool;
-    // fn connect(&mut self, i: &IntMut<NodeBuilder>);
-    /// returns a [graphics::Info] with information useful for rendering
-    fn generate_graphics_info(&self) -> graphics::Info;
     /// returns the weight
     ///
     /// The weight is a measure of how likely cars will got through this node
@@ -57,7 +49,7 @@ fn has_connection(node_a: &NodeBuilder, node_b: &IntMut<NodeBuilder>) -> bool {
     node_a
         .get_connections()
         .iter()
-        .find(|n| *n == node_b ) 
+        .find(|n| *n == node_b)
         .is_some()
 }
 
@@ -80,14 +72,6 @@ impl NodeBuilderTrait for NodeBuilder {
 
     fn is_connected(&self, other: &IntMut<NodeBuilder>) -> bool {
         has_connection(&self, other)
-    }
-
-    fn generate_graphics_info(&self) -> graphics::Info {
-        match self {
-            NodeBuilder::IONode(inner) => inner.generate_graphics_info(),
-            NodeBuilder::Crossing(inner) => inner.generate_graphics_info(),
-            NodeBuilder::Street(inner) => inner.generate_graphics_info(),
-        }
     }
 
     fn get_weight(&self) -> f32 {
@@ -131,8 +115,7 @@ pub struct StreetBuilder {
 impl NodeBuilderTrait for StreetBuilder {
     fn build(&self) -> Node {
         Node::Street(Street {
-            lanes: self.lanes,
-            car_lane: Traversible::<RandCar>::new(self.lane_length),
+            lanes: vec![Traversible::<RandCar>::new(self.lane_length)],
             conn_in: None,
             conn_out: None,
             id: self.id,
@@ -144,9 +127,6 @@ impl NodeBuilderTrait for StreetBuilder {
             out.push(conn.clone());
         }
         out
-    }
-    fn generate_graphics_info(&self) -> graphics::Info {
-        graphics::Info::Street(graphics::StreetInfo { lanes: self.lanes })
     }
     fn get_weight(&self) -> f32 {
         self.lanes as f32
@@ -228,9 +208,6 @@ impl NodeBuilderTrait for IONodeBuilder {
     fn get_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
         self.connections.clone()
     }
-    fn generate_graphics_info(&self) -> graphics::Info {
-        graphics::Info::IONode(graphics::IONodeInfo {})
-    }
     fn get_weight(&self) -> f32 {
         self.spawn_rate as f32
     }
@@ -243,10 +220,7 @@ impl NodeBuilderTrait for IONodeBuilder {
     }
 
     fn is_connected(&self, other: &IntMut<NodeBuilder>) -> bool {
-        self.connections
-            .iter()
-            .find(|n| *n == other)
-            .is_some()
+        self.connections.iter().find(|n| *n == other).is_some()
     }
 }
 impl IONodeBuilder {
@@ -368,17 +342,10 @@ impl<T> CrossingConnections<T> {
             InOut::IN => connection = &self.input,
             InOut::OUT => connection = &self.output,
         }
-        connection
-            .values()
-            .find(|v| {*v == node })
-            .is_some()
+        connection.values().find(|v| *v == node).is_some()
     }
     /// Returns `Some(Direction)` for an item if it is saved in the connections
-    pub fn get_direction_for_item(
-        &self,
-        conn_type: InOut,
-        item: &IntMut<T>,
-    ) -> Option<Direction> {
+    pub fn get_direction_for_item(&self, conn_type: InOut, item: &IntMut<T>) -> Option<Direction> {
         let connection: &HashMap<Direction, WeakIntMut<T>>;
         match conn_type {
             InOut::IN => connection = &self.input,
@@ -448,9 +415,6 @@ impl NodeBuilderTrait for CrossingBuilder {
             .values()
             .map(|c| c.clone())
             .collect()
-    }
-    fn generate_graphics_info(&self) -> graphics::Info {
-        graphics::Info::Crossing(graphics::CrossingInfo {})
     }
     fn get_weight(&self) -> f32 {
         1.0

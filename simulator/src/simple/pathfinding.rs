@@ -7,10 +7,8 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use std::sync::Mutex;
-use std::sync::{Arc, Weak};
 
-use super::int_mut::{WeakIntMut, IntMut};
+use super::int_mut::{IntMut, WeakIntMut};
 use super::node::Node;
 use super::node_builder::NodeBuilder;
 use super::simulation::NodeDoesntExistError;
@@ -62,10 +60,7 @@ impl Movable for PathAwareCar {
                 None => return Err(Box::new(NodeDoesntExistError {})),
             })
         }
-        let connection_ids = connections_upgraded
-            .iter()
-            .map(|n| n.get().id())
-            .collect();
+        let connection_ids = connections_upgraded.iter().map(|n| n.get().id()).collect();
 
         // epische logik hier
         let to_return = match self.path.pop() {
@@ -119,7 +114,8 @@ impl IndexedNodeNetwork {
         nodes.iter().for_each(|node| {
             connections.push({
                 // get the indices and weights of all connections
-                node.get().get_connections()
+                node.get()
+                    .get_connections()
                     .iter()
                     .map(|n| {
                         let node_upgraded = n.upgrade();
@@ -133,7 +129,7 @@ impl IndexedNodeNetwork {
                     })
                     .collect()
             });
-            let mut inner_data = node.get();
+            let inner_data = node.get();
             match *inner_data {
                 NodeBuilder::IONode(_) => {
                     io_nodes.push(inner_data.get_id());

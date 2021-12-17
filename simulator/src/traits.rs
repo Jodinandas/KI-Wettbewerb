@@ -1,5 +1,5 @@
 use crate::simple::int_mut::{IntMut, WeakIntMut};
-use crate::simple::node::{graphics, Node};
+use crate::simple::node::Node;
 use dyn_clone::DynClone;
 use std::error::Error;
 use std::fmt::Debug;
@@ -20,8 +20,6 @@ pub trait NodeTrait<Car = RandCar>: Debug + Sync + Send + DynClone {
     fn get_connections(&self) -> Vec<WeakIntMut<Node>>;
     /// adds a new car to the beginning of the node
     fn add_car(&mut self, car: Car);
-    /// info for displaying
-    fn generate_graphics_info(&self) -> graphics::Info;
     /// a unique node id
     ///
     /// (the id stored in the SimulationBuilder at the beginning)

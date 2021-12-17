@@ -1,6 +1,6 @@
-use std::error::Error;
-use super::{super::traits::Movable, node::Node, int_mut::WeakIntMut};
+use super::{super::traits::Movable, int_mut::WeakIntMut, node::Node};
 use rand::Rng;
+use std::error::Error;
 
 /// A person that takes turn at random
 #[derive(Debug, Clone)]

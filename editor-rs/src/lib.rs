@@ -203,7 +203,7 @@ fn ui_example(
 fn spawn_camera(mut commands: Commands) {
     commands
         .spawn_bundle(OrthographicCameraBundle::new_2d())
-        .insert(Camera); 
+        .insert(Camera);
 }
 
 /// This function spawns the simultation builder instance
@@ -254,9 +254,9 @@ fn spawn_simulation_builder(mut commands: Commands) {
                         Transform::from_xyz(calc_x(i), calc_y(i), 0.),
                     );
                     commands
-                        .spawn_bundle(geometry);
-                        //.insert(SimulationIndex(i))
-                        //.insert(NodeType::CROSSING);
+                        .spawn_bundle(geometry)
+                        .insert(SimulationIndex(i))
+                        .insert(NodeType::CROSSING);
                 }
 
                 NodeBuilder::IONode(_io_node) => {
@@ -339,7 +339,6 @@ fn panning(keyboard_input: Res<Input<KeyCode>>, mut camera: Query<&mut Transform
         }
         if keyboard_input.pressed(KeyCode::Q) {
             transform.scale += Vec3::from((0.1 * s.x, 0.1 * s.y, 0.0));
-            
         }
         if keyboard_input.pressed(KeyCode::E) {
             transform.scale -= Vec3::from((0.1 * s.x, 0.1 * s.y, 0.0));
@@ -367,30 +366,3 @@ fn toolbarsystem(mouse_input: Res<Input<mouse::MouseButton>>,
 
 pub struct NodeComponent;
 pub struct SimulationIndex(usize);
-
-pub trait Render {
-    fn render(
-        &mut self,
-        node_query: Query<(&SimulationIndex, &Transform), With<NodeComponent>>,
-        sim: Res<SimulatorBuilder>,
-    );
-}
-
-impl Render for SimulatorBuilder {
-    fn render(
-        &mut self,
-        node_query: Query<(&SimulationIndex, &Transform), With<NodeComponent>>,
-        _sim: Res<SimulatorBuilder>,
-    ) {
-        for (node_i, _transform) in node_query.iter() {
-            let node = self.get_node(node_i.0);
-            match node.get().generate_graphics_info() {
-                node::graphics::Info::Crossing(_) => {}
-                node::graphics::Info::IONode(_) => {}
-                node::graphics::Info::Street(_street) => {
-                    // Implement something here
-                }
-            }
-        }
-    }
-}
