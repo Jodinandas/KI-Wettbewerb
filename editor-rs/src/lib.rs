@@ -4,9 +4,12 @@ use bevy_prototype_lyon::prelude::*;
 use simulator::simple::node;
 use simulator::simple::node_builder::{NodeBuilder, NodeBuilderTrait};
 use simulator::{debug::build_grid_sim, simple::simulation_builder::SimulatorBuilder};
+use toolbar::ToolType;
 use wasm_bindgen::prelude::*;
 mod toolbar;
 use simulator;
+use bevy::input::mouse::{MouseWheel,MouseMotion};
+
 
 #[derive(PartialEq)]
 pub enum Theme {
@@ -96,7 +99,7 @@ enum NodeType {
 }
 
 const GRID_NODE_SPACING: usize = 100;
-const GRID_SIDE_LENGTH: usize = 70;
+const GRID_SIDE_LENGTH: usize = 10;
 const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
 const CROSSING_SIZE: f32 = 20.0;
@@ -123,7 +126,8 @@ pub fn run() {
         .insert_resource(bevy::input::InputSystem)
         .add_system(ui_example.system())
         //.add_system(rotation_test.system())
-        .add_system(panning.system())
+        .add_system(keyboard_movement.system())
+        .add_system(mouse_panning.system())
         .run();
 }
 
@@ -321,21 +325,21 @@ fn spawn_simulation_builder(mut commands: Commands) {
 
 struct Camera;
 // pans canvas
-fn panning(keyboard_input: Res<Input<KeyCode>>, mut camera: Query<&mut Transform, With<Camera>>) {
+fn keyboard_movement(keyboard_input: Res<Input<KeyCode>>, mut camera: Query<&mut Transform, With<Camera>>) {
     let speed: f32 = PAN_SPEED;
     for mut transform in camera.iter_mut() {
         let s: Vec3 = transform.scale;
         if keyboard_input.pressed(KeyCode::Right) || keyboard_input.pressed(KeyCode::D) {
-            transform.translation.x -= speed * s.x;
-        }
-        if keyboard_input.pressed(KeyCode::Left) || keyboard_input.pressed(KeyCode::A) {
             transform.translation.x += speed * s.x;
         }
+        if keyboard_input.pressed(KeyCode::Left) || keyboard_input.pressed(KeyCode::A) {
+            transform.translation.x -= speed * s.x;
+        }
         if keyboard_input.pressed(KeyCode::Up) || keyboard_input.pressed(KeyCode::W) {
-            transform.translation.y -= speed * s.y;
+            transform.translation.y += speed * s.y;
         }
         if keyboard_input.pressed(KeyCode::Down) || keyboard_input.pressed(KeyCode::S) {
-            transform.translation.y += speed * s.y;
+            transform.translation.y -= speed * s.y;
         }
         if keyboard_input.pressed(KeyCode::Q) {
             transform.scale += Vec3::from((0.1 * s.x, 0.1 * s.y, 0.0));
@@ -363,6 +367,48 @@ fn toolbarsystem(mouse_input: Res<Input<mouse::MouseButton>>,
     }
 }
 */
+fn mouse_panning(windows: Res<Windows>,
+    mut ev_motion: EventReader<MouseMotion>,
+    mut ev_scroll: EventReader<MouseWheel>,
+    input_mouse: Res<Input<MouseButton>>,
+    uistate : Res<UIState>,
+    mut camera: Query<&mut Transform, With<Camera>>)
+    {
+    // change input mapping for orbit and panning here
+    let pan_button = MouseButton::Left;
+
+    let mut pan = Vec2::ZERO;
+    let mut rotation_move = Vec2::ZERO;
+    let mut scroll = 0.0;
+
+    if input_mouse.pressed(pan_button) {
+        // Pan only if we're not rotating at the moment
+        for ev in ev_motion.iter() {
+            pan += ev.delta;
+        }
+    }
+    for ev in ev_scroll.iter() {
+        scroll += ev.y;
+    }
+
+    for mut transform in camera.iter_mut(){
+        if pan.length_squared() > 0.0 && uistate.toolbar.get_tooltype() == ToolType::Pan{
+            let window = get_primary_window_size(&windows);
+            pan = pan*Vec2::new(transform.scale.x, transform.scale.y)/(1.3*std::f32::consts::PI);
+            transform.translation += Vec3::new(-pan.x, pan.y, 0.0);            
+        }
+        else if scroll.abs() > 0.0 {
+            let scr = f32::powf(1.1, scroll);
+            transform.scale *= Vec3::new(scr, scr, 1.0);
+        }
+        
+    }
+}
+fn get_primary_window_size(windows: &Res<Windows>) -> Vec2 {
+    let window = windows.get_primary().unwrap();
+    let window = Vec2::new(window.width() as f32, window.height() as f32);
+    window
+}
 
 pub struct NodeComponent;
 pub struct SimulationIndex(usize);

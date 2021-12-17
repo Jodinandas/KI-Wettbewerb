@@ -1,6 +1,8 @@
 use bevy_egui::egui::Ui;
 
+#[derive(PartialEq)]
 pub enum ToolType {
+    None,
     Pan,
     AddStreet,
 }
@@ -29,10 +31,16 @@ impl Toolbar {
         }
     }
 
-    pub fn get_selected<'a>(&'a mut self) -> Option<&'a Box<dyn Tool>> {
+    pub fn get_selected<'a>(&'a self) -> Option<&'a Box<dyn Tool>> {
         match self.selected {
             Some(i) => Some(&self.tools[i]),
             None => None,
+        }
+    }
+    pub fn get_tooltype(&self) -> ToolType{
+        match self.get_selected() {
+            Some(tool) => tool.get_type(),
+            None => ToolType::None,
         }
     }
 
