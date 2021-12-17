@@ -2,11 +2,10 @@ use crate::traits::Movable;
 use crate::traits::NodeTrait;
 use std::error::Error;
 use std::fmt::{self, Display};
-use std::sync::Mutex;
-use std::sync::{Arc, Weak};
 use std::time::{Duration, SystemTime};
 use std::{cmp, ptr, thread};
 
+use super::int_mut::{IntMut, WeakIntMut};
 use super::node::Node;
 
 /// A struct representing the street network
@@ -23,7 +22,7 @@ pub struct Simulator {
     /// A list of all the nodes.
     ///
     /// The nodes themselves save the index themselves
-    pub nodes: Vec<Arc<Mutex<Node>>>,
+    pub nodes: Vec<IntMut<Node>>,
     /// The simulation can be set to stop after simulation
     /// a set amount of steps
     pub max_iter: Option<usize>,
@@ -48,12 +47,12 @@ impl Simulator {
     /// nodes
     pub fn update_all_nodes(&mut self, dt: f64) {
         for i in 0..self.nodes.len() {
-            let mut node = (*self.nodes[i]).lock().unwrap();
+            let node = &mut self.nodes[i].get();
             let mut cars_at_end = node.update_cars(dt);
             // TODO: Use something more efficient than cloning the whole Vec here
             let options = node.get_connections();
             for j in cars_at_end.len()..0 {
-                let next: Result<Weak<Mutex<Node>>, Box<dyn Error>> =
+                let next: Result<WeakIntMut<Node>, Box<dyn Error>> =
                     cars_at_end[j].decide_next(&options);
                 match next {
                     Err(_) => {
@@ -62,11 +61,10 @@ impl Simulator {
                             j, i
                         );
                     }
-                    Ok(next_node) => (*next_node
-                        .upgrade()
+                    Ok(next_node) => (next_node
+                        .try_upgrade()
                         .expect("Referenced connection does not exist"))
-                    .lock()
-                    .unwrap()
+                    .get()
                     .add_car(cars_at_end.pop().unwrap()),
                 }
             }
@@ -130,7 +128,7 @@ impl Display for Simulator {
         for (i, n) in self.nodes.iter().enumerate() {
             let name = get_type_of(&*n);
             s.push_str(&format!("\t\t{}: {} ->\t", i, name));
-            for _connection in n.lock().unwrap().get_connections().iter() {
+            for _connection in n.get().get_connections().iter() {
                 // find the index
                 let mut index = 0;
                 for (i, node) in self.nodes.iter().enumerate() {

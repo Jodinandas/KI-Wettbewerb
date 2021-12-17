@@ -1,14 +1,9 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
-use bevy_prototype_lyon::{
-    prelude::*,
-};
+use bevy_prototype_lyon::prelude::*;
 use simulator::simple::node;
 use simulator::simple::node_builder::{NodeBuilder, NodeBuilderTrait};
-use simulator::{
-    debug::build_grid_sim,
-    simple::simulation_builder::SimulatorBuilder,
-};
+use simulator::{debug::build_grid_sim, simple::simulation_builder::SimulatorBuilder};
 use wasm_bindgen::prelude::*;
 mod toolbar;
 use simulator;
@@ -93,20 +88,19 @@ impl UITheme {
             CurrentTheme::DARK => UITheme::dark(),
         }
     }
-
 }
 enum NodeType {
     CROSSING,
     IONODE,
-    STREET
+    STREET,
 }
 
-const GRID_NODE_SPACING: usize = 200;
+const GRID_NODE_SPACING: usize = 100;
 const GRID_SIDE_LENGTH: usize = 70;
 const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
-const CROSSING_SIZE: f32 = 70.0;
-const IONODE_SIZE: f32 = 40.0;
+const CROSSING_SIZE: f32 = 20.0;
+const IONODE_SIZE: f32 = 20.0;
 
 const PAN_SPEED: f32 = 10.0;
 
@@ -122,6 +116,7 @@ pub fn run() {
         //#[cfg(target_arch = "wasm32")]
         //app.add_plugin(bevy_webgl2::WebGL2Plugin);
         .add_startup_system(spawn_simulation_builder.system())
+        .add_startup_system(spawn_camera.system())
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .insert_resource(UITheme::dark()) // Theme
         .insert_resource(CurrentTheme::DARK) // Theme
@@ -141,8 +136,7 @@ fn ui_example(
     mut background: ResMut<ClearColor>,
     mut theme: ResMut<UITheme>,
     mut current_theme: ResMut<CurrentTheme>,
-    nodes: Query<(&mut ShapeColors, &NodeType)>
-    //mut crossings: Query<, With<IONodeMarker>>
+    nodes: Query<(&mut ShapeColors, &NodeType)>, //mut crossings: Query<, With<IONodeMarker>>
 ) {
     egui::TopBottomPanel::top("menu_top_panel").show(egui_context.ctx(), |ui| {
         ui.horizontal(|ui| {
@@ -163,16 +157,14 @@ fn ui_example(
                     ui.ctx().set_visuals(visuals);
                     *theme = UITheme::from_enum(&*current_theme);
                     background.0 = theme.background;
-                    nodes.for_each_mut(
-                        | (mut shape_color, node_type) | {
-                            let color = match node_type {
-                                NodeType::CROSSING => theme.crossing,
-                                NodeType::IONODE => theme.io_node,
-                                NodeType::STREET => theme.street,
-                            };
-                            shape_color.main = color;
-                        }
-                    )
+                    nodes.for_each_mut(|(mut shape_color, node_type)| {
+                        let color = match node_type {
+                            NodeType::CROSSING => theme.crossing,
+                            NodeType::IONODE => theme.io_node,
+                            NodeType::STREET => theme.street,
+                        };
+                        shape_color.main = color;
+                    })
                 }
             };
             ui.separator();
@@ -208,6 +200,11 @@ fn ui_example(
     }
 }
 
+fn spawn_camera(mut commands: Commands) {
+    commands
+        .spawn_bundle(OrthographicCameraBundle::new_2d())
+        .insert(Camera);
+}
 
 /// This function spawns the simultation builder instance
 /// that is later used to create simulations
@@ -234,7 +231,7 @@ fn spawn_simulation_builder(mut commands: Commands) {
             //if PATH.contains(&i) {
             //    return;
             //}
-            match &*(**n_builder).lock().unwrap() {
+            match &*(*n_builder).get() {
                 NodeBuilder::Crossing(_crossing) => {
                     // println!("   type=Crossing");
                     //let test_shape = shapes::RegularPolygon {
@@ -256,7 +253,9 @@ fn spawn_simulation_builder(mut commands: Commands) {
                         //}
                         Transform::from_xyz(calc_x(i), calc_y(i), 0.),
                     );
-                    commands.spawn_bundle(geometry).insert(SimulationIndex(i))
+                    commands
+                        .spawn_bundle(geometry)
+                        .insert(SimulationIndex(i))
                         .insert(NodeType::CROSSING);
                 }
 
@@ -280,15 +279,17 @@ fn spawn_simulation_builder(mut commands: Commands) {
                         //}
                         Transform::from_xyz(calc_x(i), calc_y(i), 0.),
                     );
-                    commands.spawn_bundle(geometry).insert(SimulationIndex(i))
+                    commands
+                        .spawn_bundle(geometry)
+                        .insert(SimulationIndex(i))
                         .insert(NodeType::IONODE);
                 }
                 NodeBuilder::Street(street) => {
                     // println!("   type=Street");
                     if let Some(conn_in) = &street.conn_in {
                         if let Some(conn_out) = &street.conn_out {
-                            let index_in = (*conn_in.upgrade().unwrap()).lock().unwrap().get_id();
-                            let index_out = (*conn_out.upgrade().unwrap()).lock().unwrap().get_id();
+                            let index_in = conn_in.upgrade().get().get_id();
+                            let index_out = conn_out.upgrade().get().get_id();
                             let pos_j = Vec2::new(calc_x(index_in), calc_y(index_in));
                             let pos_i = Vec2::new(calc_x(index_out), calc_y(index_out));
                             //println!("I({}): {:?}, J({}): {:?}", i, pos_i, j, pos_j);
@@ -304,7 +305,9 @@ fn spawn_simulation_builder(mut commands: Commands) {
                                 },
                                 Transform::default(), // Transform::from_xyz(calc_x(i), calc_y(i), 0.0)
                             );
-                            commands.spawn_bundle(geometry).insert(SimulationIndex(i))
+                            commands
+                                .spawn_bundle(geometry)
+                                .insert(SimulationIndex(i))
                                 .insert(NodeType::STREET);
                         }
                     }
@@ -313,6 +316,7 @@ fn spawn_simulation_builder(mut commands: Commands) {
             }
         });
     commands.insert_resource(new_builder);
+    println!("built Grid");
 }
 
 struct Camera;
@@ -334,10 +338,10 @@ fn panning(keyboard_input: Res<Input<KeyCode>>, mut camera: Query<&mut Transform
             transform.translation.y += speed * s.y;
         }
         if keyboard_input.pressed(KeyCode::Q) {
-            transform.scale += Vec3::from((0.1 * s.x, 0.1 * s.y, 0.1 * s.z));
+            transform.scale += Vec3::from((0.1 * s.x, 0.1 * s.y, 0.0));
         }
         if keyboard_input.pressed(KeyCode::E) {
-            transform.scale -= Vec3::from((0.1 * s.x, 0.1 * s.y, 0.1 * s.z));
+            transform.scale -= Vec3::from((0.1 * s.x, 0.1 * s.y, 0.0));
         }
     }
 }
@@ -360,33 +364,5 @@ fn toolbarsystem(mouse_input: Res<Input<mouse::MouseButton>>,
 }
 */
 
-
 pub struct NodeComponent;
 pub struct SimulationIndex(usize);
-
-pub trait Render {
-    fn render(
-        &mut self,
-        node_query: Query<(&SimulationIndex, &Transform), With<NodeComponent>>,
-        sim: Res<SimulatorBuilder>,
-    );
-}
-
-impl Render for SimulatorBuilder {
-    fn render(
-        &mut self,
-        node_query: Query<(&SimulationIndex, &Transform), With<NodeComponent>>,
-        _sim: Res<SimulatorBuilder>,
-    ) {
-        for (node_i, _transform) in node_query.iter() {
-            let node = self.get_node(node_i.0);
-            match (**node).lock().unwrap().generate_graphics_info() {
-                node::graphics::Info::Crossing(_) => {}
-                node::graphics::Info::IONode(_) => {}
-                node::graphics::Info::Street(_street) => {
-                    // Implement something here
-                }
-            }
-        }
-    }
-}

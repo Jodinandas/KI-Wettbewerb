@@ -1,13 +1,12 @@
 use crate::simple::node_builder::InOut;
 
+use super::int_mut::IntMut;
 use super::node::Node;
 use super::node_builder::{CrossingBuilder, IONodeBuilder, NodeBuilder, StreetBuilder};
 use super::node_builder::{Direction, NodeBuilderTrait};
 use super::simulation::Simulator;
 use std::error::Error;
 use std::fmt::{self};
-use std::sync::Arc;
-use std::sync::Mutex;
 
 use serde::Deserialize;
 
@@ -59,7 +58,7 @@ impl fmt::Display for ConnectionError {
 
 impl Error for ConnectionError {}
 
-/// 
+///
 #[derive(Debug, Clone)]
 pub struct IndexError(String);
 impl fmt::Display for IndexError {
@@ -93,9 +92,9 @@ impl Error for IndexError {}
 #[derive(Debug)]
 pub struct SimulatorBuilder {
     /// A list of all the nodes
-    pub nodes: Vec<Arc<Mutex<NodeBuilder>>>,
+    pub nodes: Vec<IntMut<NodeBuilder>>,
     max_iter: Option<usize>,
-    cache: Option<Vec<Arc<Mutex<Node>>>>,
+    cache: Option<Vec<IntMut<Node>>>,
     delay: u64,
 }
 
@@ -120,7 +119,7 @@ impl SimulatorBuilder {
     pub fn from_json(json: &str) -> Result<SimulatorBuilder, Box<dyn Error>> {
         // Generate object holding all the data, still formatted in json way
         let json_representation: JsonRepresentation = serde_json::from_str(json)?;
-        let mut crossings: Vec<Arc<Mutex<NodeBuilder>>> = Vec::new();
+        let mut crossings: Vec<IntMut<NodeBuilder>> = Vec::new();
         // generate all crossings
         for json_crossing in json_representation.crossings.iter() {
             // create nodes from json object
@@ -128,7 +127,7 @@ impl SimulatorBuilder {
                 true => NodeBuilder::IONode(IONodeBuilder::new()),
                 false => NodeBuilder::Crossing(CrossingBuilder::new()),
             };
-            crossings.push(Arc::new(Mutex::new(new_crossing)));
+            crossings.push(IntMut::new(new_crossing));
         }
         let mut builder = SimulatorBuilder::new();
         builder.nodes = crossings;
@@ -147,9 +146,9 @@ impl SimulatorBuilder {
                 }
                 {
                     // Make sure the connection doesn't already exist
-                    let node = &builder.nodes[i].lock().unwrap();
+                    let node = &builder.nodes[i];
                     let connected = &builder.nodes[*connection_index];
-                    if node.is_connected(&connected) {
+                    if node.get().is_connected(&connected) {
                         return Err(Box::new(JsonError(
                             "Attempt to create the same connection multiple times".to_string(),
                         )));
@@ -184,9 +183,9 @@ impl SimulatorBuilder {
         new_street.set_id(self.nodes.len());
 
         // wrap the street (this is how it is stored internally)
-        let new_street = Arc::new(Mutex::new(NodeBuilder::Street(new_street)));
+        let new_street = IntMut::new(NodeBuilder::Street(new_street));
         // add the connection the the street in the nodes
-        match &mut *node1.lock().unwrap() {
+        match &mut *node1.get() {
             NodeBuilder::IONode(inner) => {
                 inner.connect(&new_street);
             }
@@ -204,7 +203,7 @@ impl SimulatorBuilder {
             }
             NodeBuilder::Street(_) => panic!("Can't connect street with street"),
         }
-        match &mut *node2.lock().unwrap() {
+        match &mut *node2.get() {
             NodeBuilder::IONode(_inner) => {}
             NodeBuilder::Crossing(inner) => {
                 inner.connect(dir2, InOut::IN, &new_street).map_err(|er| {
@@ -234,29 +233,28 @@ impl SimulatorBuilder {
                 delay: self.delay,
             };
         }
-        let mut sim_nodes: Vec<Arc<Mutex<Node>>> = Vec::new();
+        let mut sim_nodes: Vec<IntMut<Node>> = Vec::new();
         sim_nodes.reserve(self.nodes.len());
         // create the nodes
         self.nodes
             .iter()
-            .for_each(|n| sim_nodes.push(Arc::new(Mutex::new((**n).lock().unwrap().build()))));
+            .for_each(|n| sim_nodes.push(IntMut::new(n.get().build())));
         // create the connections
         self.nodes.iter().enumerate().for_each(|(i, start_node_arc)| {
-            (**start_node_arc)
-                .lock()
-                .unwrap()
+            start_node_arc
+                .get()
                 .get_connections()
                 .iter()
                 .for_each(|c| {
                     // get strong reference to get the id
-                    let end_node_builder_arc = c.upgrade().unwrap();
-                    let end_node_builder = end_node_builder_arc.lock().unwrap();
+                    let end_node_builder_int_mut = &*c;
+                    let end_node_builder = &*end_node_builder_int_mut;
                     let starting_node = &sim_nodes[i];
-                    let end_node = &sim_nodes[end_node_builder.get_id()];
-                    let starting_node_unwrapped = &mut *starting_node.try_lock().unwrap();
+                    let end_node = &sim_nodes[end_node_builder.upgrade().get().get_id()];
+                    let starting_node_unwrapped = &mut *starting_node.get();
                     // we will connect using the out connections and set the in connections
                     // at the same time
-                    match &mut *start_node_arc.try_lock().unwrap() {
+                    match &mut *start_node_arc.get() {
                         NodeBuilder::Street(_street_builder) => {
                             let street = match starting_node_unwrapped{
                                 Node::Street(s) => s,
@@ -267,7 +265,7 @@ impl SimulatorBuilder {
                             // set out connection
                             street.connect(InOut::OUT, end_node);
                             // set in connection of target node
-                            match &mut *(**end_node).try_lock().unwrap() {
+                            match &mut *end_node.get() {
                                 Node::Street(target) => {
                                     target.connect(InOut::IN, &starting_node);
                                 },
@@ -275,7 +273,9 @@ impl SimulatorBuilder {
                                     // doesn't have an in connection
                                 },
                                 Node::Crossing(target) => {
-                                    let crossing_builder= match &*end_node_builder {
+                                    let end_node_builder = end_node_builder.upgrade();
+                                    let data = end_node_builder.get();
+                                    let crossing_builder= match &*data {
                                         NodeBuilder::Street(_) => panic!("NodeBuilders and Nodes not in same position in list."),
                                         NodeBuilder::IONode(_) => panic!("NodeBuilders and Nodes not in same position in list."),
                                         NodeBuilder::Crossing(n) => n
@@ -306,16 +306,20 @@ impl SimulatorBuilder {
                             let crossing = match starting_node_unwrapped {
                                 Node::Street(_) => panic!("NodeBuilders and Nodes not in same position in list."),
                                 Node::IONode(_) => panic!("NodeBuilders and Nodes not in same position in list."),
-                                Node::Crossing(n) => n 
+                                Node::Crossing(n) => n
                             };
-                            let direction = crossing_builder.connections.get_direction_for_item(InOut::OUT, &end_node_builder_arc).unwrap();
+                            // TODO: Make more efficient
+                            // 
+                            // At the moment, the connection needs to be upgraded to get the direction
+                            // This is pretty unnecessary, as the comparison can take place without it being upgraded
+                            let direction = crossing_builder.connections.get_direction_for_item(InOut::OUT, &end_node_builder_int_mut.upgrade()
+                                                                                                ).unwrap();
                             crossing.connect(direction, InOut::OUT, end_node).unwrap();
-                            match &mut *end_node.try_lock().unwrap() {
+                            match &mut *end_node.get() {
                                 Node::Street(street) => {street.connect(InOut::IN, starting_node);},
                                 Node::IONode(_) => panic!("NodeBuilders and Nodes not in same position in list."),
                                 Node::Crossing(_) => panic!("NodeBuilders and Nodes not in same position in list."),
                             }
-                            
                         },
                     }
                 });
@@ -339,7 +343,7 @@ impl SimulatorBuilder {
         self.drop_cache();
         // set the internal id. Is later used for calculating paths
         node.set_id(self.nodes.len());
-        self.nodes.push(Arc::new(Mutex::new(node)));
+        self.nodes.push(IntMut::new(node));
         self
     }
     /// an optional delay between each iteration
@@ -353,11 +357,11 @@ impl SimulatorBuilder {
         self
     }
     /// Returns an iterator over all nodes
-    pub fn iter_nodes(&self) -> std::slice::Iter<'_, Arc<Mutex<NodeBuilder>>> {
+    pub fn iter_nodes(&self) -> std::slice::Iter<'_, IntMut<NodeBuilder>> {
         self.nodes.iter()
     }
     /// returns a reference to the node with id `i`
-    pub fn get_node(&self, i: usize) -> &Arc<Mutex<NodeBuilder>> {
+    pub fn get_node(&self, i: usize) -> &IntMut<NodeBuilder> {
         &self.nodes[i]
     }
 }
@@ -374,9 +378,7 @@ mod tests {
     #[test]
     fn connect_with_streets() {
         use crate::simple::node_builder::Direction;
-        use crate::simple::node_builder::{
-            CrossingBuilder, IONodeBuilder, NodeBuilder,
-        };
+        use crate::simple::node_builder::{CrossingBuilder, IONodeBuilder, NodeBuilder};
         use crate::simple::simulation_builder::SimulatorBuilder;
         let mut simulator = SimulatorBuilder::new();
         simulator

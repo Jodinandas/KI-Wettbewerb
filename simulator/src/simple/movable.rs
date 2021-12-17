@@ -1,11 +1,6 @@
-use std::{
-    error::Error,
-    sync::Mutex,
-    sync::Weak,
-};
-
-use super::{super::traits::Movable, node::Node};
+use super::{super::traits::Movable, int_mut::WeakIntMut, node::Node};
 use rand::Rng;
+use std::error::Error;
 
 /// A person that takes turn at random
 #[derive(Debug, Clone)]
@@ -23,8 +18,8 @@ impl Movable for RandPerson {
     fn update(&mut self, _t: f64) {}
     fn decide_next(
         &mut self,
-        connections: &Vec<Weak<Mutex<Node>>>,
-    ) -> Result<Weak<Mutex<Node>>, Box<dyn Error>> {
+        connections: &Vec<WeakIntMut<Node>>,
+    ) -> Result<WeakIntMut<Node>, Box<dyn Error>> {
         let i = rand::thread_rng().gen_range(0..connections.len());
         Ok(connections[i].clone())
     }
@@ -53,8 +48,8 @@ impl Movable for RandCar {
     fn update(&mut self, _t: f64) {}
     fn decide_next(
         &mut self,
-        connections: &Vec<Weak<Mutex<Node>>>,
-    ) -> Result<Weak<Mutex<Node>>, Box<dyn Error>> {
+        connections: &Vec<WeakIntMut<Node>>,
+    ) -> Result<WeakIntMut<Node>, Box<dyn Error>> {
         let i = rand::thread_rng().gen_range(0..connections.len());
         Ok(connections[i].clone())
     }

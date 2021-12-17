@@ -1,8 +1,8 @@
-use crate::simple::node::{graphics, Node};
+use crate::simple::int_mut::{IntMut, WeakIntMut};
+use crate::simple::node::Node;
 use dyn_clone::DynClone;
 use std::error::Error;
 use std::fmt::Debug;
-use std::sync::{Arc, Mutex, Weak};
 
 use crate::simple::movable::RandCar;
 
@@ -13,15 +13,13 @@ use crate::simple::movable::RandCar;
 /// The nodes are mostly used in the form of `Box<dyn Node>`
 pub trait NodeTrait<Car = RandCar>: Debug + Sync + Send + DynClone {
     /// returns true, if the given node is connected
-    fn is_connected(&self, other: &Arc<Mutex<Node>>) -> bool;
+    fn is_connected(&self, other: &IntMut<Node>) -> bool;
     /// advances the car position
     fn update_cars(&mut self, t: f64) -> Vec<Car>;
     /// returns a list of all the other nodes connected to the node
-    fn get_connections(&self) -> Vec<Weak<Mutex<Node>>>;
+    fn get_connections(&self) -> Vec<WeakIntMut<Node>>;
     /// adds a new car to the beginning of the node
     fn add_car(&mut self, car: Car);
-    /// info for displaying
-    fn generate_graphics_info(&self) -> graphics::Info;
     /// a unique node id
     ///
     /// (the id stored in the SimulationBuilder at the beginning)
@@ -52,8 +50,8 @@ pub trait Movable: Debug + DynClone {
     /// if the part of the program that figures out the paths makes a mistake
     fn decide_next(
         &mut self,
-        connections: &Vec<Weak<Mutex<Node>>>,
-    ) -> Result<Weak<Mutex<Node>>, Box<dyn Error>>;
+        connections: &Vec<WeakIntMut<Node>>,
+    ) -> Result<WeakIntMut<Node>, Box<dyn Error>>;
 }
 
 // make it possible to derive Clone for structs with Box<dyn Movable>

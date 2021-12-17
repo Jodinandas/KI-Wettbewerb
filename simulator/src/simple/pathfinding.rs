@@ -7,9 +7,8 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use std::sync::Mutex;
-use std::sync::{Arc, Weak};
 
+use super::int_mut::{IntMut, WeakIntMut};
 use super::node::Node;
 use super::node_builder::NodeBuilder;
 use super::simulation::NodeDoesntExistError;
@@ -51,20 +50,17 @@ impl Movable for PathAwareCar {
 
     fn decide_next(
         &mut self,
-        connections: &Vec<Weak<Mutex<Node>>>,
-    ) -> Result<Weak<Mutex<Node>>, Box<dyn Error>> {
+        connections: &Vec<WeakIntMut<Node>>,
+    ) -> Result<WeakIntMut<Node>, Box<dyn Error>> {
         // upgrade references to be able to access the id field
         let mut connections_upgraded = Vec::with_capacity(connections.len());
         for c in connections.iter() {
-            connections_upgraded.push(match c.upgrade() {
+            connections_upgraded.push(match c.try_upgrade() {
                 Some(value) => value,
                 None => return Err(Box::new(NodeDoesntExistError {})),
             })
         }
-        let connection_ids = connections_upgraded
-            .iter()
-            .map(|n| (**n).lock().unwrap().id())
-            .collect();
+        let connection_ids = connections_upgraded.iter().map(|n| n.get().id()).collect();
 
         // epische logik hier
         let to_return = match self.path.pop() {
@@ -100,7 +96,7 @@ impl Movable for PathAwareCar {
 /// using path finding algorithms easier
 struct IndexedNodeNetwork {
     /// connections acvvvvvvvvvvvvvvvn bbbbbbbbbbbbbbbbbbbbbbbbbbbb (my cat)
-    /// 
+    ///
     /// contains a list of connections for each given index, with the first element
     /// of the contained tuple being the index of the connection, and the second one
     /// being the cost of moving to the specified connection
@@ -111,19 +107,19 @@ struct IndexedNodeNetwork {
 
 impl IndexedNodeNetwork {
     /// generates a new [IndexedNodeNetwork] from a list of [NodeBuilders](NodeBuilder)
-    fn new(nodes: &Vec<Arc<Mutex<NodeBuilder>>>) -> IndexedNodeNetwork {
+    fn new(nodes: &Vec<IntMut<NodeBuilder>>) -> IndexedNodeNetwork {
         let mut connections: Vec<Vec<(usize, usize)>> = Vec::with_capacity(nodes.len());
         let mut io_nodes: Vec<usize> = Vec::new();
         let mut io_node_weights: Vec<f32> = Vec::new();
-        nodes.iter().for_each(|n| {
-            let node = n.lock().unwrap();
+        nodes.iter().for_each(|node| {
             connections.push({
                 // get the indices and weights of all connections
-                node.get_connections()
+                node.get()
+                    .get_connections()
                     .iter()
                     .map(|n| {
-                        let arc_c_node = n.upgrade().unwrap();
-                        let c_node = arc_c_node.lock().unwrap();
+                        let node_upgraded = n.upgrade();
+                        let c_node = node_upgraded.get();
                         (
                             c_node.get_id(),
                             // funny weights calculation (dijkstra expects a cost as usize
@@ -133,10 +129,11 @@ impl IndexedNodeNetwork {
                     })
                     .collect()
             });
-            match *node {
+            let inner_data = node.get();
+            match *inner_data {
                 NodeBuilder::IONode(_) => {
-                    io_nodes.push(node.get_id());
-                    io_node_weights.push(node.get_weight())
+                    io_nodes.push(inner_data.get_id());
+                    io_node_weights.push(inner_data.get_weight())
                 }
                 _ => {}
             }
@@ -156,21 +153,21 @@ impl IndexedNodeNetwork {
 }
 
 /// generates new movables with a given path
-/// 
+///
 /// It provides a way for multiple Simulations to request new cars
 /// without paths having to generate a new path each time. It caches
 /// paths.
 struct MovableServer {
-    nodes: Vec<Arc<Mutex<NodeBuilder>>>,
+    nodes: Vec<IntMut<NodeBuilder>>,
     indexed: IndexedNodeNetwork,
     cache: HashMap<(usize, usize), PathAwareCar>,
 }
 
 impl MovableServer {
     /// indexes and copies the given nodes and returns a new [MovableServer]
-    /// 
-    /// it is important to note that this 
-    fn new(nodes: Vec<Arc<Mutex<NodeBuilder>>>) -> MovableServer {
+    ///
+    /// it is important to note that this
+    fn new(nodes: Vec<IntMut<NodeBuilder>>) -> MovableServer {
         MovableServer {
             indexed: IndexedNodeNetwork::new(&nodes),
             nodes,
@@ -211,6 +208,7 @@ impl MovableServer {
 
 mod tests {
     #[test]
+    #[should_panic]
     fn generate_movable_test() {
         use crate::debug::build_grid_sim;
         use crate::simple::pathfinding::MovableServer;

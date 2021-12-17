@@ -1,39 +1,10 @@
-use std::error::Error;
-use std::sync::{Arc, Mutex, Weak};
-use std::ptr;
-
+use super::int_mut::{IntMut, WeakIntMut};
 use super::movable::RandCar;
 use super::node_builder::{CrossingConnections, Direction, InOut};
 use super::traversible::Traversible;
 use crate::simple::pathfinding::PathAwareCar;
 use crate::traits::NodeTrait;
-
-/// Objects for storing data relevant for rendering
-/// different nodes
-///
-/// # Performance
-/// Performance is in this case not as important, as only one Simulation
-/// at a time will be displayed.
-pub mod graphics {
-    /// Info for Crossing
-    pub struct CrossingInfo;
-    /// Info for IONode
-    pub struct IONodeInfo;
-    /// Info for Street
-    pub struct StreetInfo {
-        /// info for the number of lanes
-        pub lanes: u8,
-    }
-    /// Contains graphics Info mor different Node Types
-    pub enum Info {
-        /// Wrapper
-        Crossing(CrossingInfo),
-        /// Wrapper
-        IONode(IONodeInfo),
-        /// Wrapper
-        Street(StreetInfo),
-    }
-}
+use std::error::Error;
 
 /// A node is any kind of logical object in the Simulation
 ///  ([Streets](Street), [IONodes](IONode), [Crossings](Crossing))
@@ -56,13 +27,13 @@ pub enum Node {
 }
 
 impl NodeTrait for Node {
-    fn is_connected(&self, other: &Arc<Mutex<Node>>) -> bool {
+    fn is_connected(&self, other: &IntMut<Node>) -> bool {
         self.get_connections()
             .iter()
-            .find(|n| ptr::eq(n.as_ptr(), &**other))
+            .find(|n| *n == other)
             .is_some()
     }
-    fn get_connections(&self) -> Vec<Weak<Mutex<Node>>> {
+    fn get_connections(&self) -> Vec<WeakIntMut<Node>> {
         match self {
             Node::Street(street) => street.get_connections(),
             Node::IONode(io_node) => io_node.connections.clone(),
@@ -72,7 +43,7 @@ impl NodeTrait for Node {
 
     fn update_cars(&mut self, t: f64) -> Vec<RandCar> {
         match self {
-            Node::Street(street) => street.car_lane.update_movables(t),
+            Node::Street(street) => street.update_movables(t),
             Node::IONode(io_node) => {
                 // create new car
                 io_node.time_since_last_spawn += t;
@@ -88,23 +59,12 @@ impl NodeTrait for Node {
 
     fn add_car(&mut self, car: RandCar) {
         match self {
-            Node::Street(street) => street.car_lane.add(car),
+            Node::Street(street) => street.add_movable(car),
             Node::IONode(io_node) => io_node.absorbed_cars += 1,
             Node::Crossing(crossing) => crossing.car_lane.add(car),
         }
     }
 
-    fn generate_graphics_info(&self) -> graphics::Info {
-        match self {
-            Node::Street(street) => graphics::Info::Street(graphics::StreetInfo {
-                lanes: street.lanes,
-            }),
-            Node::IONode(_io_node) => graphics::Info::IONode(graphics::IONodeInfo {}),
-            Node::Crossing(_crossing) => graphics::Info::Crossing(graphics::CrossingInfo {
-                       // Not much to display at the moment 
-                    }),
-        }
-    }
     fn id(&self) -> usize {
         match self {
             Node::Street(inner) => inner.id,
@@ -118,7 +78,7 @@ impl NodeTrait for Node {
 #[derive(Debug, Clone)]
 pub struct Crossing {
     /// The other nodes the Crossing is connected to
-    /// 
+    ///
     /// A crossing is a rectangle and each of the 4 sides
     /// can have one input and one output connection
     pub connections: CrossingConnections<Node>,
@@ -137,13 +97,13 @@ impl Crossing {
         }
     }
     /// Returns a list of only OUTPUT connecitons
-    /// 
+    ///
     /// This function is deprecated and will be removed soon
-    pub fn get_connections(&self) -> Vec<std::sync::Weak<Mutex<Node>>> {
+    pub fn get_connections(&self) -> Vec<WeakIntMut<Node>> {
         self.connections
             .output
             .values()
-            .map(|c| Weak::clone(c))
+            .map(|c| c.clone())
             .collect()
     }
     /// Tries to add a connections at the specified position and raises
@@ -152,7 +112,7 @@ impl Crossing {
         &mut self,
         dir: Direction,
         conn_type: InOut,
-        other: &Arc<Mutex<Node>>,
+        other: &IntMut<Node>,
     ) -> Result<&mut Self, Box<dyn Error>> {
         self.connections.add(dir, conn_type, other)?;
         Ok(self)
@@ -164,7 +124,7 @@ impl Crossing {
 #[derive(Debug, Clone)]
 pub struct IONode {
     /// All the nodes where cars should be redirected
-    pub connections: Vec<Weak<Mutex<Node>>>,
+    pub connections: Vec<WeakIntMut<Node>>,
     /// new Cars/Second
     pub spawn_rate: f64,
     /// time since last spawn in seconds
@@ -187,8 +147,8 @@ impl IONode {
         }
     }
     /// adds a connections
-    pub fn connect(&mut self, n: &Arc<Mutex<Node>>) {
-        self.connections.push(Arc::downgrade(n))
+    pub fn connect(&mut self, n: &IntMut<Node>) {
+        self.connections.push(n.downgrade())
     }
 }
 
@@ -199,35 +159,32 @@ impl IONode {
 #[derive(Debug, Clone)]
 pub struct Street {
     /// The connection leading to the node at the end of the road
-    pub conn_out: Option<Weak<Mutex<Node>>>,
+    pub conn_out: Option<WeakIntMut<Node>>,
     /// The node where the road starts at
-    pub conn_in: Option<Weak<Mutex<Node>>>,
-    /// The number of lanes the road has. This can later be used
-    /// to calculate the throughput
-    pub lanes: u8,
+    pub conn_in: Option<WeakIntMut<Node>>,
     /// This field handles the actual logic of moving cars etc.
-    pub car_lane: Traversible<RandCar>,
+    /// it contains a list of all the lanes
+    pub lanes: Vec<Traversible<RandCar>>,
     /// The index in the simulation
     pub id: usize,
 }
 
 impl Street {
     /// Create new street
-    pub fn new(_end: &Arc<Mutex<Node>>) -> Street {
+    pub fn new(_end: &IntMut<Node>) -> Street {
         Street {
             conn_out: None,
             conn_in: None,
-            lanes: 1,
+            lanes: vec![Traversible::<RandCar>::new(100.0)],
             id: 0,
-            car_lane: Traversible::<PathAwareCar>::new(100.0),
         }
     }
     /// Connects a node at the specifed position. If a node is already
     /// connected at the position, it is simply overwritten
     /// FIXME: Raise an error if there is already a connection, or unconnect
     ///     the node the street is connected to as well
-    pub fn connect(&mut self, conn_type: InOut, other: &Arc<Mutex<Node>>) -> &mut Self {
-        let new_item = Some(Arc::downgrade(other));
+    pub fn connect(&mut self, conn_type: InOut, other: &IntMut<Node>) -> &mut Self {
+        let new_item = Some(other.downgrade());
         match conn_type {
             InOut::IN => self.conn_in = new_item,
             InOut::OUT => self.conn_out = new_item,
@@ -235,11 +192,36 @@ impl Street {
         self
     }
     /// Returns the out connection in a Vec of length 1 (or 0 if there is none)
-    pub fn get_connections<'a>(&'a self) -> Vec<std::sync::Weak<Mutex<Node>>> {
+    pub fn get_connections<'a>(&'a self) -> Vec<WeakIntMut<Node>> {
         let mut out = Vec::new();
         if let Some(conn) = &self.conn_out {
-            out.push(Weak::clone(conn));
+            out.push(conn.clone());
         }
         out
+    }
+    /// Advances the movables on all lanes
+    pub fn update_movables(&mut self, t: f64) -> Vec<RandCar> {
+        self.lanes
+            .iter_mut()
+            .flat_map(|traversible| (*traversible).update_movables(t))
+            .collect()
+    }
+    /// Adds a movable to the street
+    ///
+    /// The movable is put on the lane with the leas amount of cars
+    /// This should pretty closely resemble how people drive in real life
+    /// as you won't drive to the lane that has the most cars in it
+    pub fn add_movable(&mut self, movable: RandCar) {
+        // get the index of the lane with the least movables on it
+        let trav_most_movables = self
+            .lanes
+            .iter()
+            .enumerate()
+            .min_by_key(|(_i, traversible)| traversible.num_movables());
+        let i = match trav_most_movables {
+            Some((i, _)) => i,
+            None => return,
+        };
+        self.lanes[i].add(movable)
     }
 }
