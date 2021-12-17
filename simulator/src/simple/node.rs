@@ -2,7 +2,6 @@ use super::int_mut::{IntMut, WeakIntMut};
 use super::movable::RandCar;
 use super::node_builder::{CrossingConnections, Direction, InOut};
 use super::traversible::Traversible;
-use crate::simple::pathfinding::PathAwareCar;
 use crate::traits::{NodeTrait, Movable};
 use std::error::Error;
 
@@ -47,7 +46,7 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
             Node::IONode(io_node) => {
                 // create new car
                 io_node.time_since_last_spawn += t;
-                let mut new_cars = Vec::<Car>::new();
+                let new_cars = Vec::<Car>::new();
                 if io_node.time_since_last_spawn >= io_node.spawn_rate {
                     // TODO: Remove and replace with proper request to
                     //  the movable server
