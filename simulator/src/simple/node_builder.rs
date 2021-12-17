@@ -3,11 +3,9 @@ use std::{
     error::Error,
     fmt::Debug,
     hash::Hash,
-    ptr,
-    sync::{Arc, Mutex, Weak},
 };
 
-use super::node::graphics;
+use super::{node::graphics, int_mut::{WeakIntMut, IntMut}};
 use super::{
     movable::RandCar,
     node::{Crossing, IONode, Node, Street},
@@ -31,10 +29,10 @@ pub trait NodeBuilderTrait: Debug + DynClone + Sync + Send {
     /// constructs a node with the same settings
     fn build(&self) -> Node;
     /// returns a list of all connected nodes
-    fn get_connections(&self) -> Vec<Weak<Mutex<NodeBuilder>>>;
+    fn get_connections(&self) -> Vec<WeakIntMut<NodeBuilder>>;
     /// returns true if the given [NodeBuilder] is in the list of connections
-    fn is_connected(&self, other: &Arc<Mutex<NodeBuilder>>) -> bool;
-    // fn connect(&mut self, i: &Arc<Mutex<NodeBuilder>>);
+    fn is_connected(&self, other: &IntMut<NodeBuilder>) -> bool;
+    // fn connect(&mut self, i: &IntMut<NodeBuilder>);
     /// returns a [graphics::Info] with information useful for rendering
     fn generate_graphics_info(&self) -> graphics::Info;
     /// returns the weight
@@ -55,11 +53,11 @@ pub trait NodeBuilderTrait: Debug + DynClone + Sync + Send {
     fn set_id(&mut self, id: usize);
 }
 
-fn has_connection(node_a: &NodeBuilder, node_b: &Arc<Mutex<NodeBuilder>>) -> bool {
+fn has_connection(node_a: &NodeBuilder, node_b: &IntMut<NodeBuilder>) -> bool {
     node_a
         .get_connections()
         .iter()
-        .find(|n| ptr::eq(n.as_ptr(), &**node_b))
+        .find(|n| *n == node_b ) 
         .is_some()
 }
 
@@ -72,7 +70,7 @@ impl NodeBuilderTrait for NodeBuilder {
         }
     }
 
-    fn get_connections(&self) -> Vec<Weak<Mutex<NodeBuilder>>> {
+    fn get_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
         match self {
             NodeBuilder::IONode(inner) => inner.get_connections(),
             NodeBuilder::Crossing(inner) => inner.get_connections(),
@@ -80,7 +78,7 @@ impl NodeBuilderTrait for NodeBuilder {
         }
     }
 
-    fn is_connected(&self, other: &Arc<Mutex<NodeBuilder>>) -> bool {
+    fn is_connected(&self, other: &IntMut<NodeBuilder>) -> bool {
         has_connection(&self, other)
     }
 
@@ -123,9 +121,9 @@ dyn_clone::clone_trait_object!(NodeBuilderTrait);
 #[derive(Debug, Clone)]
 pub struct StreetBuilder {
     /// the node the street ends in
-    pub conn_out: Option<Weak<Mutex<NodeBuilder>>>,
+    pub conn_out: Option<WeakIntMut<NodeBuilder>>,
     /// the node the street starts at
-    pub conn_in: Option<Weak<Mutex<NodeBuilder>>>,
+    pub conn_in: Option<WeakIntMut<NodeBuilder>>,
     lanes: u8,
     lane_length: f32,
     id: usize,
@@ -140,10 +138,10 @@ impl NodeBuilderTrait for StreetBuilder {
             id: self.id,
         })
     }
-    fn get_connections<'a>(&'a self) -> Vec<Weak<Mutex<NodeBuilder>>> {
+    fn get_connections<'a>(&'a self) -> Vec<WeakIntMut<NodeBuilder>> {
         let mut out = Vec::new();
         if let Some(conn) = &self.conn_out {
-            out.push(Weak::clone(conn));
+            out.push(conn.clone());
         }
         out
     }
@@ -160,9 +158,9 @@ impl NodeBuilderTrait for StreetBuilder {
         self.id = id
     }
 
-    fn is_connected(&self, other: &Arc<Mutex<NodeBuilder>>) -> bool {
+    fn is_connected(&self, other: &IntMut<NodeBuilder>) -> bool {
         match &self.conn_out {
-            Some(conn) => ptr::eq(conn.as_ptr(), &**other),
+            Some(conn) => conn == other,
             None => false,
         }
     }
@@ -174,8 +172,8 @@ impl StreetBuilder {
     ///
     /// FIXME: Check if the [NodeBuilder] the connection points to already exists. If
     /// this is the case, remove the connection from this [NodeBuilder]
-    pub fn connect(&mut self, conn_type: InOut, other: &Arc<Mutex<NodeBuilder>>) -> &mut Self {
-        let new_item = Some(Arc::downgrade(other));
+    pub fn connect(&mut self, conn_type: InOut, other: &IntMut<NodeBuilder>) -> &mut Self {
+        let new_item = Some(other.downgrade());
         match conn_type {
             InOut::IN => self.conn_in = new_item,
             InOut::OUT => self.conn_out = new_item,
@@ -213,7 +211,7 @@ impl StreetBuilder {
 /// ## Creating IONodes
 #[derive(Debug, Clone)]
 pub struct IONodeBuilder {
-    connections: Vec<Weak<Mutex<NodeBuilder>>>,
+    connections: Vec<WeakIntMut<NodeBuilder>>,
     spawn_rate: f64,
     id: usize,
 }
@@ -227,7 +225,7 @@ impl NodeBuilderTrait for IONodeBuilder {
             id: self.id,
         })
     }
-    fn get_connections(&self) -> Vec<std::sync::Weak<Mutex<NodeBuilder>>> {
+    fn get_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
         self.connections.clone()
     }
     fn generate_graphics_info(&self) -> graphics::Info {
@@ -244,10 +242,10 @@ impl NodeBuilderTrait for IONodeBuilder {
         self.id = id
     }
 
-    fn is_connected(&self, other: &Arc<Mutex<NodeBuilder>>) -> bool {
+    fn is_connected(&self, other: &IntMut<NodeBuilder>) -> bool {
         self.connections
             .iter()
-            .find(|n| ptr::eq(n.as_ptr(), &**other))
+            .find(|n| *n == other)
             .is_some()
     }
 }
@@ -266,8 +264,8 @@ impl IONodeBuilder {
         self
     }
     /// connects to other nodes. An IONode can have an indefinite amount of connections
-    pub fn connect(&mut self, n: &Arc<Mutex<NodeBuilder>>) {
-        self.connections.push(Arc::downgrade(n));
+    pub fn connect(&mut self, n: &IntMut<NodeBuilder>) {
+        self.connections.push(n.downgrade());
     }
 }
 
@@ -301,17 +299,17 @@ pub enum InOut {
 #[derive(Clone, Debug)]
 pub struct CrossingConnections<T = NodeBuilder> {
     /// output streets by direction
-    pub input: HashMap<Direction, Weak<Mutex<T>>>,
+    pub input: HashMap<Direction, WeakIntMut<T>>,
     /// output streets by direction
-    pub output: HashMap<Direction, Weak<Mutex<T>>>,
+    pub output: HashMap<Direction, WeakIntMut<T>>,
 }
 
 impl<T> CrossingConnections<T> {
     /// Creates a new [CrossingConnections] holding connections of type `T`
     pub fn new() -> CrossingConnections<T> {
         CrossingConnections {
-            input: HashMap::<Direction, Weak<Mutex<T>>>::new(),
-            output: HashMap::<Direction, Weak<Mutex<T>>>::new(),
+            input: HashMap::<Direction, WeakIntMut<T>>::new(),
+            output: HashMap::<Direction, WeakIntMut<T>>::new(),
         }
     }
     /// Adds a new connection at the specified position
@@ -321,9 +319,9 @@ impl<T> CrossingConnections<T> {
         &mut self,
         dir: Direction,
         conn_type: InOut,
-        conn: &Arc<Mutex<T>>,
+        conn: &IntMut<T>,
     ) -> Result<(), String> {
-        let connection: &mut HashMap<Direction, Weak<Mutex<T>>>;
+        let connection: &mut HashMap<Direction, WeakIntMut<T>>;
         match conn_type {
             InOut::IN => connection = &mut self.input,
             InOut::OUT => connection = &mut self.output,
@@ -337,15 +335,15 @@ impl<T> CrossingConnections<T> {
                 ))
             }
             None => {
-                connection.insert(dir, Arc::downgrade(conn));
+                connection.insert(dir, conn.downgrade());
             }
         }
         Ok(())
     }
     /// Removes the specified connection and returns Some(connections) if it exists
     /// or None if there is no such connection
-    pub fn pop(&mut self, dir: Direction, conn_type: InOut) -> Option<Weak<Mutex<T>>> {
-        let connection: &mut HashMap<Direction, Weak<Mutex<T>>>;
+    pub fn pop(&mut self, dir: Direction, conn_type: InOut) -> Option<WeakIntMut<T>> {
+        let connection: &mut HashMap<Direction, WeakIntMut<T>>;
         match conn_type {
             InOut::IN => connection = &mut self.input,
             InOut::OUT => connection = &mut self.output,
@@ -354,41 +352,41 @@ impl<T> CrossingConnections<T> {
     }
 
     /// removes all connections that point to `conn`
-    pub fn remove_connection(&mut self, conn_type: InOut, conn: &Arc<Mutex<T>>) {
-        let connection: &mut HashMap<Direction, Weak<Mutex<T>>>;
+    pub fn remove_connection(&mut self, conn_type: InOut, conn: &WeakIntMut<T>) {
+        let connection: &mut HashMap<Direction, WeakIntMut<T>>;
         match conn_type {
             InOut::IN => connection = &mut self.input,
             InOut::OUT => connection = &mut self.output,
         }
         // remove all connections that point to the same object as `conn`
-        connection.retain(|_k, v| !ptr::eq(v.as_ptr(), &**conn));
+        connection.retain(|_k, v| !(v == conn));
     }
     /// returns true if the connection at the given position exists
-    pub fn is_connected(&self, conn_type: InOut, node: &Arc<Mutex<T>>) -> bool {
-        let connection: &HashMap<Direction, Weak<Mutex<T>>>;
+    pub fn is_connected(&self, conn_type: InOut, node: &IntMut<T>) -> bool {
+        let connection: &HashMap<Direction, WeakIntMut<T>>;
         match conn_type {
             InOut::IN => connection = &self.input,
             InOut::OUT => connection = &self.output,
         }
         connection
             .values()
-            .find(|v| ptr::eq(v.as_ptr(), &**node))
+            .find(|v| {*v == node })
             .is_some()
     }
     /// Returns `Some(Direction)` for an item if it is saved in the connections
     pub fn get_direction_for_item(
         &self,
         conn_type: InOut,
-        item: &Arc<Mutex<T>>,
+        item: &IntMut<T>,
     ) -> Option<Direction> {
-        let connection: &HashMap<Direction, Weak<Mutex<T>>>;
+        let connection: &HashMap<Direction, WeakIntMut<T>>;
         match conn_type {
             InOut::IN => connection = &self.input,
             InOut::OUT => connection = &self.output,
         }
         let search_results = connection.iter().find(|&(_k, v)| {
             // Both point to the same internal T
-            ptr::eq(v.as_ptr(), &**item)
+            v == item
         });
         // Transform the results to match the function signature
         match search_results {
@@ -444,11 +442,11 @@ impl NodeBuilderTrait for CrossingBuilder {
             id: self.id,
         })
     }
-    fn get_connections(&self) -> Vec<std::sync::Weak<Mutex<NodeBuilder>>> {
+    fn get_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
         self.connections
             .output
             .values()
-            .map(|c| Weak::clone(c))
+            .map(|c| c.clone())
             .collect()
     }
     fn generate_graphics_info(&self) -> graphics::Info {
@@ -465,7 +463,7 @@ impl NodeBuilderTrait for CrossingBuilder {
         self.id = id
     }
 
-    fn is_connected(&self, other: &Arc<Mutex<NodeBuilder>>) -> bool {
+    fn is_connected(&self, other: &IntMut<NodeBuilder>) -> bool {
         self.connections.is_connected(InOut::OUT, other)
     }
 }
@@ -489,7 +487,7 @@ impl CrossingBuilder {
         &mut self,
         dir: Direction,
         conn_type: InOut,
-        other: &Arc<Mutex<NodeBuilder>>,
+        other: &IntMut<NodeBuilder>,
     ) -> Result<&mut Self, Box<dyn Error>> {
         self.connections.add(dir, conn_type, other)?;
         Ok(self)

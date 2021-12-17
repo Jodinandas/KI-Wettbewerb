@@ -95,7 +95,7 @@ enum NodeType {
     STREET,
 }
 
-const GRID_NODE_SPACING: usize = 200;
+const GRID_NODE_SPACING: usize = 20;
 const GRID_SIDE_LENGTH: usize = 70;
 const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
@@ -120,7 +120,7 @@ pub fn run() {
         .insert_resource(UITheme::dark()) // Theme
         .insert_resource(CurrentTheme::DARK) // Theme
         .insert_resource(bevy::input::InputSystem)
-        .add_system(ui_example.system())
+        //.add_system(ui_example.system())
         //.add_system(rotation_test.system())
         .add_system(panning.system())
         .run();
@@ -224,7 +224,7 @@ fn spawn_simulation_builder(mut commands: Commands) {
             //if PATH.contains(&i) {
             //    return;
             //}
-            match &*(**n_builder).lock().unwrap() {
+            match &*(*n_builder).get() {
                 NodeBuilder::Crossing(_crossing) => {
                     // println!("   type=Crossing");
                     //let test_shape = shapes::RegularPolygon {
@@ -247,9 +247,9 @@ fn spawn_simulation_builder(mut commands: Commands) {
                         Transform::from_xyz(calc_x(i), calc_y(i), 0.),
                     );
                     commands
-                        .spawn_bundle(geometry)
-                        .insert(SimulationIndex(i))
-                        .insert(NodeType::CROSSING);
+                        .spawn_bundle(geometry);
+                        //.insert(SimulationIndex(i))
+                        //.insert(NodeType::CROSSING);
                 }
 
                 NodeBuilder::IONode(_io_node) => {
@@ -281,8 +281,8 @@ fn spawn_simulation_builder(mut commands: Commands) {
                     // println!("   type=Street");
                     if let Some(conn_in) = &street.conn_in {
                         if let Some(conn_out) = &street.conn_out {
-                            let index_in = (*conn_in.upgrade().unwrap()).lock().unwrap().get_id();
-                            let index_out = (*conn_out.upgrade().unwrap()).lock().unwrap().get_id();
+                            let index_in = conn_in.upgrade().get().get_id();
+                            let index_out = conn_out.upgrade().get().get_id();
                             let pos_j = Vec2::new(calc_x(index_in), calc_y(index_in));
                             let pos_i = Vec2::new(calc_x(index_out), calc_y(index_out));
                             //println!("I({}): {:?}, J({}): {:?}", i, pos_i, j, pos_j);
@@ -309,6 +309,7 @@ fn spawn_simulation_builder(mut commands: Commands) {
             }
         });
     commands.insert_resource(new_builder);
+    println!("built Grid");
 }
 
 struct Camera;
@@ -375,7 +376,7 @@ impl Render for SimulatorBuilder {
     ) {
         for (node_i, _transform) in node_query.iter() {
             let node = self.get_node(node_i.0);
-            match (**node).lock().unwrap().generate_graphics_info() {
+            match node.get().generate_graphics_info() {
                 node::graphics::Info::Crossing(_) => {}
                 node::graphics::Info::IONode(_) => {}
                 node::graphics::Info::Street(_street) => {
