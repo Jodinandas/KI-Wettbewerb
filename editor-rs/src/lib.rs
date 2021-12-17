@@ -95,12 +95,12 @@ enum NodeType {
     STREET,
 }
 
-const GRID_NODE_SPACING: usize = 20;
+const GRID_NODE_SPACING: usize = 100;
 const GRID_SIDE_LENGTH: usize = 70;
 const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
-const CROSSING_SIZE: f32 = 70.0;
-const IONODE_SIZE: f32 = 40.0;
+const CROSSING_SIZE: f32 = 20.0;
+const IONODE_SIZE: f32 = 20.0;
 
 const PAN_SPEED: f32 = 10.0;
 
@@ -116,11 +116,12 @@ pub fn run() {
         //#[cfg(target_arch = "wasm32")]
         //app.add_plugin(bevy_webgl2::WebGL2Plugin);
         .add_startup_system(spawn_simulation_builder.system())
+        .add_startup_system(spawn_camera.system())
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .insert_resource(UITheme::dark()) // Theme
         .insert_resource(CurrentTheme::DARK) // Theme
         .insert_resource(bevy::input::InputSystem)
-        //.add_system(ui_example.system())
+        .add_system(ui_example.system())
         //.add_system(rotation_test.system())
         .add_system(panning.system())
         .run();
@@ -197,6 +198,12 @@ fn ui_example(
         }
         UIMode::Simulator => {}
     }
+}
+
+fn spawn_camera(mut commands: Commands) {
+    commands
+        .spawn_bundle(OrthographicCameraBundle::new_2d())
+        .insert(Camera); 
 }
 
 /// This function spawns the simultation builder instance
@@ -331,10 +338,11 @@ fn panning(keyboard_input: Res<Input<KeyCode>>, mut camera: Query<&mut Transform
             transform.translation.y += speed * s.y;
         }
         if keyboard_input.pressed(KeyCode::Q) {
-            transform.scale += Vec3::from((0.1 * s.x, 0.1 * s.y, 0.1 * s.z));
+            transform.scale += Vec3::from((0.1 * s.x, 0.1 * s.y, 0.0));
+            
         }
         if keyboard_input.pressed(KeyCode::E) {
-            transform.scale -= Vec3::from((0.1 * s.x, 0.1 * s.y, 0.1 * s.z));
+            transform.scale -= Vec3::from((0.1 * s.x, 0.1 * s.y, 0.0));
         }
     }
 }
