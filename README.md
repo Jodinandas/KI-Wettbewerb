@@ -7,9 +7,9 @@ Have dedicated "ports" for streets in each crossing per direction, like with ble
 
 ### Frontend
 * Functions (nodes = IONode, Crossing, Street):
-    *  ~~Pan around
-        * Mouse
-        * Keyboard~~
+    *  ~~Pan around~~
+        * ~~Mouse~~
+        * ~~Keyboard~~
     * add Nodes
     * delete nodes
     * change nodes
