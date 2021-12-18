@@ -70,6 +70,7 @@ struct UITheme {
     io_node: Color,
     street: Color,
     crossing: Color,
+    highlight: Color
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -85,6 +86,7 @@ impl UITheme {
             io_node: Color::rgb(0.0, 200.0, 0.0),
             street: Color::rgb(100., 50., 0.),
             crossing: Color::rgb(0.0, 200.0, 0.0),
+            highlight: Color::rgb(255.0, 0.0, 0.0)
         }
     }
     pub fn dark() -> UITheme {
@@ -93,6 +95,7 @@ impl UITheme {
             io_node: Color::rgb(200.0, 200.0, 0.0),
             street: Color::rgb(255., 255., 255.),
             crossing: Color::rgb(200.0, 200.0, 0.0),
+            highlight: Color::rgb(255.0, 0.0, 0.0)
         }
     }
     pub fn from_enum(theme: &CurrentTheme) -> UITheme {
@@ -111,7 +114,7 @@ enum NodeType {
 }
 
 const GRID_NODE_SPACING: usize = 100;
-const GRID_SIDE_LENGTH: usize = 100;
+const GRID_SIDE_LENGTH: usize = 10;
 const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
 const CROSSING_SIZE: f32 = 20.0;
@@ -321,6 +324,7 @@ fn spawn_camera(mut commands: Commands) {
 struct StreetLinePosition(Vec2, Vec2);
 
 /// Holds an IntMut (interior mutability) for a nodebuilder
+#[derive(Debug, Clone)]
 struct NodeBuilderRef(IntMut<NodeBuilder>);
 
 /// This function spawns the simultation builder instance
@@ -420,8 +424,10 @@ fn keyboard_movement(keyboard_input: Res<Input<KeyCode>>, mut camera: Query<&mut
         }
     }
 }
-fn toolbarsystem(mouse_input: Res<Input<MouseButton>>, windows: Res<Windows>, mut shapes: Query<(&Transform, &NodeType, &SimulationIndex)>,
+fn toolbarsystem(mouse_input: Res<Input<MouseButton>>, windows: Res<Windows>, mut shapes: Query<(Entity, &Transform, &NodeType, &SimulationIndex, &NodeBuilderRef)>,
       mut uistate: ResMut<UIState>,
+      mut theme: ResMut<UITheme>,
+      mut commands: Commands,
       mut camera: Query<&Transform, With<Camera>>
     ){
 
@@ -434,7 +440,8 @@ fn toolbarsystem(mouse_input: Res<Input<MouseButton>>, windows: Res<Windows>, mu
                 // select nearest object
                 // get position of mouse click on screen
                 let click_pos = handle_mouse_clicks(&mouse_input, &windows);
-                let mut closest_shape: Option<(f32, SimulationIndex)> = None;
+                let mut closest_shape: Option<(f32, Entity, &Transform, SimulationIndex, &NodeBuilderRef, &NodeType)> = None;
+                let mut prev_selection: Option<(Entity, &NodeType, &Transform)> = None;
                 if let Some(click_pos) = click_pos{
                     // println!("{:?}", click_pos);
                     if let Some(camera_transform) = camera.iter().next(){
@@ -442,26 +449,51 @@ fn toolbarsystem(mouse_input: Res<Input<MouseButton>>, windows: Res<Windows>, mu
                         let scaling = camera_transform.scale.x;
                         // get position of 0,0 of world coordinate system in screen coordinates
                         let midpoint_screenspace = (get_primary_window_size(&windows)/2.0)-(Vec2::new(camera_transform.translation.x, camera_transform.translation.y))/scaling;
-                        let shape_dists = shapes.iter().map( | (transform, shapevariant, index) | {
+                        let shape_dists = shapes.iter().map( | (entity, transform, shapevariant, index, nodebuilderref) | {
+                            // check if this entity is the one currently selected
+                            //  (we need to change the color later on when unselecting it)
+                            if let Some(selected_nb) = &uistate.selected_node {
+                                if selected_nb.0 == nodebuilderref.0 {
+                                    prev_selection = Some((entity, shapevariant, transform));
+                                }
+                            }
                             // get shape position in scren coordinates
                             let position = midpoint_screenspace + (Vec2::new(transform.translation.x, transform.translation.y))/scaling;
                             // calculate distance, squared to improve performance so does not need to be rooted
                             let dist = (position - click_pos).length_squared();
-                            (dist, index)
+                            (dist, entity, transform, index, nodebuilderref, shapevariant)
                         });
                         shape_dists.for_each(
-                            | (d, i) | {
-                                if let Some((d_prev, _i_prev)) = closest_shape {
+                            | (d, entity, transform, i, nbr, sv) | {
+                                if let Some((d_prev, entity_prev, trans_prev, _i_prev, nbr_prev, _sv_prev)) = closest_shape {
                                     if d < d_prev {
-                                        closest_shape = Some((d, *i));
+                                        closest_shape = Some((d, entity, transform, *i, nbr, sv));
                                     }
                                 } else {
-                                    closest_shape = Some((d, *i));
+                                    closest_shape = Some((d, entity, transform, *i, nbr, sv));
                                 }
                             }
                         );
-                    }                
-                    println!("Proximities: {:?}", closest_shape)
+                    }
+                    if let Some((_d, entity, transform, _, nbr, sv)) = closest_shape {
+                        if let Some((prev_selected_node_entity, node_type, prev_trans)) = prev_selection {
+                            let pos = prev_trans.translation;
+                            let new_shape_bundle = match node_type {
+                                NodeType::CROSSING => node_render::crossing(pos.x, pos.y, theme.crossing),
+                                NodeType::IONODE => node_render::io_node(pos.x, pos.y, theme.io_node),
+                                NodeType::STREET => todo!("Street selection is not implemented yet!"),
+                            };
+                            commands.entity(prev_selected_node_entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
+                        }
+                        uistate.selected_node = Some(nbr.clone());
+                        let pos = transform.translation;
+                        let new_shape_bundle = match sv {
+                            NodeType::CROSSING => node_render::crossing(pos.x, pos.y, theme.highlight),
+                            NodeType::IONODE => node_render::io_node(pos.x, pos.y, theme.highlight),
+                            NodeType::STREET => todo!("Street selection is not implemented yet!"),
+                        };
+                        commands.entity(entity).remove_bunclick_posdle::<ShapeBundle>().insert_bundle(new_shape_bundle);
+                    } 
                 };
             }
             ToolType::None => (),
@@ -512,7 +544,6 @@ fn mouse_panning(windows: Res<Windows>,
         else if scroll.abs() > 0.0 {
             let scr = f32::powf(1.1, scroll);
             transform.scale *= Vec3::new(scr, scr, 1.0);
-            println!("Transform camera: {:?}", transform);
         }
         
     }
