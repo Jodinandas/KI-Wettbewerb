@@ -9,6 +9,7 @@ use wasm_bindgen::prelude::*;
 mod toolbar;
 use simulator;
 use bevy::input::mouse::{MouseWheel,MouseMotion};
+use std::collections::HashMap;
 
 
 #[derive(PartialEq)]
@@ -92,6 +93,8 @@ impl UITheme {
         }
     }
 }
+
+#[derive(Debug)]
 enum NodeType {
     CROSSING,
     IONODE,
@@ -99,7 +102,7 @@ enum NodeType {
 }
 
 const GRID_NODE_SPACING: usize = 100;
-const GRID_SIDE_LENGTH: usize = 10;
+const GRID_SIDE_LENGTH: usize = 3;
 const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
 const CROSSING_SIZE: f32 = 20.0;
@@ -128,6 +131,7 @@ pub fn run() {
         //.add_system(rotation_test.system())
         .add_system(keyboard_movement.system())
         .add_system(mouse_panning.system())
+        .add_system(toolbarsystem.system())
         .run();
 }
 
@@ -270,13 +274,21 @@ fn spawn_simulation_builder(mut commands: Commands) {
                     //    feature: shapes::RegularPolygonFeature::Radius(50.0),
                     //    ..shapes::RegularPolygon::default()
                     //};
+                    let mut color = Color::rgb(0., 100., 0.);
+                    if i == 0 {
+                        color = Color::rgb(255., 0., 0.);
+                    } else if i == 8 {
+                        color = Color::rgb(0., 0., 255.);
+                    } else if i == 2{
+                        color = Color::rgb(255.,255.,0.);
+                    }
                     let test_shape = shapes::Circle {
                         radius: IONODE_SIZE,
                         ..shapes::Circle::default()
                     };
                     let geometry = GeometryBuilder::build_as(
                         &test_shape,
-                        ShapeColors::outlined(Color::rgb(0., 100., 0.), Color::WHITE),
+                        ShapeColors::outlined(color, Color::WHITE),
                         DrawMode::Fill(FillOptions::default()), //DrawMode::Outlined {
                         //    fill_options: FillOptions::default(),
                         //    outline_options: StrokeOptions::default().with_line_width(10.0)
@@ -349,24 +361,65 @@ fn keyboard_movement(keyboard_input: Res<Input<KeyCode>>, mut camera: Query<&mut
         }
     }
 }
-/*
-fn toolbarsystem(mouse_input: Res<Input<mouse::MouseButton>>,
-      mouse_movement: Res<Input<>>,
-      mut camera: Query<&mut Transform, With<Camera>>,
-      mut uistate: ResMut<UIState>){
+fn toolbarsystem(mouse_input: Res<Input<MouseButton>>, windows: Res<Windows>, mut shapes: Query<(&Transform, &NodeType, &SimulationIndex)>,
+      mut uistate: ResMut<UIState>,
+      mut camera: Query<&Transform, With<Camera>>
+    ){
 
     if let Some(tool) = uistate.toolbar.get_selected() {
         match tool.get_type() {
             ToolType::Pan => {
-                if mouse_input.pressed(MouseButton::Left){
-                    let dpos = mouse_movement;
+                // nothing. this conde is located in mouse_panning.
                 }
-            },
-            _ => {}
+            ToolType::Select => {
+                // select nearest object
+                // get position of mouse click on screen
+                let click_pos = handle_mouse_clicks(&mouse_input, &windows);
+                let mut closest_shape: Option<(f32, SimulationIndex)> = None;
+                if let Some(click_pos) = click_pos{
+                    // println!("{:?}", click_pos);
+                    if let Some(camera_transform) = camera.iter().next(){
+                        // camera scaling factor
+                        let scaling = camera_transform.scale.x;
+                        // get position of 0,0 of world coordinate system in screen coordinates
+                        let midpoint_screenspace = (get_primary_window_size(&windows)/2.0)-(Vec2::new(camera_transform.translation.x, camera_transform.translation.y))/scaling;
+                        let shape_dists = shapes.iter().map( | (transform, shapevariant, index) | {
+                            // get shape position in scren coordinates
+                            let position = midpoint_screenspace + (Vec2::new(transform.translation.x, transform.translation.y))/scaling;
+                            // calculate distance, squared to improve performance so does not need to be rooted
+                            let dist = (position - click_pos).length_squared();
+                            (dist, index)
+                        });
+                        shape_dists.for_each(
+                            | (d, i) | {
+                                if let Some((d_prev, _i_prev)) = closest_shape {
+                                    if d < d_prev {
+                                        closest_shape = Some((d, *i));
+                                    }
+                                } else {
+                                    closest_shape = Some((d, *i));
+                                }
+                            }
+                        );
+                    }                
+                    println!("Proximities: {:?}", closest_shape)
+                };
+            }
+            ToolType::None => (),
+            ToolType::AddStreet => (),
         }
     }
 }
-*/
+// for selection
+fn handle_mouse_clicks(mouse_input: &Res<Input<MouseButton>>, windows: &Res<Windows>) -> Option<Vec2>{
+    let win = windows.get_primary().expect("no primary window");
+    if mouse_input.just_pressed(MouseButton::Left) {
+        win.cursor_position()
+    }
+    else {
+        None
+    }
+}
 fn mouse_panning(windows: Res<Windows>,
     mut ev_motion: EventReader<MouseMotion>,
     mut ev_scroll: EventReader<MouseWheel>,
@@ -400,6 +453,7 @@ fn mouse_panning(windows: Res<Windows>,
         else if scroll.abs() > 0.0 {
             let scr = f32::powf(1.1, scroll);
             transform.scale *= Vec3::new(scr, scr, 1.0);
+            println!("Transform camera: {:?}", transform);
         }
         
     }
@@ -411,4 +465,6 @@ fn get_primary_window_size(windows: &Res<Windows>) -> Vec2 {
 }
 
 pub struct NodeComponent;
+
+#[derive(Debug, Clone, Copy)]
 pub struct SimulationIndex(usize);

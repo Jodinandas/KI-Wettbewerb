@@ -5,6 +5,7 @@ pub enum ToolType {
     None,
     Pan,
     AddStreet,
+    Select,
 }
 
 pub trait Tool: Send + Sync {
@@ -54,7 +55,7 @@ impl Toolbar {
 impl Default for Toolbar {
     fn default() -> Toolbar {
         let tools: Vec<Box<dyn Tool>> =
-            vec![Box::new(PanTool::new()), Box::new(AddStreetTool::new())];
+            vec![Box::new(PanTool::new()), Box::new(SelectTool::new()), Box::new(AddStreetTool::new())];
 
         Toolbar {
             tools,
@@ -63,6 +64,21 @@ impl Default for Toolbar {
     }
 }
 
+pub struct SelectTool;
+
+impl Tool for SelectTool{
+    fn name<'a>(&'a self) -> &'a str{
+        "Select"
+    }
+    fn get_type(&self) -> ToolType {
+        ToolType::Select
+    }
+}
+impl SelectTool {
+    pub fn new() -> SelectTool{
+        SelectTool {}
+    }
+}
 pub struct PanTool;
 
 impl Tool for PanTool {

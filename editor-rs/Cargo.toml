@@ -20,6 +20,7 @@ egui="0.14"
 bevy_egui = "0.6"
 simulator = { path = "../simulator" }
 enum_dispatch = "0.3"
+bevy_mod_picking = "0.4.0"
 # bevy_webgl2 = "0.5"
 
 # Dependencies for native only.
