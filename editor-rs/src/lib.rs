@@ -4,6 +4,7 @@ use bevy_egui::egui::TextBuffer;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::prelude::*;
+use simulator::simple::int_mut::IntMut;
 use simulator::simple::node;
 use simulator::simple::node_builder::{NodeBuilder, NodeBuilderTrait};
 use simulator::{debug::build_grid_sim, simple::simulation_builder::SimulatorBuilder};
@@ -59,6 +60,7 @@ impl UIMode {
 pub struct UIState {
     toolbar: toolbar::Toolbar,
     mode: UIMode,
+    selected_node: Option<NodeBuilderRef>
 
 }
 
@@ -109,7 +111,7 @@ enum NodeType {
 }
 
 const GRID_NODE_SPACING: usize = 100;
-const GRID_SIDE_LENGTH: usize = 3;
+const GRID_SIDE_LENGTH: usize = 100;
 const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
 const CROSSING_SIZE: f32 = 20.0;
@@ -194,6 +196,7 @@ fn ui_example(
                     ui.horizontal(|ui| {
                         ui.heading("ItemEditor");
                         egui::warn_if_debug_build(ui);
+                        
                     });
                     ui.separator();
                 });
@@ -317,6 +320,9 @@ fn spawn_camera(mut commands: Commands) {
 ///  line positions seperatly 
 struct StreetLinePosition(Vec2, Vec2);
 
+/// Holds an IntMut (interior mutability) for a nodebuilder
+struct NodeBuilderRef(IntMut<NodeBuilder>);
+
 /// This function spawns the simultation builder instance
 /// that is later used to create simulations
 ///
@@ -336,13 +342,8 @@ fn spawn_simulation_builder(mut commands: Commands, theme: Res<UITheme>) {
         .iter()
         .enumerate()
         .for_each(|(i, n_builder)| {
-            // println!("Generated Graphics for {}", i);
-            //const PATH: [usize; 11] = [2, 32, 7, 46, 12, 60, 17, 63, 18, 66, 19];
-            //const PATH: [usize; 7] = [1, 28, 6, 31, 7, 30, 2];
-            //if PATH.contains(&i) {
-            //    return;
-            //}
             match &*(*n_builder).get() {
+                // generates the entities displaying the 
                 NodeBuilder::Crossing(_crossing) => {
                     let x = calc_x(i);
                     let y = calc_y(i);
@@ -351,6 +352,8 @@ fn spawn_simulation_builder(mut commands: Commands, theme: Res<UITheme>) {
                         .spawn()
                         .insert_bundle(geometry)
                         .insert(SimulationIndex(i))
+                        // insert direct reference to the NodeBuilder
+                        .insert(NodeBuilderRef(n_builder.clone()))
                         .insert(NodeType::CROSSING);
                 }
 
@@ -361,6 +364,8 @@ fn spawn_simulation_builder(mut commands: Commands, theme: Res<UITheme>) {
                     commands
                         .spawn_bundle(geometry)
                         .insert(SimulationIndex(i))
+                        // insert direct reference to the NodeBuilder
+                        .insert(NodeBuilderRef(n_builder.clone()))
                         .insert(NodeType::IONODE);
                 }
                 NodeBuilder::Street(street) => {
@@ -376,6 +381,8 @@ fn spawn_simulation_builder(mut commands: Commands, theme: Res<UITheme>) {
                                 .spawn_bundle(geometry)
                                 .insert(SimulationIndex(i))
                                 .insert(NodeType::STREET)
+                                // insert direct reference to the NodeBuilder
+                                .insert(NodeBuilderRef(n_builder.clone()))
                                 .insert(StreetLinePosition(pos_i, pos_j));
                         }
                     }
