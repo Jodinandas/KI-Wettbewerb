@@ -36,6 +36,7 @@ pub struct Apps {
 enum UIMode {
     Editor,
     Simulator,
+    Preferences
 }
 impl Default for UIMode {
     fn default() -> Self {
@@ -46,10 +47,12 @@ impl UIMode {
     pub fn toggle(&mut self) {
         *self = match self {
             UIMode::Editor => UIMode::Simulator,
-            UIMode::Simulator => UIMode::Editor,
+            UIMode::Simulator => UIMode::Preferences,
+            UIMode::Preferences => UIMode::Editor,
         }
     }
 }
+
 
 #[derive(Default)]
 pub struct UIState {
@@ -66,7 +69,7 @@ struct UITheme {
     crossing: Color,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 enum CurrentTheme {
     LIGHT,
     DARK,
@@ -148,6 +151,7 @@ fn ui_example(
     // mut colors: ResMut<Assets<ColorMaterial>>, 
     nodes: Query<(Entity, &Transform, Option<&StreetLinePosition>, &NodeType)>, //mut crossings: Query<, With<IONodeMarker>>
 ) {
+    let mut repaint_necessary = false;
     egui::TopBottomPanel::top("menu_top_panel").show(egui_context.ctx(), |ui| {
         ui.horizontal(|ui| {
             let new_visuals = ui
@@ -156,7 +160,7 @@ fn ui_example(
                 .clone()
                 .light_dark_small_toggle_button(ui);
             if let Some(visuals) = new_visuals {
-                let repaint_necessary = (visuals.dark_mode
+                repaint_necessary = (visuals.dark_mode
                     && (*current_theme != CurrentTheme::DARK))
                     || (!visuals.dark_mode && (*current_theme != CurrentTheme::LIGHT));
                 if repaint_necessary {
@@ -166,31 +170,6 @@ fn ui_example(
                     }
                     ui.ctx().set_visuals(visuals);
                     *theme = UITheme::from_enum(&*current_theme);
-                    background.0 = theme.background;
-                    nodes.for_each_mut(|(entity, mut transform, street_line_position, node_type)| {
-                        match node_type {
-                            NodeType::CROSSING => {
-                                let pos = transform.translation;
-                                let new_shape_bundle = node_render::crossing(pos.x, pos.y, theme.crossing);
-                                commands.entity(entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
-                            }
-                            NodeType::IONODE => {
-                                let pos = transform.translation;
-                                let new_shape_bundle = node_render::io_node(pos.x, pos.y, theme.io_node);
-                                commands.entity(entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
-                            },
-                            NodeType::STREET => {
-                                if let Some(line) = street_line_position {
-                                    println!("has line!");
-                                    let (p1, p2) = (line.0, line.1);
-                                    let new_shape_bundle = node_render::street(p1, p2, theme.street);
-                                    commands.entity(entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
-                                }
-                            },
-                        };
-                        
-
-                    })
                 }
             };
             ui.separator();
@@ -222,7 +201,50 @@ fn ui_example(
                     ui.separator();
                 });
         }
-        UIMode::Simulator => {}
+        UIMode::Simulator => {},
+        UIMode::Preferences => {
+            // egui::CentralPanel::default()
+            egui::SidePanel::left("pref_panel_left").show(egui_context.ctx(), |ui| {
+                ui.heading("Preferences");
+                ui.separator();
+                ui.vertical( | ui  | {
+                    let mut new_theme = (*current_theme).clone();
+                    ui.radio_value(&mut new_theme, CurrentTheme::LIGHT, "Light");
+                    ui.radio_value(&mut new_theme, CurrentTheme::DARK, "Dark");
+                    if new_theme != *current_theme {
+                        *current_theme = new_theme;
+                        *theme = UITheme::from_enum(&new_theme);
+                        repaint_necessary = true;
+                    }
+                });
+            });
+        }
+    }
+    if repaint_necessary {
+        background.0 = theme.background;
+        nodes.for_each_mut(|(entity, mut transform, street_line_position, node_type)| {
+            match node_type {
+                NodeType::CROSSING => {
+                    let pos = transform.translation;
+                    let new_shape_bundle = node_render::crossing(pos.x, pos.y, theme.crossing);
+                    commands.entity(entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
+                }
+                NodeType::IONODE => {
+                    let pos = transform.translation;
+                    let new_shape_bundle = node_render::io_node(pos.x, pos.y, theme.io_node);
+                    commands.entity(entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
+                },
+                NodeType::STREET => {
+                    if let Some(line) = street_line_position {
+                        let (p1, p2) = (line.0, line.1);
+                        let new_shape_bundle = node_render::street(p1, p2, theme.street);
+                        commands.entity(entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
+                    }
+                },
+            };
+            
+
+        })
     }
 }
 
