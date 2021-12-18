@@ -1,5 +1,8 @@
 use bevy::prelude::*;
+use bevy::reflect::GetPath;
+use bevy_egui::egui::TextBuffer;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
+use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::prelude::*;
 use simulator::simple::node;
 use simulator::simple::node_builder::{NodeBuilder, NodeBuilderTrait};
@@ -53,6 +56,7 @@ impl UIMode {
 pub struct UIState {
     toolbar: toolbar::Toolbar,
     mode: UIMode,
+
 }
 
 #[derive(Default)]
@@ -82,7 +86,7 @@ impl UITheme {
         UITheme {
             background: Color::rgb(0.0, 0.0, 0.0),
             io_node: Color::rgb(200.0, 200.0, 0.0),
-            street: Color::rgb(100., 50., 200.),
+            street: Color::rgb(255., 255., 255.),
             crossing: Color::rgb(200.0, 200.0, 0.0),
         }
     }
@@ -139,12 +143,14 @@ pub fn run() {
 ///
 /// Nice reference: [Examples](https://github.com/mvlabat/bevy_egui/blob/main/examples/ui.rs)
 fn ui_example(
+    mut commands: Commands,
     egui_context: ResMut<EguiContext>,
     mut ui_state: ResMut<UIState>,
     mut background: ResMut<ClearColor>,
     mut theme: ResMut<UITheme>,
     mut current_theme: ResMut<CurrentTheme>,
-    nodes: Query<(&mut ShapeColors, &NodeType)>, //mut crossings: Query<, With<IONodeMarker>>
+    // mut colors: ResMut<Assets<ColorMaterial>>, 
+    nodes: Query<(Entity, &Transform, Option<&StreetLinePosition>, &NodeType)>, //mut crossings: Query<, With<IONodeMarker>>
 ) {
     egui::TopBottomPanel::top("menu_top_panel").show(egui_context.ctx(), |ui| {
         ui.horizontal(|ui| {
@@ -165,13 +171,29 @@ fn ui_example(
                     ui.ctx().set_visuals(visuals);
                     *theme = UITheme::from_enum(&*current_theme);
                     background.0 = theme.background;
-                    nodes.for_each_mut(|(mut shape_color, node_type)| {
-                        let color = match node_type {
-                            NodeType::CROSSING => theme.crossing,
-                            NodeType::IONODE => theme.io_node,
-                            NodeType::STREET => theme.street,
+                    nodes.for_each_mut(|(entity, mut transform, street_line_position, node_type)| {
+                        match node_type {
+                            NodeType::CROSSING => {
+                                let pos = transform.translation;
+                                let new_shape_bundle = node_render::crossing(pos.x, pos.y, theme.crossing);
+                                commands.entity(entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
+                            }
+                            NodeType::IONODE => {
+                                let pos = transform.translation;
+                                let new_shape_bundle = node_render::io_node(pos.x, pos.y, theme.io_node);
+                                commands.entity(entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
+                            },
+                            NodeType::STREET => {
+                                if let Some(line) = street_line_position {
+                                    println!("has line!");
+                                    let (p1, p2) = (line.0, line.1);
+                                    let new_shape_bundle = node_render::street(p1, p2, theme.street);
+                                    commands.entity(entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
+                                }
+                            },
                         };
-                        shape_color.main = color;
+                        
+
                     })
                 }
             };
@@ -208,17 +230,76 @@ fn ui_example(
     }
 }
 
+mod node_render {
+    use bevy::{prelude::{Color, Transform}, math::Vec2};
+    use bevy_prototype_lyon::{entity::ShapeBundle, shapes, prelude::{GeometryBuilder, ShapeColors, DrawMode, FillOptions, StrokeOptions}};
+
+    use crate::{CROSSING_SIZE, IONODE_SIZE, STREET_THICKNESS};
+
+    pub fn crossing(x: f32, y: f32, color: Color) -> ShapeBundle {
+        let rect = shapes::Rectangle {
+            width: CROSSING_SIZE,
+            height: CROSSING_SIZE,
+            ..shapes::Rectangle::default()
+        };
+        GeometryBuilder::build_as(
+            &rect,
+            ShapeColors::outlined(color, Color::WHITE),
+            DrawMode::Fill(FillOptions::default()), //DrawMode::Outlined {
+            //    fill_options: FillOptions::default(),
+            //    outline_options: StrokeOptions::default().with_line_width(10.0)
+            //}
+            Transform::from_xyz(x, y, 0.),
+        )
+    }
+
+    pub fn io_node(x: f32, y: f32, color: Color) -> ShapeBundle {
+        let test_shape = shapes::Circle {
+            radius: IONODE_SIZE,
+            ..shapes::Circle::default()
+        };
+        GeometryBuilder::build_as(
+            &test_shape,
+            ShapeColors::outlined(color, Color::WHITE),
+            DrawMode::Fill(FillOptions::default()), //DrawMode::Outlined {
+            //    fill_options: FillOptions::default(),
+            //    outline_options: StrokeOptions::default().with_line_width(10.0)
+            //}
+            Transform::from_xyz(x, y, 0.),
+        )
+    }
+    pub fn street(p1: Vec2, p2: Vec2, color: Color) -> ShapeBundle {
+        let line = shapes::Line(p1, p2);
+        GeometryBuilder::build_as(
+            &line,
+            ShapeColors::outlined(color, color),
+            //DrawMode::Fill(FillOptions::default()),
+            DrawMode::Outlined {
+                fill_options: FillOptions::default(),
+                outline_options: StrokeOptions::default()
+                    .with_line_width(STREET_THICKNESS),
+            },
+            Transform::default(), // Transform::from_xyz(calc_x(i), calc_y(i), 0.0)
+        )
+    }
+}
+
 fn spawn_camera(mut commands: Commands) {
     commands
         .spawn_bundle(OrthographicCameraBundle::new_2d())
         .insert(Camera);
 }
 
+/// Because it is not possible (at least to out knowledge) to query the
+///  start and end position of the line as a Shape bundle, we store the
+///  line positions seperatly 
+struct StreetLinePosition(Vec2, Vec2);
+
 /// This function spawns the simultation builder instance
 /// that is later used to create simulations
 ///
 /// It also generates the graphics for it
-fn spawn_simulation_builder(mut commands: Commands) {
+fn spawn_simulation_builder(mut commands: Commands, theme: Res<UITheme>) {
     // for testing purposes
     let side_len = GRID_SIDE_LENGTH;
     let spacing = GRID_NODE_SPACING;
@@ -241,33 +322,18 @@ fn spawn_simulation_builder(mut commands: Commands) {
             //}
             match &*(*n_builder).get() {
                 NodeBuilder::Crossing(_crossing) => {
-                    // println!("   type=Crossing");
-                    //let test_shape = shapes::RegularPolygon {
-                    //    sides: 4,
-                    //    feature: shapes::RegularPolygonFeature::Radius(50.0),
-                    //    ..shapes::RegularPolygon::default()
-                    //};
-                    let test_shape = shapes::Rectangle {
-                        width: CROSSING_SIZE,
-                        height: CROSSING_SIZE,
-                        ..shapes::Rectangle::default()
-                    };
-                    let geometry = GeometryBuilder::build_as(
-                        &test_shape,
-                        ShapeColors::outlined(Color::rgb(100., 50., 0.), Color::WHITE),
-                        DrawMode::Fill(FillOptions::default()), //DrawMode::Outlined {
-                        //    fill_options: FillOptions::default(),
-                        //    outline_options: StrokeOptions::default().with_line_width(10.0)
-                        //}
-                        Transform::from_xyz(calc_x(i), calc_y(i), 0.),
-                    );
+                    let x = calc_x(i);
+                    let y = calc_y(i);
+                    let geometry = node_render::crossing(x, y, theme.crossing);
                     commands
-                        .spawn_bundle(geometry)
+                        .spawn()
+                        .insert_bundle(geometry)
                         .insert(SimulationIndex(i))
                         .insert(NodeType::CROSSING);
                 }
 
                 NodeBuilder::IONode(_io_node) => {
+<<<<<<< HEAD
                     // println!("   type=IONode");
                     //let test_shape = shapes::RegularPolygon {
                     //    sides: 7,
@@ -295,6 +361,11 @@ fn spawn_simulation_builder(mut commands: Commands) {
                         //}
                         Transform::from_xyz(calc_x(i), calc_y(i), 0.),
                     );
+=======
+                    let x = calc_x(i);
+                    let y = calc_y(i);
+                    let geometry = node_render::io_node(x, y, theme.crossing);
+>>>>>>> 784161d6cc53477bc8ec72cd54235d3935cd6fc9
                     commands
                         .spawn_bundle(geometry)
                         .insert(SimulationIndex(i))
@@ -308,23 +379,12 @@ fn spawn_simulation_builder(mut commands: Commands) {
                             let index_out = conn_out.upgrade().get().get_id();
                             let pos_j = Vec2::new(calc_x(index_in), calc_y(index_in));
                             let pos_i = Vec2::new(calc_x(index_out), calc_y(index_out));
-                            //println!("I({}): {:?}, J({}): {:?}", i, pos_i, j, pos_j);
-                            let test_shape = shapes::Line(pos_i, pos_j);
-                            let geometry = GeometryBuilder::build_as(
-                                &test_shape,
-                                ShapeColors::outlined(Color::rgb(0., 100., 0.), Color::WHITE),
-                                //DrawMode::Fill(FillOptions::default()),
-                                DrawMode::Outlined {
-                                    fill_options: FillOptions::default(),
-                                    outline_options: StrokeOptions::default()
-                                        .with_line_width(STREET_THICKNESS),
-                                },
-                                Transform::default(), // Transform::from_xyz(calc_x(i), calc_y(i), 0.0)
-                            );
+                            let geometry = node_render::street(pos_i, pos_j, theme.street);
                             commands
                                 .spawn_bundle(geometry)
                                 .insert(SimulationIndex(i))
-                                .insert(NodeType::STREET);
+                                .insert(NodeType::STREET)
+                                .insert(StreetLinePosition(pos_i, pos_j));
                         }
                     }
                     return;
