@@ -333,39 +333,9 @@ fn spawn_simulation_builder(mut commands: Commands, theme: Res<UITheme>) {
                 }
 
                 NodeBuilder::IONode(_io_node) => {
-<<<<<<< HEAD
-                    // println!("   type=IONode");
-                    //let test_shape = shapes::RegularPolygon {
-                    //    sides: 7,
-                    //    feature: shapes::RegularPolygonFeature::Radius(50.0),
-                    //    ..shapes::RegularPolygon::default()
-                    //};
-                    let mut color = Color::rgb(0., 100., 0.);
-                    if i == 0 {
-                        color = Color::rgb(255., 0., 0.);
-                    } else if i == 8 {
-                        color = Color::rgb(0., 0., 255.);
-                    } else if i == 2{
-                        color = Color::rgb(255.,255.,0.);
-                    }
-                    let test_shape = shapes::Circle {
-                        radius: IONODE_SIZE,
-                        ..shapes::Circle::default()
-                    };
-                    let geometry = GeometryBuilder::build_as(
-                        &test_shape,
-                        ShapeColors::outlined(color, Color::WHITE),
-                        DrawMode::Fill(FillOptions::default()), //DrawMode::Outlined {
-                        //    fill_options: FillOptions::default(),
-                        //    outline_options: StrokeOptions::default().with_line_width(10.0)
-                        //}
-                        Transform::from_xyz(calc_x(i), calc_y(i), 0.),
-                    );
-=======
                     let x = calc_x(i);
                     let y = calc_y(i);
                     let geometry = node_render::io_node(x, y, theme.crossing);
->>>>>>> 784161d6cc53477bc8ec72cd54235d3935cd6fc9
                     commands
                         .spawn_bundle(geometry)
                         .insert(SimulationIndex(i))
