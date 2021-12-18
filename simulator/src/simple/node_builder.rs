@@ -108,9 +108,9 @@ pub struct StreetBuilder {
     pub conn_out: Option<WeakIntMut<NodeBuilder>>,
     /// the node the street starts at
     pub conn_in: Option<WeakIntMut<NodeBuilder>>,
-    lanes: u8,
-    lane_length: f32,
-    id: usize,
+    pub lanes: u8,
+    pub lane_length: f32,
+    pub id: usize,
 }
 impl NodeBuilderTrait for StreetBuilder {
     fn build(&self) -> Node {
@@ -191,9 +191,9 @@ impl StreetBuilder {
 /// ## Creating IONodes
 #[derive(Debug, Clone)]
 pub struct IONodeBuilder {
-    connections: Vec<WeakIntMut<NodeBuilder>>,
-    spawn_rate: f64,
-    id: usize,
+    pub connections: Vec<WeakIntMut<NodeBuilder>>,
+    pub spawn_rate: f64,
+    pub id: usize,
 }
 impl NodeBuilderTrait for IONodeBuilder {
     fn build(&self) -> Node {
@@ -399,7 +399,7 @@ pub struct CrossingBuilder {
     /// The length a car has to traverse when traversing
     /// the crossing
     length: f32,
-    id: usize,
+    pub id: usize,
 }
 impl NodeBuilderTrait for CrossingBuilder {
     fn build(&self) -> Node {

@@ -1,9 +1,9 @@
 use bevy::prelude::*;
-use bevy::reflect::GetPath;
-use bevy_egui::egui::TextBuffer;
+use std::ops::RangeInclusive;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::prelude::*;
+use ::egui::Slider;
 use simulator::simple::int_mut::IntMut;
 use simulator::simple::node;
 use simulator::simple::node_builder::{NodeBuilder, NodeBuilderTrait};
@@ -199,9 +199,79 @@ fn ui_example(
                     ui.horizontal(|ui| {
                         ui.heading("ItemEditor");
                         egui::warn_if_debug_build(ui);
-                        
                     });
                     ui.separator();
+                    // if a node is selected, draw its editor
+                    //  (each node type has different fields and possibilites
+                    //   for modification by the user. Therefor, different ui
+                    //   are needed)
+                    if let Some(selected_node_wrapper) = &mut ui_state.selected_node {
+                        let selected_node = &mut selected_node_wrapper.0;
+                        match &mut *selected_node.get() {
+                            NodeBuilder::IONode(node) => {
+                                ui.horizontal( | ui | {
+                                    ui.label("Node type: ");
+                                    ui.label("In/Out Node");
+                                });
+                                ui.horizontal( | ui | {
+                                    ui.label("Node ID: ");
+                                    ui.label(node.id.to_string());
+                                });
+                                ui.add(egui::Slider::new(&mut node.spawn_rate, 0.0..=100.0).text("spawn rate").clamp_to_range(true));
+                                ui.collapsing(format!("Connections ({})", node.connections.len()), | ui | {
+                                    for c in node.connections.iter() {
+                                        let (ntype, id) =  match &*c.upgrade().get() {
+                                            NodeBuilder::IONode(n) => ("In/Out Node", n.id),
+                                            NodeBuilder::Crossing(n) => ("Crossing", n.id),
+                                            NodeBuilder::Street(n) => ("Street", n.id),
+                                        };
+                                        ui.label(format!("(id={}): {}", id, ntype));
+                                    }
+                                });
+                            },
+                            NodeBuilder::Crossing(node) => {
+                                ui.horizontal( | ui | {
+                                    ui.label("Node type: ");
+                                    ui.label("Crossing");
+                                });
+                                ui.horizontal( | ui | {
+                                    ui.label("Node ID: ");
+                                    ui.label(node.id.to_string());
+                                });
+                                ui.collapsing(format!("Connections IN ({})", node.connections.input.len()), | ui | {
+                                    for (dir, c) in node.connections.input.iter() {
+                                        let (ntype, id) =  match &*c.upgrade().get() {
+                                            NodeBuilder::IONode(n) => ("In/Out Node", n.id),
+                                            NodeBuilder::Crossing(n) => ("Crossing", n.id),
+                                            NodeBuilder::Street(n) => ("Street", n.id),
+                                        };
+                                        ui.label(format!("{:?}\t(id={}): {}", dir, id, ntype));
+                                    }
+                                });
+                                ui.collapsing(format!("Connections OUT ({})", node.connections.output.len()), | ui | {
+                                    for (dir, c) in node.connections.output.iter() {
+                                        let (ntype, id) =  match &*c.upgrade().get() {
+                                            NodeBuilder::IONode(n) => ("In/Out Node", n.id),
+                                            NodeBuilder::Crossing(n) => ("Crossing", n.id),
+                                            NodeBuilder::Street(n) => ("Street", n.id),
+                                        };
+                                        ui.label(format!("{:?}\t(id={}): {}", dir, id, ntype));
+                                    }
+                                });
+                            },
+                            NodeBuilder::Street(node) => {
+                                ui.horizontal( | ui | {
+                                    ui.label("Node type: ");
+                                    ui.label("Street");
+                                });
+                                ui.horizontal( | ui | {
+                                    ui.label("Node ID: ");
+                                    ui.label(node.id.to_string());
+                                });
+                            },
+                        }
+                        
+                    }                         
                 });
             // Toolbar
             egui::SidePanel::right("toolbar")
@@ -492,7 +562,7 @@ fn toolbarsystem(mouse_input: Res<Input<MouseButton>>, windows: Res<Windows>, mu
                             NodeType::IONODE => node_render::io_node(pos.x, pos.y, theme.highlight),
                             NodeType::STREET => todo!("Street selection is not implemented yet!"),
                         };
-                        commands.entity(entity).remove_bunclick_posdle::<ShapeBundle>().insert_bundle(new_shape_bundle);
+                        commands.entity(entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
                     } 
                 };
             }
