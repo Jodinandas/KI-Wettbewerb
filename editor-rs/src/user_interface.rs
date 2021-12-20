@@ -58,11 +58,11 @@ pub fn ui_example(
                             simulator::nodes::Direction,
                             WeakIntMut<NodeBuilder>,
                         >| {
-                            let mut conns = conns.iter_mut().collect::<Vec<(
-                                &simulator::nodes::Direction,
-                                &mut WeakIntMut<NodeBuilder>,
-                            )>>(
-                            );
+                            let mut conns =
+                                conns.iter_mut().collect::<Vec<(
+                                    &simulator::nodes::Direction,
+                                    &mut WeakIntMut<NodeBuilder>,
+                                )>>();
                             conns.sort_by_key(|(d, _)| match d {
                                 simulator::nodes::Direction::N => 0,
                                 simulator::nodes::Direction::E => 1,
@@ -80,12 +80,9 @@ pub fn ui_example(
                                     match &mut *c.upgrade().get() {
                                         NodeBuilder::Street(street) => {
                                             ui.add(
-                                                egui::Slider::new(
-                                                    &mut street.lanes,
-                                                    1..=10,
-                                                )
-                                                .text("lanes")
-                                                .clamp_to_range(true),
+                                                egui::Slider::new(&mut street.lanes, 1..=10)
+                                                    .text("lanes")
+                                                    .clamp_to_range(true),
                                             );
                                         }
                                         _ => panic!(""),

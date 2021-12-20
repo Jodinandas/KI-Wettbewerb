@@ -153,7 +153,7 @@ const IONODE_SIZE: f32 = 20.0;
 
 const PAN_SPEED: f32 = 10.0;
 const MIN_X: f32 = 300.0;
-const MAX_X: f32= 100.0;
+const MAX_X: f32 = 100.0;
 
 #[wasm_bindgen]
 pub fn run() {
@@ -488,23 +488,30 @@ fn toolbarsystem(
     }
 }
 // for selection
-fn handle_mouse_clicks(mouse_input: &Res<Input<MouseButton>>, windows: &Res<Windows>) -> Option<Vec2>{
+fn handle_mouse_clicks(
+    mouse_input: &Res<Input<MouseButton>>,
+    windows: &Res<Windows>,
+) -> Option<Vec2> {
     let win = windows.get_primary().expect("no primary window");
     if mouse_input.just_pressed(MouseButton::Left) {
-        if let Some(pos) = win.cursor_position(){
-            if (pos.x > MIN_X) && (get_primary_window_size(&windows).x > (MAX_X + pos.x)){
-                return win.cursor_position()
+        if let Some(pos) = win.cursor_position() {
+            if (pos.x > MIN_X) && (get_primary_window_size(&windows).x > (MAX_X + pos.x)) {
+                return win.cursor_position();
             }
         }
     }
     None
 }
-fn movement_within_bounds(mouse_input: &Res<Input<MouseButton>>, windows: &Res<Windows>, mouse_button: &MouseButton) -> bool{
+fn movement_within_bounds(
+    mouse_input: &Res<Input<MouseButton>>,
+    windows: &Res<Windows>,
+    mouse_button: &MouseButton,
+) -> bool {
     let win = windows.get_primary().expect("no primary window");
     if mouse_input.pressed(*mouse_button) {
-        if let Some(pos) = win.cursor_position(){
-            if (pos.x > MIN_X) && (get_primary_window_size(&windows).x > (MAX_X+ pos.x)){
-                return true
+        if let Some(pos) = win.cursor_position() {
+            if (pos.x > MIN_X) && (get_primary_window_size(&windows).x > (MAX_X + pos.x)) {
+                return true;
             }
         }
         return false;
