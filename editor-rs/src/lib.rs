@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_egui::egui::Visuals;
 use std::ops::RangeInclusive;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use bevy_prototype_lyon::entity::ShapeBundle;
@@ -36,7 +37,8 @@ pub struct Apps {
 }
 */
 
-enum UIMode {
+#[derive(Clone, PartialEq)]
+pub enum UIMode {
     Editor,
     Simulator,
     Preferences
@@ -61,17 +63,39 @@ impl UIMode {
 pub struct UIState {
     toolbar: toolbar::Toolbar,
     mode: UIMode,
+    prev_mode: Option<UIMode>,
     selected_node: Option<NodeBuilderRef>
-
+}
+impl UIState {
+    /// if there was a previous mode, switch to it
+    pub fn to_prev_mode(&mut self) {
+        if let Some(prev) = &self.prev_mode {
+            let temp = self.mode.clone();
+            self.mode = prev.clone();
+            self.prev_mode = Some(temp); 
+        }
+    }
+    pub fn new_mode(&mut self, mode: UIMode) {
+        if mode != self.mode {
+            self.prev_mode = Some(self.mode.clone());
+            self.mode = mode;
+        }
+    }
 }
 
+/// This struct stores information about the visual style of the application
+/// 
+/// the colors of the simulator can be defined with fields like background
+/// 
+/// to change the visuals of the rest of the frontend, use the `egui_visuals` field
 #[derive(Default)]
 pub struct UITheme {
     background: Color,
     io_node: Color,
     street: Color,
     crossing: Color,
-    highlight: Color
+    highlight: Color,
+    egui_visuals: Visuals 
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -87,7 +111,8 @@ impl UITheme {
             io_node: Color::rgb(0.0, 200.0, 0.0),
             street: Color::rgb(100., 50., 0.),
             crossing: Color::rgb(0.0, 200.0, 0.0),
-            highlight: Color::rgb(255.0, 0.0, 0.0)
+            highlight: Color::rgb(255.0, 0.0, 0.0),
+            egui_visuals: Visuals::light()
         }
     }
     pub fn dark() -> UITheme {
@@ -96,7 +121,8 @@ impl UITheme {
             io_node: Color::rgb(200.0, 200.0, 0.0),
             street: Color::rgb(255., 255., 255.),
             crossing: Color::rgb(200.0, 200.0, 0.0),
-            highlight: Color::rgb(255.0, 0.0, 0.0)
+            highlight: Color::rgb(255.0, 0.0, 0.0),
+            egui_visuals: Visuals::dark()
         }
     }
     pub fn from_enum(theme: &CurrentTheme) -> UITheme {
