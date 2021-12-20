@@ -1,6 +1,6 @@
-use super::simple::node_builder::{CrossingBuilder, IONodeBuilder};
-use super::simple::simulation_builder::SimulatorBuilder;
-use crate::simple::node_builder::{Direction, NodeBuilder};
+use super::node_builder::{CrossingBuilder, IONodeBuilder};
+use super::simulation_builder::SimulatorBuilder;
+use crate::node_builder::{Direction, NodeBuilder};
 
 /// Builds a grid with side length `grid_side_len`
 /// The edges are IONodes, the crossings and IONodes

@@ -1,4 +1,4 @@
-use crate::simple::node_builder::NodeBuilderTrait;
+use crate::node_builder::NodeBuilderTrait;
 use crate::traits::{Movable, NodeTrait};
 use pathfinding::directed::dijkstra::dijkstra;
 use rand::distributions::WeightedIndex;
@@ -157,7 +157,7 @@ impl IndexedNodeNetwork {
 /// It provides a way for multiple Simulations to request new cars
 /// without paths having to generate a new path each time. It caches
 /// paths.
-struct MovableServer {
+pub struct MovableServer {
     nodes: Vec<IntMut<NodeBuilder>>,
     indexed: IndexedNodeNetwork,
     cache: HashMap<(usize, usize), PathAwareCar>,
@@ -211,7 +211,7 @@ mod tests {
     #[should_panic]
     fn generate_movable_test() {
         use crate::debug::build_grid_sim;
-        use crate::simple::pathfinding::MovableServer;
+        use crate::pathfinding::MovableServer;
         let simbuilder = build_grid_sim(4);
         let mut test = MovableServer::new(simbuilder.nodes);
         println!("{:?}", test.generate_movable(4));

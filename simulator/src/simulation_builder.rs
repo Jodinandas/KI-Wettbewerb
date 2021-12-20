@@ -1,4 +1,4 @@
-use crate::simple::node_builder::InOut;
+use crate::node_builder::InOut;
 
 use super::int_mut::IntMut;
 use super::node::Node;
@@ -377,9 +377,9 @@ mod tests {
 
     #[test]
     fn connect_with_streets() {
-        use crate::simple::node_builder::Direction;
-        use crate::simple::node_builder::{CrossingBuilder, IONodeBuilder, NodeBuilder};
-        use crate::simple::simulation_builder::SimulatorBuilder;
+        use crate::node_builder::Direction;
+        use crate::node_builder::{CrossingBuilder, IONodeBuilder, NodeBuilder};
+        use crate::simulation_builder::SimulatorBuilder;
         let mut simulator = SimulatorBuilder::new();
         simulator
             .add_node(NodeBuilder::IONode(IONodeBuilder::new()))
