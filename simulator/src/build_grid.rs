@@ -20,7 +20,7 @@ pub fn build_grid_sim(grid_side_len: u32) -> SimulatorBuilder {
     sim.with_delay(0).with_max_iter(Some(10000));
     for i in 0..grid_side_len {
         for j in 0..grid_side_len {
-            let is_corner =
+            let is_corner =    
                 (i == 0 || i == grid_side_len - 1) && (j == 0 || j == grid_side_len - 1);
             let is_lower_edge = i == 0 || j == 0;
             let is_higher_edge = i == grid_side_len - 1 || j == grid_side_len - 1;
