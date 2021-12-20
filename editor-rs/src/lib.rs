@@ -12,6 +12,7 @@ use toolbar::ToolType;
 use wasm_bindgen::prelude::*;
 mod toolbar;
 use simulator;
+mod user_interface;
 use bevy::input::mouse::{MouseWheel,MouseMotion};
 use std::collections::HashMap;
 
@@ -65,7 +66,7 @@ pub struct UIState {
 }
 
 #[derive(Default)]
-struct UITheme {
+pub struct UITheme {
     background: Color,
     io_node: Color,
     street: Color,
@@ -74,7 +75,7 @@ struct UITheme {
 }
 
 #[derive(PartialEq, Clone, Copy)]
-enum CurrentTheme {
+pub enum CurrentTheme {
     LIGHT,
     DARK,
 }
@@ -107,7 +108,7 @@ impl UITheme {
 }
 
 #[derive(Debug)]
-enum NodeType {
+pub enum NodeType {
     CROSSING,
     IONODE,
     STREET,
@@ -139,7 +140,7 @@ pub fn run() {
         .insert_resource(UITheme::dark()) // Theme
         .insert_resource(CurrentTheme::DARK) // Theme
         .insert_resource(bevy::input::InputSystem)
-        .add_system(ui_example.system())
+        .add_system(user_interface::ui_example.system())
         //.add_system(rotation_test.system())
         .add_system(keyboard_movement.system())
         .add_system(mouse_panning.system())
@@ -147,186 +148,6 @@ pub fn run() {
         .run();
 }
 
-/// Draws the ui
-///
-/// Nice reference: [Examples](https://github.com/mvlabat/bevy_egui/blob/main/examples/ui.rs)
-fn ui_example(
-    mut commands: Commands,
-    egui_context: ResMut<EguiContext>,
-    mut ui_state: ResMut<UIState>,
-    mut background: ResMut<ClearColor>,
-    mut theme: ResMut<UITheme>,
-    mut current_theme: ResMut<CurrentTheme>,
-    // mut colors: ResMut<Assets<ColorMaterial>>, 
-    nodes: Query<(Entity, &Transform, Option<&StreetLinePosition>, &NodeType)>, //mut crossings: Query<, With<IONodeMarker>>
-) {
-    let mut repaint_necessary = false;
-    egui::TopBottomPanel::top("menu_top_panel").show(egui_context.ctx(), |ui| {
-        ui.horizontal(|ui| {
-            let new_visuals = ui
-                .style_mut()
-                .visuals
-                .clone()
-                .light_dark_small_toggle_button(ui);
-            if let Some(visuals) = new_visuals {
-                repaint_necessary = (visuals.dark_mode
-                    && (*current_theme != CurrentTheme::DARK))
-                    || (!visuals.dark_mode && (*current_theme != CurrentTheme::LIGHT));
-                if repaint_necessary {
-                    match visuals.dark_mode {
-                        true => *current_theme = CurrentTheme::DARK,
-                        false => *current_theme = CurrentTheme::LIGHT,
-                    }
-                    ui.ctx().set_visuals(visuals);
-                    *theme = UITheme::from_enum(&*current_theme);
-                }
-            };
-            ui.separator();
-            egui::menu::menu(ui, "File", |ui| {
-                ui.label("Nothing here yet...");
-            });
-            if ui.button("Toggle Mode").clicked() {
-                ui_state.mode.toggle();
-            };
-        });
-    });
-    match ui_state.mode {
-        UIMode::Editor => {
-            // Left Side panel, mainly for displaying the item editor
-            egui::SidePanel::left("item_editor")
-                .default_width(300.0)
-                .show(egui_context.ctx(), |ui| {
-                    ui.horizontal(|ui| {
-                        ui.heading("ItemEditor");
-                        egui::warn_if_debug_build(ui);
-                    });
-                    ui.separator();
-                    // if a node is selected, draw its editor
-                    //  (each node type has different fields and possibilites
-                    //   for modification by the user. Therefor, different ui
-                    //   are needed)
-                    if let Some(selected_node_wrapper) = &mut ui_state.selected_node {
-                        let selected_node = &mut selected_node_wrapper.0;
-                        match &mut *selected_node.get() {
-                            NodeBuilder::IONode(node) => {
-                                ui.horizontal( | ui | {
-                                    ui.label("Node type: ");
-                                    ui.label("In/Out Node");
-                                });
-                                ui.horizontal( | ui | {
-                                    ui.label("Node ID: ");
-                                    ui.label(node.id.to_string());
-                                });
-                                ui.add(egui::Slider::new(&mut node.spawn_rate, 0.0..=100.0).text("spawn rate").clamp_to_range(true));
-                                ui.collapsing(format!("Connections ({})", node.connections.len()), | ui | {
-                                    for c in node.connections.iter() {
-                                        let (ntype, id) =  match &*c.upgrade().get() {
-                                            NodeBuilder::IONode(n) => ("In/Out Node", n.id),
-                                            NodeBuilder::Crossing(n) => ("Crossing", n.id),
-                                            NodeBuilder::Street(n) => ("Street", n.id),
-                                        };
-                                        ui.label(format!("(id={}): {}", id, ntype));
-                                    }
-                                });
-                            },
-                            NodeBuilder::Crossing(node) => {
-                                ui.horizontal( | ui | {
-                                    ui.label("Node type: ");
-                                    ui.label("Crossing");
-                                });
-                                ui.horizontal( | ui | {
-                                    ui.label("Node ID: ");
-                                    ui.label(node.id.to_string());
-                                });
-                                ui.collapsing(format!("Connections IN ({})", node.connections.input.len()), | ui | {
-                                    for (dir, c) in node.connections.input.iter() {
-                                        let (ntype, id) =  match &*c.upgrade().get() {
-                                            NodeBuilder::IONode(n) => ("In/Out Node", n.id),
-                                            NodeBuilder::Crossing(n) => ("Crossing", n.id),
-                                            NodeBuilder::Street(n) => ("Street", n.id),
-                                        };
-                                        ui.label(format!("{:?}\t(id={}): {}", dir, id, ntype));
-                                    }
-                                });
-                                ui.collapsing(format!("Connections OUT ({})", node.connections.output.len()), | ui | {
-                                    for (dir, c) in node.connections.output.iter() {
-                                        let (ntype, id) =  match &*c.upgrade().get() {
-                                            NodeBuilder::IONode(n) => ("In/Out Node", n.id),
-                                            NodeBuilder::Crossing(n) => ("Crossing", n.id),
-                                            NodeBuilder::Street(n) => ("Street", n.id),
-                                        };
-                                        ui.label(format!("{:?}\t(id={}): {}", dir, id, ntype));
-                                    }
-                                });
-                            },
-                            NodeBuilder::Street(node) => {
-                                ui.horizontal( | ui | {
-                                    ui.label("Node type: ");
-                                    ui.label("Street");
-                                });
-                                ui.horizontal( | ui | {
-                                    ui.label("Node ID: ");
-                                    ui.label(node.id.to_string());
-                                });
-                            },
-                        }
-                        
-                    }                         
-                });
-            // Toolbar
-            egui::SidePanel::right("toolbar")
-                .default_width(50.0)
-                .show(egui_context.ctx(), |ui| {
-                    ui.vertical_centered(|ui| ui_state.toolbar.render_tools(ui));
-                    ui.separator();
-                });
-        }
-        UIMode::Simulator => {},
-        UIMode::Preferences => {
-            // egui::CentralPanel::default()
-            egui::SidePanel::left("pref_panel_left").show(egui_context.ctx(), |ui| {
-                ui.heading("Preferences");
-                ui.separator();
-                ui.vertical( | ui  | {
-                    let mut new_theme = (*current_theme).clone();
-                    ui.radio_value(&mut new_theme, CurrentTheme::LIGHT, "Light");
-                    ui.radio_value(&mut new_theme, CurrentTheme::DARK, "Dark");
-                    if new_theme != *current_theme {
-                        *current_theme = new_theme;
-                        *theme = UITheme::from_enum(&new_theme);
-                        repaint_necessary = true;
-                    }
-                });
-            });
-        }
-    }
-    if repaint_necessary {
-        background.0 = theme.background;
-        nodes.for_each_mut(|(entity, mut transform, street_line_position, node_type)| {
-            match node_type {
-                NodeType::CROSSING => {
-                    let pos = transform.translation;
-                    let new_shape_bundle = node_render::crossing(pos.x, pos.y, theme.crossing);
-                    commands.entity(entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
-                }
-                NodeType::IONODE => {
-                    let pos = transform.translation;
-                    let new_shape_bundle = node_render::io_node(pos.x, pos.y, theme.io_node);
-                    commands.entity(entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
-                },
-                NodeType::STREET => {
-                    if let Some(line) = street_line_position {
-                        let (p1, p2) = (line.0, line.1);
-                        let new_shape_bundle = node_render::street(p1, p2, theme.street);
-                        commands.entity(entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
-                    }
-                },
-            };
-            
-
-        })
-    }
-}
 
 mod node_render {
     use bevy::{prelude::{Color, Transform}, math::Vec2};
@@ -391,7 +212,7 @@ fn spawn_camera(mut commands: Commands) {
 /// Because it is not possible (at least to out knowledge) to query the
 ///  start and end position of the line as a Shape bundle, we store the
 ///  line positions seperatly 
-struct StreetLinePosition(Vec2, Vec2);
+pub struct StreetLinePosition(Vec2, Vec2);
 
 /// Holds an IntMut (interior mutability) for a nodebuilder
 #[derive(Debug, Clone)]
