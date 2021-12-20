@@ -1,21 +1,18 @@
 use bevy::prelude::*;
 use bevy_egui::egui::Visuals;
-use std::ops::RangeInclusive;
-use bevy_egui::{egui, EguiContext, EguiPlugin};
+use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::prelude::*;
-use ::egui::Slider;
 use simulator::simple::int_mut::IntMut;
-use simulator::simple::node;
 use simulator::simple::node_builder::{NodeBuilder, NodeBuilderTrait};
-use simulator::{debug::build_grid_sim, simple::simulation_builder::SimulatorBuilder};
+use simulator::debug::build_grid_sim;
 use toolbar::ToolType;
 use wasm_bindgen::prelude::*;
-mod toolbar;
 use simulator;
 mod user_interface;
 use bevy::input::mouse::{MouseWheel,MouseMotion};
-use std::collections::HashMap;
+mod toolbar;
+mod sim_manager;
 
 
 #[derive(PartialEq)]
