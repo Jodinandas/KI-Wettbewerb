@@ -2,7 +2,7 @@ use super::int_mut::{IntMut, WeakIntMut};
 use super::movable::RandCar;
 use super::node_builder::{CrossingConnections, Direction, InOut};
 use super::traversible::Traversible;
-use crate::traits::{NodeTrait, Movable};
+use crate::traits::{Movable, NodeTrait};
 use std::error::Error;
 
 /// A node is any kind of logical object in the Simulation
@@ -16,7 +16,10 @@ use std::error::Error;
 ///
 /// ```
 #[derive(Debug, Clone)]
-pub enum Node<Car=RandCar> where Car: Movable {
+pub enum Node<Car = RandCar>
+where
+    Car: Movable,
+{
     /// Wrapper
     Street(Street<Car>),
     /// Wrapper
@@ -77,7 +80,10 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
 
 /// A simple crossing
 #[derive(Debug, Clone)]
-pub struct Crossing<Car=RandCar> where Car: Movable {
+pub struct Crossing<Car = RandCar>
+where
+    Car: Movable,
+{
     /// The other nodes the Crossing is connected to
     ///
     /// A crossing is a rectangle and each of the 4 sides
@@ -158,7 +164,10 @@ impl IONode {
 /// # Fields
 /// - `lanes` stores how many lanes the `Street` has
 #[derive(Debug, Clone)]
-pub struct Street<Car=RandCar> where Car: Movable {
+pub struct Street<Car = RandCar>
+where
+    Car: Movable,
+{
     /// The connection leading to the node at the end of the road
     pub conn_out: Option<WeakIntMut<Node>>,
     /// The node where the road starts at

@@ -38,7 +38,7 @@ impl Toolbar {
             None => None,
         }
     }
-    pub fn get_tooltype(&self) -> ToolType{
+    pub fn get_tooltype(&self) -> ToolType {
         match self.get_selected() {
             Some(tool) => tool.get_type(),
             None => ToolType::None,
@@ -54,8 +54,11 @@ impl Toolbar {
 
 impl Default for Toolbar {
     fn default() -> Toolbar {
-        let tools: Vec<Box<dyn Tool>> =
-            vec![Box::new(PanTool::new()), Box::new(SelectTool::new()), Box::new(AddStreetTool::new())];
+        let tools: Vec<Box<dyn Tool>> = vec![
+            Box::new(PanTool::new()),
+            Box::new(SelectTool::new()),
+            Box::new(AddStreetTool::new()),
+        ];
 
         Toolbar {
             tools,
@@ -66,8 +69,8 @@ impl Default for Toolbar {
 
 pub struct SelectTool;
 
-impl Tool for SelectTool{
-    fn name<'a>(&'a self) -> &'a str{
+impl Tool for SelectTool {
+    fn name<'a>(&'a self) -> &'a str {
         "Select"
     }
     fn get_type(&self) -> ToolType {
@@ -75,7 +78,7 @@ impl Tool for SelectTool{
     }
 }
 impl SelectTool {
-    pub fn new() -> SelectTool{
+    pub fn new() -> SelectTool {
         SelectTool {}
     }
 }

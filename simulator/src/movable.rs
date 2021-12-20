@@ -1,4 +1,4 @@
-use super::{traits::Movable, int_mut::WeakIntMut, node::Node};
+use super::{int_mut::WeakIntMut, node::Node, traits::Movable};
 use rand::Rng;
 use std::error::Error;
 

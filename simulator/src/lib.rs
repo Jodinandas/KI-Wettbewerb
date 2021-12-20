@@ -30,10 +30,10 @@ pub mod nodes {
     pub use crate::node_builder::*;
 }
 pub mod path {
-    pub use crate::pathfinding::{PathAwareCar, MovableServer};
+    pub use crate::pathfinding::{MovableServer, PathAwareCar};
 }
 pub mod datastructs {
     pub use crate::int_mut::{IntMut, WeakIntMut};
 }
-pub use simulation_builder::SimulatorBuilder;
 pub use simulation::Simulator;
+pub use simulation_builder::SimulatorBuilder;
