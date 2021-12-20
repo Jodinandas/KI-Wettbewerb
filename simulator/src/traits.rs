@@ -1,10 +1,10 @@
-use crate::simple::int_mut::{IntMut, WeakIntMut};
-use crate::simple::node::Node;
+use crate::int_mut::{IntMut, WeakIntMut};
+use crate::node::Node;
 use dyn_clone::DynClone;
 use std::error::Error;
 use std::fmt::Debug;
 
-use crate::simple::movable::RandCar;
+use crate::movable::RandCar;
 
 /// This is a trait defining all functionality a Node needs
 ///
