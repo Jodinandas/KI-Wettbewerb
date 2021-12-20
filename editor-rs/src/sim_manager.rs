@@ -2,10 +2,11 @@ use simulator::SimulatorBuilder;
 use simulator::datastructs::IntMut;
 use simulator::path::{MovableServer, PathAwareCar};
 use std::thread::{self, JoinHandle};
-use std::sync::{mpsc, Arc};
+use std::sync::mpsc;
 
 struct CarUpdate {
-
+    sim_index: usize,
+    position: f32,
 }
 
 /// saves a handle to the thread performing the simulation
@@ -24,4 +25,7 @@ pub struct SimManager {
     movable_server: IntMut<MovableServer>,
     pub sim_builder: SimulatorBuilder, // <PathAwareCar>, TODO: Finally implement generics in the simulator struct
     simulation_threads: Vec<thread::Thread>
+}
+
+impl SimManager {
 }
