@@ -19,7 +19,8 @@ pub fn ui_example(
     nodes: Query<(Entity, &Transform, Option<&StreetLinePosition>, &NodeType)>, //mut crossings: Query<, With<IONodeMarker>>
 ) {
     let mut repaint_necessary = false;
-    egui::TopBottomPanel::top("menu_top_panel").show(egui_context.ctx(), |ui| {
+    let panel = egui::TopBottomPanel::top("menu_top_panel");
+    panel.show(egui_context.ctx(), |ui| {
         ui.horizontal(|ui| {
             egui::menu::menu(ui, "File", |ui| {
                 ui.button("Nothing here yet...");
