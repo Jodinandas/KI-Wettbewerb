@@ -35,6 +35,7 @@ pub fn ui_example(
             // Left Side panel, mainly for displaying the item editor
             egui::SidePanel::left("item_editor")
                 .default_width(300.0)
+                .resizable(false)
                 .show(egui_context.ctx(), |ui| {
                     ui.horizontal(|ui| {
                         ui.heading("ItemEditor");
@@ -115,7 +116,8 @@ pub fn ui_example(
                 });
             // Toolbar
             egui::SidePanel::right("toolbar")
-                .default_width(50.0)
+                .default_width(100.0)
+                .resizable(false)
                 .show(egui_context.ctx(), |ui| {
                     ui.vertical_centered(|ui| ui_state.toolbar.render_tools(ui));
                     ui.separator();

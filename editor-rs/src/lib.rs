@@ -55,13 +55,22 @@ impl UIMode {
     }
 }
 
+#[derive(Default)]
+struct EguiDimension{
+    top: u32,
+    right: u32,
+    bottom: u32,
+    left: u32,
+}
+
 
 #[derive(Default)]
 pub struct UIState {
     toolbar: toolbar::Toolbar,
     mode: UIMode,
     prev_mode: Option<UIMode>,
-    selected_node: Option<NodeBuilderRef>
+    selected_node: Option<NodeBuilderRef>,
+    sidepanel_dimensions: EguiDimension,
 }
 impl UIState {
     /// if there was a previous mode, switch to it
@@ -354,61 +363,64 @@ fn toolbarsystem(mouse_input: Res<Input<MouseButton>>, windows: Res<Windows>, mu
                 // select nearest object
                 // get position of mouse click on screen
                 let click_pos = handle_mouse_clicks(&mouse_input, &windows);
-                let mut closest_shape: Option<(f32, Entity, &Transform, SimulationIndex, &NodeBuilderRef, &NodeType)> = None;
-                let mut prev_selection: Option<(Entity, &NodeType, &Transform)> = None;
-                if let Some(click_pos) = click_pos{
-                    // println!("{:?}", click_pos);
-                    if let Some(camera_transform) = camera.iter().next(){
-                        // camera scaling factor
-                        let scaling = camera_transform.scale.x;
-                        // get position of 0,0 of world coordinate system in screen coordinates
-                        let midpoint_screenspace = (get_primary_window_size(&windows)/2.0)-(Vec2::new(camera_transform.translation.x, camera_transform.translation.y))/scaling;
-                        let shape_dists = shapes.iter().map( | (entity, transform, shapevariant, index, nodebuilderref) | {
-                            // check if this entity is the one currently selected
-                            //  (we need to change the color later on when unselecting it)
-                            if let Some(selected_nb) = &uistate.selected_node {
-                                if selected_nb.0 == nodebuilderref.0 {
-                                    prev_selection = Some((entity, shapevariant, transform));
+                // only recognize click if not in gui
+                if let Some(pos) = click_pos{
+                    let mut closest_shape: Option<(f32, Entity, &Transform, SimulationIndex, &NodeBuilderRef, &NodeType)> = None;
+                    let mut prev_selection: Option<(Entity, &NodeType, &Transform)> = None;
+                    if let Some(click_pos) = click_pos{
+                        // println!("{:?}", click_pos);
+                        if let Some(camera_transform) = camera.iter().next(){
+                            // camera scaling factor
+                            let scaling = camera_transform.scale.x;
+                            // get position of 0,0 of world coordinate system in screen coordinates
+                            let midpoint_screenspace = (get_primary_window_size(&windows)/2.0)-(Vec2::new(camera_transform.translation.x, camera_transform.translation.y))/scaling;
+                            let shape_dists = shapes.iter().map( | (entity, transform, shapevariant, index, nodebuilderref) | {
+                                // check if this entity is the one currently selected
+                                //  (we need to change the color later on when unselecting it)
+                                if let Some(selected_nb) = &uistate.selected_node {
+                                    if selected_nb.0 == nodebuilderref.0 {
+                                        prev_selection = Some((entity, shapevariant, transform));
+                                    }
                                 }
-                            }
-                            // get shape position in scren coordinates
-                            let position = midpoint_screenspace + (Vec2::new(transform.translation.x, transform.translation.y))/scaling;
-                            // calculate distance, squared to improve performance so does not need to be rooted
-                            let dist = (position - click_pos).length_squared();
-                            (dist, entity, transform, index, nodebuilderref, shapevariant)
-                        });
-                        shape_dists.for_each(
-                            | (d, entity, transform, i, nbr, sv) | {
-                                if let Some((d_prev, entity_prev, trans_prev, _i_prev, nbr_prev, _sv_prev)) = closest_shape {
-                                    if d < d_prev {
+                                // get shape position in scren coordinates
+                                let position = midpoint_screenspace + (Vec2::new(transform.translation.x, transform.translation.y))/scaling;
+                                // calculate distance, squared to improve performance so does not need to be rooted
+                                let dist = (position - click_pos).length_squared();
+                                (dist, entity, transform, index, nodebuilderref, shapevariant)
+                            });
+                            shape_dists.for_each(
+                                | (d, entity, transform, i, nbr, sv) | {
+                                    if let Some((d_prev, entity_prev, trans_prev, _i_prev, nbr_prev, _sv_prev)) = closest_shape {
+                                        if d < d_prev {
+                                            closest_shape = Some((d, entity, transform, *i, nbr, sv));
+                                        }
+                                    } else {
                                         closest_shape = Some((d, entity, transform, *i, nbr, sv));
                                     }
-                                } else {
-                                    closest_shape = Some((d, entity, transform, *i, nbr, sv));
                                 }
+                            );
+                        }
+                        if let Some((_d, entity, transform, _, nbr, sv)) = closest_shape {
+                            if let Some((prev_selected_node_entity, node_type, prev_trans)) = prev_selection {
+                                let pos = prev_trans.translation;
+                                let new_shape_bundle = match node_type {
+                                    NodeType::CROSSING => node_render::crossing(pos.x, pos.y, theme.crossing),
+                                    NodeType::IONODE => node_render::io_node(pos.x, pos.y, theme.io_node),
+                                    NodeType::STREET => todo!("Street selection is not implemented yet!"),
+                                };
+                                commands.entity(prev_selected_node_entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
                             }
-                        );
-                    }
-                    if let Some((_d, entity, transform, _, nbr, sv)) = closest_shape {
-                        if let Some((prev_selected_node_entity, node_type, prev_trans)) = prev_selection {
-                            let pos = prev_trans.translation;
-                            let new_shape_bundle = match node_type {
-                                NodeType::CROSSING => node_render::crossing(pos.x, pos.y, theme.crossing),
-                                NodeType::IONODE => node_render::io_node(pos.x, pos.y, theme.io_node),
+                            uistate.selected_node = Some(nbr.clone());
+                            let pos = transform.translation;
+                            let new_shape_bundle = match sv {
+                                NodeType::CROSSING => node_render::crossing(pos.x, pos.y, theme.highlight),
+                                NodeType::IONODE => node_render::io_node(pos.x, pos.y, theme.highlight),
                                 NodeType::STREET => todo!("Street selection is not implemented yet!"),
                             };
-                            commands.entity(prev_selected_node_entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
-                        }
-                        uistate.selected_node = Some(nbr.clone());
-                        let pos = transform.translation;
-                        let new_shape_bundle = match sv {
-                            NodeType::CROSSING => node_render::crossing(pos.x, pos.y, theme.highlight),
-                            NodeType::IONODE => node_render::io_node(pos.x, pos.y, theme.highlight),
-                            NodeType::STREET => todo!("Street selection is not implemented yet!"),
-                        };
-                        commands.entity(entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
-                    } 
-                };
+                            commands.entity(entity).remove_bundle::<ShapeBundle>().insert_bundle(new_shape_bundle);
+                        } 
+                    };
+                } 
             }
             ToolType::None => (),
             ToolType::AddStreet => (),
@@ -417,13 +429,32 @@ fn toolbarsystem(mouse_input: Res<Input<MouseButton>>, windows: Res<Windows>, mu
 }
 // for selection
 fn handle_mouse_clicks(mouse_input: &Res<Input<MouseButton>>, windows: &Res<Windows>) -> Option<Vec2>{
+    let min_x = 300.0;
+    let max_x = 100.0;
     let win = windows.get_primary().expect("no primary window");
     if mouse_input.just_pressed(MouseButton::Left) {
-        win.cursor_position()
+        if let Some(pos) = win.cursor_position(){
+            if (pos.x > min_x) && (get_primary_window_size(&windows).x > (max_x + pos.x)){
+                return win.cursor_position()
+            }
+        }
     }
-    else {
-        None
+    None
+}
+fn movement_within_bounds(mouse_input: &Res<Input<MouseButton>>, windows: &Res<Windows>, mouse_button: &MouseButton) -> bool{
+    let min_x = 300.0;
+    let max_x = 100.0;
+    let win = windows.get_primary().expect("no primary window");
+    if mouse_input.pressed(*mouse_button) {
+        if let Some(pos) = win.cursor_position(){
+            if (pos.x > min_x) && (get_primary_window_size(&windows).x > (max_x + pos.x)){
+                return true
+            }
+        }
+        return false
     }
+    // when scrolling, should not terminate
+    true
 }
 fn mouse_panning(windows: Res<Windows>,
     mut ev_motion: EventReader<MouseMotion>,
@@ -434,33 +465,35 @@ fn mouse_panning(windows: Res<Windows>,
     {
     // change input mapping for orbit and panning here
     let pan_button = MouseButton::Left;
-
-    let mut pan = Vec2::ZERO;
-    let mut rotation_move = Vec2::ZERO;
-    let mut scroll = 0.0;
-
-    if input_mouse.pressed(pan_button) {
-        // Pan only if we're not rotating at the moment
-        for ev in ev_motion.iter() {
-            pan += ev.delta;
-        }
-    }
-    for ev in ev_scroll.iter() {
-        scroll += ev.y;
-    }
-
-    for mut transform in camera.iter_mut(){
-        if pan.length_squared() > 0.0 && uistate.toolbar.get_tooltype() == ToolType::Pan{
-            let window = get_primary_window_size(&windows);
-            pan = pan*Vec2::new(transform.scale.x, transform.scale.y)/(1.3*std::f32::consts::PI);
-            transform.translation += Vec3::new(-pan.x, pan.y, 0.0);            
-        }
-        else if scroll.abs() > 0.0 {
-            let scr = f32::powf(1.1, scroll);
-            transform.scale *= Vec3::new(scr, scr, 1.0);
-        }
+    if movement_within_bounds(&input_mouse, &windows, &pan_button){
         
+        let mut pan = Vec2::ZERO;
+        let mut rotation_move = Vec2::ZERO;
+        let mut scroll = 0.0;
+        if input_mouse.pressed(pan_button)  {
+            // Pan only if we're not rotating at the moment
+            for ev in ev_motion.iter() {
+                pan += ev.delta;
+            }
+        }
+        for ev in ev_scroll.iter() {
+            scroll += ev.y;
+        }
+    
+        for mut transform in camera.iter_mut(){
+            if pan.length_squared() > 0.0 && uistate.toolbar.get_tooltype() == ToolType::Pan{
+                let window = get_primary_window_size(&windows);
+                pan = pan*Vec2::new(transform.scale.x, transform.scale.y);
+                transform.translation += Vec3::new(-pan.x, pan.y, 0.0);            
+            }
+            else if scroll.abs() > 0.0 {
+                let scr = f32::powf(1.1, scroll);
+                transform.scale *= Vec3::new(scr, scr, 1.0);
+            }
+            
+        }
     }
+
 }
 fn get_primary_window_size(windows: &Res<Windows>) -> Vec2 {
     let window = windows.get_primary().unwrap();
