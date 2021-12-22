@@ -28,4 +28,7 @@ pub struct SimManager {
 }
 
 impl SimManager {
+    pub fn 
+
+    
 }
