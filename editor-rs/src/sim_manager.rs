@@ -1,17 +1,11 @@
-use core::num;
-use simulator::datastructs::IntMut;
+use simulator::datastructs::{IntMut, MovableStatus};
 use simulator::path::{MovableServer, PathAwareCar};
 use simulator::SimulatorBuilder;
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::Display;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
-
-/// This struct saves updates for one car in the simulation
-struct CarUpdate {
-    pub sim_index: usize,
-    pub position: f32,
-}
 
 /// saves a handle to the thread performing the simulation
 /// and provides ways of communication
@@ -20,7 +14,7 @@ struct Simulating {
     sim: JoinHandle<()>,
     /// Car updates are received from this part of the channel if the simulator is
     /// set to report updates with `report_updates`
-    pub car_updates: mpsc::Receiver<Vec<CarUpdate>>,
+    pub car_updates: mpsc::Receiver<HashMap<usize, Vec<MovableStatus>>>,
     /// if this bool is set to true, the Simulator will terminate
     pub terminate: IntMut<bool>,
     /// this bool is set by the simulator and reports if the simulation has ended
@@ -39,14 +33,17 @@ impl Simulating {
         let terminate = IntMut::new(false);
         let terminated = IntMut::new(false);
         let report_updates = IntMut::new(false);
+        let report_updates_moved = report_updates.clone();
         let terminate_moved = terminate.clone();
-        let terminated_moved = terminate.clone();
+        let terminated_moved = terminated.clone();
         // -------------------------- this is where the magic happens --------------
         let handle = thread::spawn(move || {
             while !*terminate_moved.get() {
                 new_sim.sim_iter(time_steps.into());
                 // go through all cars
-                for n in new_sim.nodes.iter() {}
+                if *report_updates_moved.get() {
+                    tx.send(new_sim.get_car_status()).expect("Unable to send car status updates, even though report_updates is set to true");
+                }
             }
             *terminated_moved.get() = true;
         });
@@ -75,6 +72,8 @@ pub struct SimManager {
     sim_builder: SimulatorBuilder, // <PathAwareCar>, TODO: Finally implement generics in the simulator struct
     /// A list of currently running Simulators
     simulations: Vec<Simulating>,
+    /// the index of the simulation which currently tracks car updates
+    tracking_index: Option<usize>,
 }
 
 /// This error is returned if one tries to modify the SimulatorBuilder while a Simulation is running
@@ -115,6 +114,7 @@ impl SimManager {
             movable_server: IntMut::new(MovableServer::new()),
             sim_builder: sim_builder,
             simulations: Vec::new(),
+            tracking_index: None,
         }
     }
     /// Returns a mutable reference to the SimulatorBuilder, if no Simulation
@@ -139,6 +139,43 @@ impl SimManager {
             }));
         }
         for _i in 0..num_sims {}
+        Ok(())
+    }
+
+    /// returns a status update, if it is found in the channel, else
+    /// None is returned. None is also returned, if no Simulation is tracked
+    pub fn get_status_updates(&self) -> Option<HashMap<usize, Vec<MovableStatus>>> {
+        match self.tracking_index {
+            Some(i) => Some(
+                self.simulations[i]
+                    .car_updates
+                    .try_recv()
+                    .expect("Unable to get car updates!"),
+            ),
+            None => return None,
+        }
+    }
+
+    /// tracks the car_updates of the simulation with the given index#
+    /// raises an error, if no simulation with the given index exists
+    pub fn track_simulation(&mut self, i: usize) -> Result<(), String> {
+        
+        match i < self.simulations.len() {
+            true => {
+            // if another simulation was tracked, stop the status updates
+            match self.tracking_index {
+                Some(old_i) => {
+                    *self.simulations[old_i].report_updates.get() = false;
+                }
+                None => {}
+            }
+            self.tracking_index = Some(i);
+            *self.simulations[i].report_updates.get() = true;
+            }
+            false => {
+            return Err("Simulation with the given index does not exist".into())
+            }
+        }
         Ok(())
     }
 }

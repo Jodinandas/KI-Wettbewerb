@@ -112,10 +112,10 @@ impl<Car: Movable> Simulator<Car> {
         self.update_all_nodes(dt);
     }
 
-    /// returns references to all the cars in the simulation
+    /// returns status information for all of the cars in the simulation
     ///
     /// the key of the HashMap is the node index
-    pub fn get_all_cars<'a>(&'a self) -> HashMap<usize, Vec<MovableStatus>> {
+    pub fn get_car_status(&self) -> HashMap<usize, Vec<MovableStatus>> {
         let mut mapped_node = HashMap::new();
         for n in self.nodes.iter() {
             let n = n.get();
