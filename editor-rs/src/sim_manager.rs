@@ -1,11 +1,11 @@
-use simulator::SimulatorBuilder;
+use core::num;
 use simulator::datastructs::IntMut;
 use simulator::path::{MovableServer, PathAwareCar};
-use core::num;
+use simulator::SimulatorBuilder;
 use std::error::Error;
 use std::fmt::Display;
-use std::thread::{JoinHandle, self};
 use std::sync::mpsc;
+use std::thread::{self, JoinHandle};
 
 /// This struct saves updates for one car in the simulation
 struct CarUpdate {
@@ -18,12 +18,12 @@ struct CarUpdate {
 struct Simulating {
     /// the handle of the simulation thread
     sim: JoinHandle<()>,
-    /// Car updates are received from this part of the channel if the simulator is 
+    /// Car updates are received from this part of the channel if the simulator is
     /// set to report updates with `report_updates`
     pub car_updates: mpsc::Receiver<Vec<CarUpdate>>,
-    /// if this bool is set to true, the Simulator will terminate 
+    /// if this bool is set to true, the Simulator will terminate
     pub terminate: IntMut<bool>,
-    /// this bool is set by the simulator and reports if the simulation has ended 
+    /// this bool is set by the simulator and reports if the simulation has ended
     /// this variable is not public to ensure it is only modified by the simulator
     terminated: IntMut<bool>,
     /// if set to true, updates will be sent to `car_updates`
@@ -42,12 +42,11 @@ impl Simulating {
         let terminate_moved = terminate.clone();
         let terminated_moved = terminate.clone();
         // -------------------------- this is where the magic happens --------------
-        let handle = thread::spawn( move | | {
+        let handle = thread::spawn(move || {
             while !*terminate_moved.get() {
                 new_sim.sim_iter(time_steps.into());
                 // go through all cars
-                for n in new_sim.nodes.iter() {
-                }
+                for n in new_sim.nodes.iter() {}
             }
             *terminated_moved.get() = true;
         });
@@ -56,13 +55,13 @@ impl Simulating {
             car_updates: rx,
             terminate,
             terminated,
-            report_updates
+            report_updates,
         }
     }
     /// True, if the simulation has terminated
     pub fn has_terminated(&self) -> bool {
         *self.terminated.get()
-    } 
+    }
 }
 
 /// This struct saves a list of currently simulating Simulators
@@ -79,11 +78,11 @@ pub struct SimManager {
 }
 
 /// This error is returned if one tries to modify the SimulatorBuilder while a Simulation is running
-/// 
+///
 ///  (Otherwise, the SimulationBuilder and Simulator would go out of sync causing all kinds of errors)
 #[derive(Debug)]
 pub struct SimulationRunningError {
-    pub msg: &'static str
+    pub msg: &'static str,
 }
 
 impl Display for SimulationRunningError {
@@ -92,17 +91,17 @@ impl Display for SimulationRunningError {
     }
 }
 
-impl Error for SimulationRunningError{}
+impl Error for SimulationRunningError {}
 
 impl Error for SimulationDoesNotExistError {}
 
 /// This error is returned if one tries to modify the SimulatorBuilder while a Simulation is running
-/// 
+///
 ///  (Otherwise, the SimulationBuilder and Simulator would go out of sync causing all kinds of errors)
 #[derive(Debug)]
 pub struct SimulationDoesNotExistError {}
 
-impl Display for SimulationDoesNotExistError{
+impl Display for SimulationDoesNotExistError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "The simulation has been tried to access does not exist")
     }
@@ -122,22 +121,24 @@ impl SimManager {
     /// is currently running
     pub fn modify_sim_builder(&mut self) -> Result<&mut SimulatorBuilder, SimulationRunningError> {
         // are any simulations still running?
-        let any_sims = self.simulations.iter().any( | s | !s.has_terminated() );
+        let any_sims = self.simulations.iter().any(|s| !s.has_terminated());
         if any_sims {
-            return Err(SimulationRunningError {msg: "Cannot modify SimulatorBuilder, as Simulations are running."})
+            return Err(SimulationRunningError {
+                msg: "Cannot modify SimulatorBuilder, as Simulations are running.",
+            });
         }
-        return Ok(&mut self.sim_builder)
+        return Ok(&mut self.sim_builder);
     }
-    /// 
+    ///
     pub fn simulate(&mut self, num_sims: usize) -> Result<(), Box<dyn Error>> {
         // are any simulations still running?
-        let any_sims = self.simulations.iter().any( | s | !s.has_terminated() );
+        let any_sims = self.simulations.iter().any(|s| !s.has_terminated());
         if any_sims {
-            return Err(Box::new(SimulationRunningError { msg: "Can not start new simulations while old ones are still running." }))
+            return Err(Box::new(SimulationRunningError {
+                msg: "Can not start new simulations while old ones are still running.",
+            }));
         }
-        for _i in 0..num_sims {
-            
-        }
+        for _i in 0..num_sims {}
         Ok(())
     }
 }

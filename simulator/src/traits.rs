@@ -4,20 +4,23 @@ use dyn_clone::DynClone;
 use std::error::Error;
 use std::fmt::Debug;
 
-use crate::movable::RandCar;
+use crate::movable::{MovableStatus, RandCar};
 
 /// This is a trait defining all functionality a Node needs
 ///
 ///
 /// All Node variants must implement this trait
 /// The nodes are mostly used in the form of `Box<dyn Node>`
-pub trait NodeTrait<Car = RandCar>: Debug + Sync + Send + DynClone {
+pub trait NodeTrait<Car = RandCar>: Debug + Sync + Send + DynClone
+where
+    Car: Movable,
+{
     /// returns true, if the given node is connected
-    fn is_connected(&self, other: &IntMut<Node>) -> bool;
+    fn is_connected(&self, other: &IntMut<Node<Car>>) -> bool;
     /// advances the car position
     fn update_cars(&mut self, t: f64) -> Vec<Car>;
     /// returns a list of all the other nodes connected to the node
-    fn get_connections(&self) -> Vec<WeakIntMut<Node>>;
+    fn get_connections(&self) -> Vec<WeakIntMut<Node<Car>>>;
     /// adds a new car to the beginning of the node
     fn add_car(&mut self, car: Car);
     /// a unique node id
@@ -26,6 +29,9 @@ pub trait NodeTrait<Car = RandCar>: Debug + Sync + Send + DynClone {
     /// is used to simplify the path algorithm used to generate
     /// paths for cars
     fn id(&self) -> usize;
+    /// returns a vector of [MovableStatus] structs containing information
+    /// on cars
+    fn get_car_status(&self) -> Vec<MovableStatus>;
 }
 
 // make it possible to derive Clone for structs with Box<dyn NodeTrait>
@@ -50,8 +56,8 @@ pub trait Movable: Debug + Clone + Send + Sync + DynClone {
     /// if the part of the program that figures out the paths makes a mistake
     fn decide_next(
         &mut self,
-        connections: &Vec<WeakIntMut<Node>>,
-    ) -> Result<WeakIntMut<Node>, Box<dyn Error>>;
+        connections: &Vec<WeakIntMut<Node<Self>>>,
+    ) -> Result<WeakIntMut<Node<Self>>, Box<dyn Error>>;
 }
 
 // make it possible to derive Clone for structs with Box<dyn Movable>

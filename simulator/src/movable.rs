@@ -18,8 +18,8 @@ impl Movable for RandPerson {
     fn update(&mut self, _t: f64) {}
     fn decide_next(
         &mut self,
-        connections: &Vec<WeakIntMut<Node>>,
-    ) -> Result<WeakIntMut<Node>, Box<dyn Error>> {
+        connections: &Vec<WeakIntMut<Node<Self>>>,
+    ) -> Result<WeakIntMut<Node<Self>>, Box<dyn Error>> {
         let i = rand::thread_rng().gen_range(0..connections.len());
         Ok(connections[i].clone())
     }
@@ -48,9 +48,17 @@ impl Movable for RandCar {
     fn update(&mut self, _t: f64) {}
     fn decide_next(
         &mut self,
-        connections: &Vec<WeakIntMut<Node>>,
+        connections: &Vec<WeakIntMut<Node<Self>>>,
     ) -> Result<WeakIntMut<Node>, Box<dyn Error>> {
         let i = rand::thread_rng().gen_range(0..connections.len());
         Ok(connections[i].clone())
     }
+}
+
+/// This struct encapsulates data for a [Movable] (to render it later)
+pub struct MovableStatus {
+    /// the Movable's position on the street (crossings and ionodes are not supported yet)
+    pub position: f32,
+    /// random index that is used differently by different nodes
+    pub lane_index: u8,
 }

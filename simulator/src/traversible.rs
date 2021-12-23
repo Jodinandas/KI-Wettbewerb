@@ -1,3 +1,5 @@
+use crate::movable::MovableStatus;
+
 use super::{movable::RandCar, traits::Movable};
 
 /// This structs represents a sidewalk, a street or something else that can be walked on
@@ -44,5 +46,16 @@ impl<T: Movable> Traversible<T> {
     /// returns the number of movables on the traversible
     pub fn num_movables(&self) -> usize {
         self.movables.len()
+    }
+    /// generates a status object for all of the movables on the
+    /// traversable. All lane indices are set to 0
+    pub fn get_movable_status(&self) -> Vec<MovableStatus> {
+        self.movables
+            .iter()
+            .map(|(_m, t)| MovableStatus {
+                position: *t,
+                lane_index: 0,
+            })
+            .collect()
     }
 }

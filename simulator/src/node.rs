@@ -2,6 +2,7 @@ use super::int_mut::{IntMut, WeakIntMut};
 use super::movable::RandCar;
 use super::node_builder::{CrossingConnections, Direction, InOut};
 use super::traversible::Traversible;
+use crate::movable::MovableStatus;
 use crate::traits::{Movable, NodeTrait};
 use std::error::Error;
 
@@ -23,19 +24,19 @@ where
     /// Wrapper
     Street(Street<Car>),
     /// Wrapper
-    IONode(IONode),
+    IONode(IONode<Car>),
     /// Wrapper
     Crossing(Crossing<Car>),
 }
 
 impl<Car: Movable> NodeTrait<Car> for Node<Car> {
-    fn is_connected(&self, other: &IntMut<Node>) -> bool {
+    fn is_connected(&self, other: &IntMut<Node<Car>>) -> bool {
         self.get_connections()
             .iter()
             .find(|n| *n == other)
             .is_some()
     }
-    fn get_connections(&self) -> Vec<WeakIntMut<Node>> {
+    fn get_connections(&self) -> Vec<WeakIntMut<Node<Car>>> {
         match self {
             Node::Street(street) => street.get_connections(),
             Node::IONode(io_node) => io_node.connections.clone(),
@@ -76,6 +77,13 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
             Node::Crossing(inner) => inner.id,
         }
     }
+    fn get_car_status(&self) -> Vec<MovableStatus> {
+        match self {
+            Node::Street(inner) => inner.get_car_status(),
+            Node::IONode(inner) => inner.get_car_status(),
+            Node::Crossing(inner) => inner.get_car_status(),
+        }
+    }
 }
 
 /// A simple crossing
@@ -88,7 +96,7 @@ where
     ///
     /// A crossing is a rectangle and each of the 4 sides
     /// can have one input and one output connection
-    pub connections: CrossingConnections<Node>,
+    pub connections: CrossingConnections<Node<Car>>,
     /// cars are stored in this field
     pub car_lane: Traversible<Car>,
     /// a number to differentiate different nodes
@@ -106,7 +114,7 @@ impl<Car: Movable> Crossing<Car> {
     /// Returns a list of only OUTPUT connecitons
     ///
     /// This function is deprecated and will be removed soon
-    pub fn get_connections(&self) -> Vec<WeakIntMut<Node>> {
+    pub fn get_connections(&self) -> Vec<WeakIntMut<Node<Car>>> {
         self.connections
             .output
             .values()
@@ -119,19 +127,25 @@ impl<Car: Movable> Crossing<Car> {
         &mut self,
         dir: Direction,
         conn_type: InOut,
-        other: &IntMut<Node>,
+        other: &IntMut<Node<Car>>,
     ) -> Result<&mut Self, Box<dyn Error>> {
         self.connections.add(dir, conn_type, other)?;
         Ok(self)
+    }
+    pub fn get_car_status(&self) -> Vec<MovableStatus> {
+        self.car_lane.get_movable_status()
     }
 }
 /// A Node that represents either the start of the simulation or the end of it
 ///
 /// One of its responsibilities is to add cars and passengers to the simulation
 #[derive(Debug, Clone)]
-pub struct IONode {
+pub struct IONode<Car = RandCar>
+where
+    Car: Movable,
+{
     /// All the nodes where cars should be redirected
-    pub connections: Vec<WeakIntMut<Node>>,
+    pub connections: Vec<WeakIntMut<Node<Car>>>,
     /// new Cars/Second
     pub spawn_rate: f64,
     /// time since last spawn in seconds
@@ -142,7 +156,10 @@ pub struct IONode {
     /// list of all nodes in the simulation
     pub id: usize,
 }
-impl IONode {
+impl<Car> IONode<Car>
+where
+    Car: Movable,
+{
     /// Returns a new IONode
     pub fn new() -> Self {
         Self {
@@ -154,8 +171,12 @@ impl IONode {
         }
     }
     /// adds a connections
-    pub fn connect(&mut self, n: &IntMut<Node>) {
+    pub fn connect(&mut self, n: &IntMut<Node<Car>>) {
         self.connections.push(n.downgrade())
+    }
+
+    pub fn get_car_status(&self) -> Vec<MovableStatus> {
+        Vec::new()
     }
 }
 
@@ -169,9 +190,9 @@ where
     Car: Movable,
 {
     /// The connection leading to the node at the end of the road
-    pub conn_out: Option<WeakIntMut<Node>>,
+    pub conn_out: Option<WeakIntMut<Node<Car>>>,
     /// The node where the road starts at
-    pub conn_in: Option<WeakIntMut<Node>>,
+    pub conn_in: Option<WeakIntMut<Node<Car>>>,
     /// This field handles the actual logic of moving cars etc.
     /// it contains a list of all the lanes
     pub lanes: Vec<Traversible<Car>>,
@@ -193,7 +214,7 @@ impl<Car: Movable> Street<Car> {
     /// connected at the position, it is simply overwritten
     /// FIXME: Raise an error if there is already a connection, or unconnect
     ///     the node the street is connected to as well
-    pub fn connect(&mut self, conn_type: InOut, other: &IntMut<Node>) -> &mut Self {
+    pub fn connect(&mut self, conn_type: InOut, other: &IntMut<Node<Car>>) -> &mut Self {
         let new_item = Some(other.downgrade());
         match conn_type {
             InOut::IN => self.conn_in = new_item,
@@ -202,7 +223,7 @@ impl<Car: Movable> Street<Car> {
         self
     }
     /// Returns the out connection in a Vec of length 1 (or 0 if there is none)
-    pub fn get_connections<'a>(&'a self) -> Vec<WeakIntMut<Node>> {
+    pub fn get_connections<'a>(&'a self) -> Vec<WeakIntMut<Node<Car>>> {
         let mut out = Vec::new();
         if let Some(conn) = &self.conn_out {
             out.push(conn.clone());
@@ -233,5 +254,17 @@ impl<Car: Movable> Street<Car> {
             None => return,
         };
         self.lanes[i].add(movable)
+    }
+
+    pub fn get_car_status(&self) -> Vec<MovableStatus> {
+        let mut car_status = Vec::new();
+        for (i, s) in self.lanes.iter().enumerate() {
+            let stati = s.get_movable_status();
+            for mut status in stati {
+                status.lane_index = i as u8;
+                car_status.push(status);
+            }
+        }
+        car_status
     }
 }

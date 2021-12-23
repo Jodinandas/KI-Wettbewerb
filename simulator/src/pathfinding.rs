@@ -1,6 +1,6 @@
-use crate::SimulatorBuilder;
 use crate::node_builder::NodeBuilderTrait;
 use crate::traits::{Movable, NodeTrait};
+use crate::SimulatorBuilder;
 use pathfinding::directed::dijkstra::dijkstra;
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
@@ -51,8 +51,8 @@ impl Movable for PathAwareCar {
 
     fn decide_next(
         &mut self,
-        connections: &Vec<WeakIntMut<Node>>,
-    ) -> Result<WeakIntMut<Node>, Box<dyn Error>> {
+        connections: &Vec<WeakIntMut<Node<Self>>>,
+    ) -> Result<WeakIntMut<Node<Self>>, Box<dyn Error>> {
         // upgrade references to be able to access the id field
         let mut connections_upgraded = Vec::with_capacity(connections.len());
         for c in connections.iter() {
@@ -109,7 +109,7 @@ struct IndexedNodeNetwork {
 impl IndexedNodeNetwork {
     /// generates a new [IndexedNodeNetwork] from a list of [NodeBuilders](NodeBuilder)
     fn index_builder(&mut self, sbuilder: &SimulatorBuilder) -> IndexedNodeNetwork {
-        let nodes = &sbuilder.nodes; 
+        let nodes = &sbuilder.nodes;
         let mut connections: Vec<Vec<(usize, usize)>> = Vec::with_capacity(nodes.len());
         let mut io_nodes: Vec<usize> = Vec::new();
         let mut io_node_weights: Vec<f32> = Vec::new();
