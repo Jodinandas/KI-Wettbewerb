@@ -1,3 +1,4 @@
+use crate::SimulatorBuilder;
 use crate::node_builder::NodeBuilderTrait;
 use crate::traits::{Movable, NodeTrait};
 use pathfinding::directed::dijkstra::dijkstra;
@@ -107,7 +108,8 @@ struct IndexedNodeNetwork {
 
 impl IndexedNodeNetwork {
     /// generates a new [IndexedNodeNetwork] from a list of [NodeBuilders](NodeBuilder)
-    fn new(nodes: &Vec<IntMut<NodeBuilder>>) -> IndexedNodeNetwork {
+    fn index_builder(&mut self, sbuilder: &SimulatorBuilder) -> IndexedNodeNetwork {
+        let nodes = &sbuilder.nodes; 
         let mut connections: Vec<Vec<(usize, usize)>> = Vec::with_capacity(nodes.len());
         let mut io_nodes: Vec<usize> = Vec::new();
         let mut io_node_weights: Vec<f32> = Vec::new();
@@ -144,6 +146,13 @@ impl IndexedNodeNetwork {
             io_node_weights,
         }
     }
+    pub fn new() -> IndexedNodeNetwork {
+        IndexedNodeNetwork {
+            connections: Vec::new(),
+            io_nodes: Vec::new(),
+            io_node_weights: Vec::new(),
+        }
+    }
     /// returns all connections apart from the one specified by the index
     fn all_except(&self, i: usize) -> Vec<usize> {
         (0..(self.connections.len() - 1))
@@ -158,7 +167,7 @@ impl IndexedNodeNetwork {
 /// without paths having to generate a new path each time. It caches
 /// paths.
 pub struct MovableServer {
-    nodes: Vec<IntMut<NodeBuilder>>,
+    // nodes: Vec<IntMut<NodeBuilder>>,
     indexed: IndexedNodeNetwork,
     cache: HashMap<(usize, usize), PathAwareCar>,
 }
@@ -167,14 +176,14 @@ impl MovableServer {
     /// indexes and copies the given nodes and returns a new [MovableServer]
     ///
     /// it is important to note that this
-    fn new(nodes: Vec<IntMut<NodeBuilder>>) -> MovableServer {
+    pub fn new() -> MovableServer {
         MovableServer {
-            indexed: IndexedNodeNetwork::new(&nodes),
-            nodes,
+            indexed: IndexedNodeNetwork::new(),
             cache: HashMap::new(),
         }
     }
-    fn generate_movable(&mut self, index: usize) -> PathAwareCar {
+    /// generates a new movable for node with index `index`
+    pub fn generate_movable(&mut self, index: usize) -> PathAwareCar {
         // choose random IoNode to drive to
         // prevent start node from being the end node at the same time
         let dist = WeightedIndex::new(self.indexed.io_node_weights.clone()).unwrap();
@@ -204,6 +213,9 @@ impl MovableServer {
             return car;
         }
     }
+    pub fn register_simulation_buider(&mut self, nbuilder: &SimulatorBuilder) {
+        self.indexed.index_builder(nbuilder);
+    }
 }
 
 mod tests {
@@ -213,7 +225,8 @@ mod tests {
         use crate::debug::build_grid_sim;
         use crate::pathfinding::MovableServer;
         let simbuilder = build_grid_sim(4);
-        let mut test = MovableServer::new(simbuilder.nodes);
+        let mut test = MovableServer::new();
+        test.register_simulation_buider(&simbuilder);
         println!("{:?}", test.generate_movable(4));
         println!("{:?}", test.generate_movable(4));
         println!("{:?}", test.generate_movable(4));
