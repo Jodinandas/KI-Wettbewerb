@@ -1,4 +1,4 @@
-use super::{traits::Movable, movable::RandCar};
+use super::{movable::RandCar, traits::Movable};
 
 /// This structs represents a sidewalk, a street or something else that can be walked on
 #[derive(Debug, Clone)]
