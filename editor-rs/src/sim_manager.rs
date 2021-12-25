@@ -4,7 +4,7 @@ use simulator::SimulatorBuilder;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::Display;
-use std::sync::mpsc;
+use std::sync::{mpsc, Mutex};
 use std::thread::{self, JoinHandle};
 
 /// saves a handle to the thread performing the simulation
@@ -14,7 +14,10 @@ struct Simulating {
     sim: JoinHandle<()>,
     /// Car updates are received from this part of the channel if the simulator is
     /// set to report updates with `report_updates`
-    pub car_updates: mpsc::Receiver<HashMap<usize, Vec<MovableStatus>>>,
+    ///
+    /// Unfortunatly, this field has to be wrapped  in a Mutex so it implements the
+    /// [Sync] trait. (Which is required by bevy)
+    pub car_updates: Mutex<mpsc::Receiver<HashMap<usize, Vec<MovableStatus>>>>,
     /// if this bool is set to true, the Simulator will terminate
     pub terminate: IntMut<bool>,
     /// this bool is set by the simulator and reports if the simulation has ended
@@ -40,7 +43,7 @@ impl Simulating {
         let handle = thread::spawn(move || {
             while !*terminate_moved.get() {
                 new_sim.sim_iter(time_steps.into());
-                // go through all cars
+                // report car position updates 
                 if *report_updates_moved.get() {
                     tx.send(new_sim.get_car_status()).expect("Unable to send car status updates, even though report_updates is set to true");
                 }
@@ -49,7 +52,7 @@ impl Simulating {
         });
         Simulating {
             sim: handle,
-            car_updates: rx,
+            car_updates: Mutex::new(rx),
             terminate,
             terminated,
             report_updates,
@@ -144,11 +147,17 @@ impl SimManager {
 
     /// returns a status update, if it is found in the channel, else
     /// None is returned. None is also returned, if no Simulation is tracked
+    /// 
+    /// TODO: Add some way of handling the case where the Simulation computes
+    ///  status updates faster than the UI can display it (This could cause the
+    ///  Receiver to fill up.)
     pub fn get_status_updates(&self) -> Option<HashMap<usize, Vec<MovableStatus>>> {
         match self.tracking_index {
             Some(i) => Some(
                 self.simulations[i]
                     .car_updates
+                    .lock()
+                    .unwrap()
                     .try_recv()
                     .expect("Unable to get car updates!"),
             ),

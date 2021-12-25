@@ -3,6 +3,7 @@ use bevy_egui::egui::Visuals;
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::prelude::*;
+use sim_manager::SimManager;
 use simulator;
 use simulator::datastructs::IntMut;
 use simulator::debug::build_grid_sim;
@@ -166,7 +167,8 @@ pub fn run() {
         // when building for Web, use WebGL2 rendering
         //#[cfg(target_arch = "wasm32")]
         //app.add_plugin(bevy_webgl2::WebGL2Plugin);
-        .add_startup_system(spawn_simulation_builder.system())
+        .insert_resource(SimManager::new())
+        .add_startup_system(spawn_node_grid.system())
         .add_startup_system(spawn_camera.system())
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .insert_resource(UITheme::dark()) // Theme
@@ -259,11 +261,12 @@ struct NodeBuilderRef(IntMut<NodeBuilder>);
 /// that is later used to create simulations
 ///
 /// It also generates the graphics for it
-fn spawn_simulation_builder(mut commands: Commands, theme: Res<UITheme>) {
+fn spawn_node_grid(mut commands: Commands, theme: Res<UITheme>, mut sim_manager: ResMut<SimManager>) {
     // for testing purposes
     let side_len = GRID_SIDE_LENGTH;
     let spacing = GRID_NODE_SPACING;
-    let new_builder = build_grid_sim(side_len as u32);
+    let new_builder = sim_manager.modify_sim_builder().expect("Simulation is running while trying to construct grid");
+    *new_builder = build_grid_sim(side_len as u32);
     println!("Build Grid");
 
     let calc_x = |ie| (ie / side_len * spacing) as f32;
@@ -322,7 +325,6 @@ fn spawn_simulation_builder(mut commands: Commands, theme: Res<UITheme>) {
                 }
             }
         });
-    commands.insert_resource(new_builder);
     println!("built Grid");
 }
 
