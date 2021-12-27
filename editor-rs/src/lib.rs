@@ -14,6 +14,7 @@ mod user_interface;
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 mod sim_manager;
 mod toolbar;
+mod node_bundles;
 
 #[derive(PartialEq)]
 pub enum Theme {
@@ -292,7 +293,7 @@ fn spawn_node_grid(
                     commands
                         .spawn()
                         .insert_bundle(geometry)
-                        .insert(SimulationIndex(i))
+                        .insert(SimulationID(i))
                         // insert direct reference to the NodeBuilder
                         .insert(NodeBuilderRef(n_builder.clone()))
                         .insert(NodeType::CROSSING);
@@ -304,7 +305,7 @@ fn spawn_node_grid(
                     let geometry = node_render::io_node(x, y, theme.crossing);
                     commands
                         .spawn_bundle(geometry)
-                        .insert(SimulationIndex(i))
+                        .insert(SimulationID(i))
                         // insert direct reference to the NodeBuilder
                         .insert(NodeBuilderRef(n_builder.clone()))
                         .insert(NodeType::IONODE);
@@ -320,7 +321,7 @@ fn spawn_node_grid(
                             let geometry = node_render::street(pos_i, pos_j, theme.street);
                             commands
                                 .spawn_bundle(geometry)
-                                .insert(SimulationIndex(i))
+                                .insert(SimulationID(i))
                                 .insert(NodeType::STREET)
                                 // insert direct reference to the NodeBuilder
                                 .insert(NodeBuilderRef(n_builder.clone()))
@@ -371,7 +372,7 @@ fn toolbarsystem(
         Entity,
         &Transform,
         &NodeType,
-        &SimulationIndex,
+        &SimulationID,
         &NodeBuilderRef,
     )>,
     mut uistate: ResMut<UIState>,
@@ -467,7 +468,7 @@ fn intersect_shapes_with_click<'a>(click_pos: Vec2,
         Entity,
         &Transform,
         &NodeType,
-        &SimulationIndex,
+        &SimulationID,
         &NodeBuilderRef,
     )>,
     uistate: &mut ResMut<UIState>,
@@ -535,7 +536,7 @@ struct ShapeClicked<'a> {
     pub entity: Entity,
     pub transform: &'a Transform,
     pub node_type: &'a NodeType,
-    pub sim_index: &'a SimulationIndex,
+    pub sim_index: &'a SimulationID,
     pub node_builder_ref: &'a NodeBuilderRef
 }
 
@@ -616,4 +617,4 @@ fn get_primary_window_size(windows: &Res<Windows>) -> Vec2 {
 pub struct NodeComponent;
 
 #[derive(Debug, Clone, Copy)]
-pub struct SimulationIndex(usize);
+pub struct SimulationID(usize);
