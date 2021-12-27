@@ -117,7 +117,7 @@ impl IndexedNodeNetwork {
             connections.push({
                 // get the indices and weights of all connections
                 node.get()
-                    .get_connections()
+                    .get_out_connections()
                     .iter()
                     .map(|n| {
                         let node_upgraded = n.upgrade();

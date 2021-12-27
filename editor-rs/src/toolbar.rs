@@ -6,6 +6,7 @@ pub enum ToolType {
     Pan,
     AddStreet,
     Select,
+    DeleteNode
 }
 
 pub trait Tool: Send + Sync {
@@ -58,6 +59,7 @@ impl Default for Toolbar {
             Box::new(PanTool::new()),
             Box::new(SelectTool::new()),
             Box::new(AddStreetTool::new()),
+            Box::new(DeleteNodeTool::new())
         ];
 
         Toolbar {
@@ -111,5 +113,21 @@ impl Tool for AddStreetTool {
 impl AddStreetTool {
     pub fn new() -> AddStreetTool {
         AddStreetTool {}
+    }
+}
+
+pub struct DeleteNodeTool;
+
+impl Tool for DeleteNodeTool {
+    fn name<'a>(&'a self) -> &'a str {
+        "Delete Crossing/IO-Node"
+    }
+    fn get_type(&self) -> ToolType {
+        ToolType::DeleteNode
+    }
+}
+impl DeleteNodeTool {
+    pub fn new() -> DeleteNodeTool {
+        DeleteNodeTool {}
     }
 }

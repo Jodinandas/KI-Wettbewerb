@@ -56,7 +56,7 @@ impl<Car: Movable> Simulator<Car> {
             let node = &mut self.nodes[i].get();
             let mut cars_at_end = node.update_cars(dt);
             // TODO: Use something more efficient than cloning the whole Vec here
-            let options = node.get_connections();
+            let options = node.get_out_connections();
             for j in cars_at_end.len()..0 {
                 let next: Result<WeakIntMut<Node<Car>>, Box<dyn Error>> =
                     cars_at_end[j].decide_next(&options);
@@ -146,7 +146,7 @@ impl Display for Simulator {
         for (i, n) in self.nodes.iter().enumerate() {
             let name = get_type_of(&*n);
             s.push_str(&format!("\t\t{}: {} ->\t", i, name));
-            for _connection in n.get().get_connections().iter() {
+            for _connection in n.get().get_out_connections().iter() {
                 // find the index
                 let mut index = 0;
                 for (i, node) in self.nodes.iter().enumerate() {

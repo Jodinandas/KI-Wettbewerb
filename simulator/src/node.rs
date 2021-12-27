@@ -31,16 +31,16 @@ where
 
 impl<Car: Movable> NodeTrait<Car> for Node<Car> {
     fn is_connected(&self, other: &IntMut<Node<Car>>) -> bool {
-        self.get_connections()
+        self.get_out_connections()
             .iter()
             .find(|n| *n == other)
             .is_some()
     }
-    fn get_connections(&self) -> Vec<WeakIntMut<Node<Car>>> {
+    fn get_out_connections(&self) -> Vec<WeakIntMut<Node<Car>>> {
         match self {
-            Node::Street(street) => street.get_connections(),
+            Node::Street(street) => street.get_out_connections(),
             Node::IONode(io_node) => io_node.connections.clone(),
-            Node::Crossing(crossing) => crossing.get_connections(),
+            Node::Crossing(crossing) => crossing.get_out_connections(),
         }
     }
 
@@ -114,7 +114,7 @@ impl<Car: Movable> Crossing<Car> {
     /// Returns a list of only OUTPUT connecitons
     ///
     /// This function is deprecated and will be removed soon
-    pub fn get_connections(&self) -> Vec<WeakIntMut<Node<Car>>> {
+    pub fn get_out_connections(&self) -> Vec<WeakIntMut<Node<Car>>> {
         self.connections
             .output
             .values()
@@ -223,7 +223,7 @@ impl<Car: Movable> Street<Car> {
         self
     }
     /// Returns the out connection in a Vec of length 1 (or 0 if there is none)
-    pub fn get_connections<'a>(&'a self) -> Vec<WeakIntMut<Node<Car>>> {
+    pub fn get_out_connections<'a>(&'a self) -> Vec<WeakIntMut<Node<Car>>> {
         let mut out = Vec::new();
         if let Some(conn) = &self.conn_out {
             out.push(conn.clone());

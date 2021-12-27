@@ -187,7 +187,7 @@ impl SimulatorBuilder {
         // add the connection the the street in the nodes
         match &mut *node1.get() {
             NodeBuilder::IONode(inner) => {
-                inner.connect(&new_street);
+                inner.connect(InOut::OUT, &new_street);
             }
             NodeBuilder::Crossing(inner) => {
                 inner.connect(dir1, InOut::OUT, &new_street).map_err(|er| {
@@ -204,7 +204,9 @@ impl SimulatorBuilder {
             NodeBuilder::Street(_) => panic!("Can't connect street with street"),
         }
         match &mut *node2.get() {
-            NodeBuilder::IONode(_inner) => {}
+            NodeBuilder::IONode(inner) => {
+                inner.connect(InOut::OUT, &new_street);
+            },
             NodeBuilder::Crossing(inner) => {
                 inner.connect(dir2, InOut::IN, &new_street).map_err(|er| {
                     Box::new(ConnectionError {
@@ -243,7 +245,7 @@ impl SimulatorBuilder {
         self.nodes.iter().enumerate().for_each(|(i, start_node_arc)| {
             start_node_arc
                 .get()
-                .get_connections()
+                .get_out_connections()
                 .iter()
                 .for_each(|c| {
                     // get strong reference to get the id
@@ -363,6 +365,119 @@ impl SimulatorBuilder {
     /// returns a reference to the node with id `i`
     pub fn get_node(&self, i: usize) -> &IntMut<NodeBuilder> {
         &self.nodes[i]
+    }
+    /// removes a node by it's id
+    ///
+    /// For IONodes and Crossings, the connected Streets are removed as well, for
+    /// streets not, as this would cause recursion
+    pub fn remove_node_and_connected_by_id(&mut self, id: usize) -> Result<Vec<IntMut<NodeBuilder>>, &'static str> {
+        // get the index of the specified node
+        let i = match self
+            .nodes
+            .iter()
+            .enumerate()
+            .find(|(i, n)| n.get().get_id() == id)
+        {
+            Some((i, _n)) => i,
+            None => return Err("Specified node does not exist"),
+        };
+        self.remove_node(i, true)
+    }
+    /// removes a node using the internal node index
+    ///
+    /// This is used by the functions `remove_node_by_id` and `remove_node_by_ref`
+    ///
+    /// For IONodes and Crossings, the connected Streets are removed as well, for
+    /// streets not, as this would cause recursion
+    fn remove_node(
+        &mut self,
+        node_index: usize,
+        remove_connections: bool,
+    ) -> Result<Vec<IntMut<NodeBuilder>>, &'static str> {
+        if node_index >= self.nodes.len() {
+            return Err("Node index out of bounds");
+        }
+        // TODO: Replace with swap_remove for better performance (check if this
+        // doesn't break anything)
+        let node = self.nodes.remove(node_index);
+        if !remove_connections {
+            return Ok(vec![node]);
+        }
+        let mut removed_nodes = Vec::new();
+        let mut to_remove = Vec::new();
+
+        
+        // remove connected nodes as well
+        match &*node.get() {
+            NodeBuilder::IONode(inner) => {
+                
+                let connections = inner.get_all_connections();
+                
+                // remove the connected streets as well
+                // in addition, the street references need to be removed from
+                // their connection as well 
+
+                to_remove = self.nodes.iter().enumerate().filter(| (i, rnode) | {
+                    // only retain nodes that are not connected
+                    let remove = connections.iter().any( | c | c == *rnode );
+                    // before the node is removed, remove the references to it from all 
+                    // the nodes that are connected to it, to avoid having dead references
+                    if remove {
+                        
+                        for connection in rnode.get().get_all_connections() {
+                            if connection != node {
+                                connection.upgrade().get().remove_connection(&rnode.downgrade());
+                            }
+                        }
+                        
+                    }
+
+                    remove
+                }).map(| (i, n) | i ).collect();
+            },
+            NodeBuilder::Crossing(inner) => {
+                
+                let connections = inner.get_all_connections();
+                
+                for  c in connections.iter() {
+                    
+                }
+                // remove the connected streets as well
+                // in addition, the street references need to be removed from
+                // their connection as well 
+
+                to_remove = self.nodes.iter().enumerate().filter(| (i, rnode) | {
+                    // only retain nodes that are not connected
+                    let remove = connections.iter().any( | c | c == *rnode );
+                    // println!("removing {}", node.get().get_id());
+                    // before the node is removed, remove the references to it from all 
+                    // the nodes that are connected to it, to avoid having dead references
+                    if remove {
+                        println!("{}", rnode.get().get_id());
+                        for connection in rnode.get().get_all_connections() {
+                            if connection != node {
+                                connection.upgrade().get().remove_connection(&rnode.downgrade());
+                            }
+                        }
+                    }
+
+                    remove
+                }).map(| (i, n) | i ).collect();
+            },
+            NodeBuilder::Street(_) => {
+                
+            }
+        }
+        removed_nodes.push(node);
+        // Make sure the elements that are the rightmost get removed first
+        // this is CRUCIAL to ensure that the right elements are removed
+        // (when removing, the index of all the elements on the right gets one 
+        // lower, making all the other saved indicis invalid)
+        to_remove.sort();
+        for index in to_remove.iter().rev() {
+            removed_nodes.push(self.nodes.remove(*index));                    
+        }
+        return Ok(removed_nodes);
     }
 }
 

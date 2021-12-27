@@ -20,7 +20,7 @@ where
     /// advances the car position
     fn update_cars(&mut self, t: f64) -> Vec<Car>;
     /// returns a list of all the other nodes connected to the node
-    fn get_connections(&self) -> Vec<WeakIntMut<Node<Car>>>;
+    fn get_out_connections(&self) -> Vec<WeakIntMut<Node<Car>>>;
     /// adds a new car to the beginning of the node
     fn add_car(&mut self, car: Car);
     /// a unique node id

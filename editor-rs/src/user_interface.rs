@@ -108,11 +108,11 @@ pub fn ui_example(
                                 );
                                 CollapsingHeader::new(format!(
                                     "Connections ({})",
-                                    node.connections.len()
+                                    node.connections_out.len()
                                 ))
                                 .default_open(true)
                                 .show(ui, |ui| {
-                                    for c in node.connections.iter() {
+                                    for c in node.connections_out.iter() {
                                         let (ntype, id) = match &*c.upgrade().get() {
                                             NodeBuilder::IONode(n) => ("In/Out Node", n.id),
                                             NodeBuilder::Crossing(n) => ("Crossing", n.id),

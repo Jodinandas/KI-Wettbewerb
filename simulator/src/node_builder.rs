@@ -23,8 +23,10 @@ pub enum NodeBuilder {
 pub trait NodeBuilderTrait: Debug + DynClone + Sync + Send {
     /// constructs a node with the same settings
     fn build(&self) -> Node;
+    /// returns a list of all connected output nodes
+    fn get_out_connections(&self) -> Vec<WeakIntMut<NodeBuilder>>;
     /// returns a list of all connected nodes
-    fn get_connections(&self) -> Vec<WeakIntMut<NodeBuilder>>;
+    fn get_all_connections(&self) -> Vec<WeakIntMut<NodeBuilder>>;
     /// returns true if the given [NodeBuilder] is in the list of connections
     fn is_connected(&self, other: &IntMut<NodeBuilder>) -> bool;
     /// returns the weight
@@ -43,11 +45,17 @@ pub trait NodeBuilderTrait: Debug + DynClone + Sync + Send {
     /// This should NOT be used manually. This method
     /// is for use in the SimulationBuilder.
     fn set_id(&mut self, id: usize);
+    /// removes a connection
+    /// 
+    /// In contrast to connect, this does not need any 
+    /// additional information. (connect is therefor not a part
+    /// of this trait, but rather implemented individually)
+    fn remove_connection(&mut self, conn: &WeakIntMut<NodeBuilder>);
 }
 
 fn has_connection(node_a: &NodeBuilder, node_b: &IntMut<NodeBuilder>) -> bool {
     node_a
-        .get_connections()
+        .get_out_connections()
         .iter()
         .find(|n| *n == node_b)
         .is_some()
@@ -62,11 +70,18 @@ impl NodeBuilderTrait for NodeBuilder {
         }
     }
 
-    fn get_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
+    fn get_out_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
         match self {
-            NodeBuilder::IONode(inner) => inner.get_connections(),
-            NodeBuilder::Crossing(inner) => inner.get_connections(),
-            NodeBuilder::Street(inner) => inner.get_connections(),
+            NodeBuilder::IONode(inner) => inner.get_out_connections(),
+            NodeBuilder::Crossing(inner) => inner.get_out_connections(),
+            NodeBuilder::Street(inner) => inner.get_out_connections(),
+        }
+    }
+    fn get_all_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
+        match self {
+            NodeBuilder::IONode(inner) => inner.get_all_connections(),
+            NodeBuilder::Crossing(inner) => inner.get_all_connections(),
+            NodeBuilder::Street(inner) => inner.get_all_connections(),
         }
     }
 
@@ -97,6 +112,14 @@ impl NodeBuilderTrait for NodeBuilder {
             NodeBuilder::Street(n) => n.id = id,
         }
     }
+
+    fn remove_connection(&mut self, conn: &WeakIntMut<NodeBuilder>) {
+        match self {
+            NodeBuilder::IONode(n) => n.remove_connection(conn),
+            NodeBuilder::Crossing(n) => n.remove_connection(conn),
+            NodeBuilder::Street(n) => n.remove_connection(conn),
+        }
+    }
 }
 
 dyn_clone::clone_trait_object!(NodeBuilderTrait);
@@ -121,9 +144,19 @@ impl NodeBuilderTrait for StreetBuilder {
             id: self.id,
         })
     }
-    fn get_connections<'a>(&'a self) -> Vec<WeakIntMut<NodeBuilder>> {
+    fn get_out_connections<'a>(&'a self) -> Vec<WeakIntMut<NodeBuilder>> {
         let mut out = Vec::new();
         if let Some(conn) = &self.conn_out {
+            out.push(conn.clone());
+        }
+        out
+    }
+    fn get_all_connections<'a>(&'a self) -> Vec<WeakIntMut<NodeBuilder>> {
+        let mut out = Vec::new();
+        if let Some(conn) = &self.conn_out {
+            out.push(conn.clone());
+        }
+        if let Some(conn) = &self.conn_in {
             out.push(conn.clone());
         }
         out
@@ -142,6 +175,21 @@ impl NodeBuilderTrait for StreetBuilder {
         match &self.conn_out {
             Some(conn) => conn == other,
             None => false,
+        }
+    }
+
+    fn remove_connection(&mut self, conn: &WeakIntMut<NodeBuilder>) {
+        if let Some(conn_in) = &self.conn_in {
+            if *conn_in == *conn {
+                self.conn_in = None;
+                return
+            }
+        }
+        if let Some(conn_out) = &self.conn_out {
+            if *conn_out == *conn {
+                self.conn_out = None;
+                return
+            }
         }
     }
 }
@@ -191,7 +239,8 @@ impl StreetBuilder {
 /// ## Creating IONodes
 #[derive(Debug, Clone)]
 pub struct IONodeBuilder {
-    pub connections: Vec<WeakIntMut<NodeBuilder>>,
+    pub connections_out: Vec<WeakIntMut<NodeBuilder>>,
+    pub connections_in: Vec<WeakIntMut<NodeBuilder>>,
     pub spawn_rate: f64,
     pub id: usize,
 }
@@ -205,8 +254,13 @@ impl NodeBuilderTrait for IONodeBuilder {
             id: self.id,
         })
     }
-    fn get_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
-        self.connections.clone()
+    fn get_out_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
+        self.connections_out.clone()
+    }
+    fn get_all_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
+        let mut out = self.connections_out.clone();
+        out.append(&mut self.connections_in.clone());
+        out
     }
     fn get_weight(&self) -> f32 {
         self.spawn_rate as f32
@@ -220,14 +274,20 @@ impl NodeBuilderTrait for IONodeBuilder {
     }
 
     fn is_connected(&self, other: &IntMut<NodeBuilder>) -> bool {
-        self.connections.iter().find(|n| *n == other).is_some()
+        self.connections_out.iter().find(|n| *n == other).is_some()
+    }
+
+    fn remove_connection(&mut self, conn: &WeakIntMut<NodeBuilder>) {
+        self.connections_out.retain( | c | c != conn);
+        self.connections_in.retain( | c | c != conn);
     }
 }
 impl IONodeBuilder {
     /// returns a new Builder with id set to zero
     pub fn new() -> IONodeBuilder {
         IONodeBuilder {
-            connections: Vec::new(),
+            connections_out: Vec::new(),
+            connections_in: Vec::new(),
             spawn_rate: 1.0,
             id: 0,
         }
@@ -238,8 +298,11 @@ impl IONodeBuilder {
         self
     }
     /// connects to other nodes. An IONode can have an indefinite amount of connections
-    pub fn connect(&mut self, n: &IntMut<NodeBuilder>) {
-        self.connections.push(n.downgrade());
+    pub fn connect(&mut self, in_out: InOut, n: &IntMut<NodeBuilder>) {
+        match in_out {
+            InOut::IN => self.connections_in.push(n.downgrade()),
+            InOut::OUT => self.connections_out.push(n.downgrade()),
+        }
     }
 }
 
@@ -297,8 +360,14 @@ impl<T> CrossingConnections<T> {
     ) -> Result<(), String> {
         let connection: &mut HashMap<Direction, WeakIntMut<T>>;
         match conn_type {
-            InOut::IN => connection = &mut self.input,
-            InOut::OUT => connection = &mut self.output,
+            InOut::IN => { 
+                assert!(!self.is_connected(InOut::OUT, conn));
+                connection = &mut self.input
+            },
+            InOut::OUT => {
+                assert!(!self.is_connected(InOut::IN, conn));
+                connection = &mut self.output
+            },
         }
         println!("Trying to set {:?}, {:?}", conn_type, dir);
         match connection.get(&dir) {
@@ -367,7 +436,7 @@ impl<T> CrossingConnections<T> {
 //         let mut reformatted_in = HashMap::<Direction, usize>::new();
 //         let mut reformatted_out = HashMap::<Direction, usize>::new();
 //         for (k, v) in self.input.iter() {
-//             let next_node = v.upgrade().unwrap().lock().unwrap().get_connections()[0].upgrade().unwrap();
+//             let next_node = v.upgrade().unwrap().lock().unwrap().get_out_connections()[0].upgrade().unwrap();
 //             let next_node = next_node.try_lock();
 //             println!("Beföre Löck");
 //             if let Ok(index) = next_node{
@@ -376,7 +445,7 @@ impl<T> CrossingConnections<T> {
 //             }
 //         }
 //         for (k, v) in self.output.iter() {
-//             let next_node = v.upgrade().unwrap().lock().unwrap().get_connections()[0].upgrade().unwrap();
+//             let next_node = v.upgrade().unwrap().lock().unwrap().get_out_connections()[0].upgrade().unwrap();
 //             let next_node = next_node.try_lock();
 //             println!("Beföre Löck");
 //             if let Ok(index) = next_node{
@@ -409,12 +478,26 @@ impl NodeBuilderTrait for CrossingBuilder {
             id: self.id,
         })
     }
-    fn get_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
+    fn get_out_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
         self.connections
             .output
             .values()
             .map(|c| c.clone())
             .collect()
+    }
+    fn get_all_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
+        let mut cout: Vec<WeakIntMut<NodeBuilder>> = self.connections
+            .output
+            .values()
+            .map(|c| c.clone())
+            .collect();
+        let mut cin = self.connections
+            .input
+            .values()
+            .map(|c| c.clone())
+            .collect();
+        cout.append(&mut cin);
+        cout
     }
     fn get_weight(&self) -> f32 {
         1.0
@@ -429,6 +512,11 @@ impl NodeBuilderTrait for CrossingBuilder {
 
     fn is_connected(&self, other: &IntMut<NodeBuilder>) -> bool {
         self.connections.is_connected(InOut::OUT, other)
+    }
+
+    fn remove_connection(&mut self, conn: &WeakIntMut<NodeBuilder>) {
+        self.connections.remove_connection(InOut::IN, conn);
+        self.connections.remove_connection(InOut::OUT, conn);
     }
 }
 

@@ -43,7 +43,7 @@ impl Simulating {
         let handle = thread::spawn(move || {
             while !*terminate_moved.get() {
                 new_sim.sim_iter(time_steps.into());
-                // report car position updates 
+                // report car position updates
                 if *report_updates_moved.get() {
                     tx.send(new_sim.get_car_status()).expect("Unable to send car status updates, even though report_updates is set to true");
                 }
@@ -147,7 +147,7 @@ impl SimManager {
 
     /// returns a status update, if it is found in the channel, else
     /// None is returned. None is also returned, if no Simulation is tracked
-    /// 
+    ///
     /// TODO: Add some way of handling the case where the Simulation computes
     ///  status updates faster than the UI can display it (This could cause the
     ///  Receiver to fill up.)
@@ -168,22 +168,19 @@ impl SimManager {
     /// tracks the car_updates of the simulation with the given index#
     /// raises an error, if no simulation with the given index exists
     pub fn track_simulation(&mut self, i: usize) -> Result<(), String> {
-        
         match i < self.simulations.len() {
             true => {
-            // if another simulation was tracked, stop the status updates
-            match self.tracking_index {
-                Some(old_i) => {
-                    *self.simulations[old_i].report_updates.get() = false;
+                // if another simulation was tracked, stop the status updates
+                match self.tracking_index {
+                    Some(old_i) => {
+                        *self.simulations[old_i].report_updates.get() = false;
+                    }
+                    None => {}
                 }
-                None => {}
+                self.tracking_index = Some(i);
+                *self.simulations[i].report_updates.get() = true;
             }
-            self.tracking_index = Some(i);
-            *self.simulations[i].report_updates.get() = true;
-            }
-            false => {
-            return Err("Simulation with the given index does not exist".into())
-            }
+            false => return Err("Simulation with the given index does not exist".into()),
         }
         Ok(())
     }
