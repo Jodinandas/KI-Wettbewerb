@@ -339,14 +339,15 @@ impl SimulatorBuilder {
     }
 
     /// adds a node to the Simulation and sets the correct id
-    pub fn add_node(&mut self, mut node: NodeBuilder) -> &mut SimulatorBuilder {
+    pub fn add_node(&mut self, mut node: NodeBuilder) -> &IntMut<NodeBuilder> {
         // the cache cannot be used if
         // the internals change
         self.drop_cache();
         // set the internal id. Is later used for calculating paths
-        node.set_id(self.nodes.len());
+        let id = self.nodes.len();
+        node.set_id(id);
         self.nodes.push(IntMut::new(node));
-        self
+        &self.nodes[id]
     }
     /// an optional delay between each iteration
     pub fn with_delay(&mut self, value: u64) -> &mut SimulatorBuilder {
@@ -509,7 +510,8 @@ mod tests {
         use crate::simulation_builder::SimulatorBuilder;
         let mut simulator = SimulatorBuilder::new();
         simulator
-            .add_node(NodeBuilder::IONode(IONodeBuilder::new()))
+            .add_node(NodeBuilder::IONode(IONodeBuilder::new()));
+        simulator
             .add_node(NodeBuilder::Crossing(CrossingBuilder::new()));
         simulator
             .connect_with_street((0, Direction::E), (1, Direction::W), 2)

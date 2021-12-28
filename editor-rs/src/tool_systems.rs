@@ -9,9 +9,9 @@ use bevy::{
     window::Windows,
 };
 use bevy_prototype_lyon::entity::ShapeBundle;
-use simulator::nodes::NodeBuilderTrait;
+use simulator::nodes::{NodeBuilderTrait, NodeBuilder, CrossingBuilder};
 
-use crate::input;
+use crate::{input, node_bundles::CrossingBundle};
 use crate::{
     node_bundles::node_render, sim_manager::SimManager, themes::UITheme, toolbar::ToolType, Camera,
     NeedsRecolor, NodeBuilderRef, NodeType, SimulationID, UIState, UnderCursor,
@@ -37,15 +37,48 @@ pub fn run_if_select(ttype: Res<UIState>) -> ShouldRun {
         _ => ShouldRun::No,
     }
 }
-pub fn run_if_pan(ttype: Res<UIState>) -> ShouldRun {
+pub fn run_if_add_street(ttype: Res<UIState>) -> ShouldRun {
     let ttype = match ttype.toolbar.get_selected() {
         Some(t) => t.get_type(),
         None => return ShouldRun::No,
     };
     match ttype {
-        ToolType::Pan => ShouldRun::Yes,
+        ToolType::AddStreet => ShouldRun::Yes,
         _ => ShouldRun::No,
     }
+}
+pub fn run_if_add_crossing(ttype: Res<UIState>) -> ShouldRun {
+    let ttype = match ttype.toolbar.get_selected() {
+        Some(t) => t.get_type(),
+        None => return ShouldRun::No,
+    };
+    match ttype {
+        ToolType::AddCrossing => ShouldRun::Yes,
+        _ => ShouldRun::No,
+    }
+}
+
+pub fn add_crossing_system(
+    mut commands: Commands,
+    mut sim_manager: ResMut<SimManager>,
+    mouse_input: Res<Input<MouseButton>>,
+    theme: ResMut<UITheme>,
+    windows: Res<Windows>,
+) {
+    let mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
+        Some(click) => click,
+        None => return,
+    };
+    let simulation_builder = match sim_manager.modify_sim_builder() {
+        Ok(builder) => builder,
+        Err(_) => {eprintln!("Can't modify street builder to add crossing"); return},
+    };
+    let nbr = simulation_builder.add_node(
+        NodeBuilder::Crossing(CrossingBuilder::new())
+    );
+    let id = nbr.get().get_id();
+    println!("Added Crossing to Simulation");
+    commands.spawn_bundle(CrossingBundle::new(id, nbr, mouse_click, theme.crossing));
 }
 
 /// Marker for the currently connected node
@@ -112,90 +145,4 @@ pub fn select_node(
         .entity(entity)
         .insert(SelectedNode)
         .insert(NeedsRecolor);
-}
-
-pub fn color_selected() {}
-
-fn toolbarsystem(
-    mouse_input: Res<Input<MouseButton>>,
-    windows: Res<Windows>,
-    mut sim_manager: ResMut<SimManager>,
-    shape_queries: QuerySet<(
-        Query<
-            (
-                Entity,
-                &SimulationID,
-                &Transform,
-                &NodeBuilderRef,
-                &NodeType,
-            ),
-            With<UnderCursor>,
-        >,
-        Query<(Entity, &SimulationID), With<NodeType>>,
-    )>,
-    mut uistate: ResMut<UIState>,
-    theme: ResMut<UITheme>,
-    mut commands: Commands,
-    camera: Query<&Transform, With<Camera>>,
-) {
-    if let Some(tool) = uistate.toolbar.get_selected() {
-        match tool.get_type() {
-            ToolType::Pan => {
-                // nothing. this conde is located in mouse_panning.
-            }
-            ToolType::DeleteNode => {}
-            ToolType::Select => {
-                // select nearest object
-                // get position of mouse click on screen
-                let click_pos = input::handle_mouse_clicks(&mouse_input, &windows);
-                // only recognize click if not in gui
-                if let Some(pos) = click_pos {
-                    let (entity, sim_id, transform, nbr, node_type) =
-                        match shape_queries.q0().single() {
-                            Ok(result) => result,
-                            Err(_) => return,
-                        };
-                    //if let Some(prev_selection) =
-                    //    prev_selection
-                    //{
-                    //    let pos = prev_selection.transform.translation;
-                    //    let new_shape_bundle = match prev_selection.node_type {
-                    //        NodeType::CROSSING => {
-                    //            node_render::crossing(Vec2::new(pos.x, pos.y), theme.crossing)
-                    //        }
-                    //        NodeType::IONODE => {
-                    //            node_render::io_node(Vec2::new(pos.x, pos.y), theme.io_node)
-                    //        }
-                    //        NodeType::STREET => {
-                    //            todo!("Street selection is not implemented yet!")
-                    //        }
-                    //    };
-                    //    commands
-                    //        .entity(prev_selection.entity)
-                    //        .remove_bundle::<ShapeBundle>()
-                    //        .insert_bundle(new_shape_bundle);
-                    //}
-                    //uistate.selected_node = Some(nbr.clone());
-                    let pos = transform.translation;
-                    let new_shape_bundle = match node_type {
-                        NodeType::CROSSING => {
-                            node_render::crossing(Vec2::new(pos.x, pos.y), theme.highlight)
-                        }
-                        NodeType::IONODE => {
-                            node_render::io_node(Vec2::new(pos.x, pos.y), theme.highlight)
-                        }
-                        NodeType::STREET => {
-                            todo!("Street selection is not implemented yet!")
-                        }
-                    };
-                    commands
-                        .entity(entity)
-                        .remove_bundle::<ShapeBundle>()
-                        .insert_bundle(new_shape_bundle);
-                };
-            }
-            ToolType::None => (),
-            ToolType::AddStreet => (),
-        }
-    }
 }
