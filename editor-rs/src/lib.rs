@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::render::mesh::VertexAttributeValues;
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::prelude::*;
@@ -61,6 +62,12 @@ impl UIMode {
     }
 }
 
+// /// The node that the mouse is currently hovering over
+// #[derive(Default)]
+// pub struct NodeUnderCursor {
+//     pub entity: Option<Entity>,
+// }
+pub struct UnderCursor;
 
 #[derive(Default)]
 pub struct UIState {
@@ -100,6 +107,9 @@ const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
 const CROSSING_SIZE: f32 = 20.0;
 const IONODE_SIZE: f32 = 20.0;
+const CONNECTION_CIRCLE_RADIUS: f32 = 10.0;
+const CONNECTION_CIRCLE_DIST_FROM_MIDDLE: f32 = 10.0;
+
 
 
 #[wasm_bindgen]
@@ -121,7 +131,8 @@ pub fn run() {
         .insert_resource(CurrentTheme::DARK) // Theme
         .insert_resource(bevy::input::InputSystem)
         .add_system(user_interface::ui_example.system())
-        // .add_system(highlight_nearest.system())
+        .add_system(mark_under_cursor.system())
+        //.add_system(color_under_cursor.system())
         //.add_system(rotation_test.system())
         .add_system(input::keyboard_movement.system())
         .add_system(input::mouse_panning.system())
@@ -137,11 +148,16 @@ fn spawn_camera(mut commands: Commands) {
         .insert(Camera);
 }
 
-/// ONLY USED TO TEST THE PERFORMANCE OF THE MOUSE CODE
-fn highlight_nearest(
+/// This system marks a node under the cursor with the [UnderCursor] component
+///  this makes it easy for tools etc. to perform actions on nodes, as the
+///  one under the cursor can be queried with the [UnderCursor] component
+fn mark_under_cursor (
         mut commands: Commands,
         windows: Res<Windows>,
         queries: QuerySet<(
+            // previously selected nodes that need to be unselected
+            Query<(Entity), (With<NodeType>, With<UnderCursor>)>,
+            // candidates for selection
             Query<(
                 Entity,
                 &Transform,
@@ -149,37 +165,38 @@ fn highlight_nearest(
                 &SimulationID,
                 &NodeBuilderRef,
             )>,
+            // the camera 
             Query<&Transform, With<Camera>>
         )>,
         mut uistate: ResMut<UIState>,
         theme: Res<UITheme>,
 ) {
+    // unselect previously selected
+    queries.q0().for_each( | entity | {
+        commands.entity(entity).remove::<UnderCursor>();
+    });
     let now= time::Instant::now();
     let window = windows.get_primary().unwrap();
     let mouse_pos = window.cursor_position();
     if let Some(pos) = mouse_pos {
-        let shape = input::get_shape_under_mouse(pos, windows, &queries.q0(), &mut uistate, queries.q1());
+        let shape = input::get_shape_under_mouse(pos, windows, &queries.q1(), &mut uistate, queries.q2());
         if let Some(shape) = shape {
-            let pos = shape.transform.translation;
-            let new_shape_bundle = match shape.node_type {
-                NodeType::CROSSING => {
-                    node_render::crossing(Vec2::new(pos.x, pos.y), theme.highlight)
-                }
-                NodeType::IONODE => {
-                    node_render::io_node(Vec2::new(pos.x, pos.y), theme.highlight)
-                }
-                NodeType::STREET => {
-                    todo!("Street selection is not implemented yet!")
-                }
-            };
+            // mark it 
             commands
                 .entity(shape.entity)
-                .remove_bundle::<ShapeBundle>()
-                .insert_bundle(new_shape_bundle);
-
+                .insert(UnderCursor);
         }
     }
-    println!("Finding the nearest took: {}", now.elapsed().as_millis());
+}
+
+pub fn color_under_cursor(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    query: Query<(&Handle<Mesh>, &NodeType), With<UnderCursor>>,
+) {
+    query.for_each( | (mesh_handle, node_type) | {
+        repaint_node(mesh_handle, Color::rgb(0.0, 0.0, 0.0), &mut meshes);
+    } );
 }
 
 /// Because it is not possible (at least to our knowledge) to query the
@@ -190,6 +207,24 @@ pub struct StreetLinePosition(Vec2, Vec2);
 /// Holds an IntMut (interior mutability) for a nodebuilder
 #[derive(Debug, Clone)]
 pub struct NodeBuilderRef(IntMut<NodeBuilder>);
+
+pub fn repaint_node(
+    mesh_handle: &Handle<Mesh>,
+    color: Color,
+    meshes: &mut ResMut<Assets<Mesh>>,
+)  {
+    let mesh = meshes.get_mut(mesh_handle).unwrap();
+    let colors = mesh.attribute_mut(Mesh::ATTRIBUTE_COLOR).unwrap();
+    let values = match colors {
+        VertexAttributeValues::Float4(colors) => colors
+            .iter()
+            .map(|[_r, _g, _b, _a]| color.into())
+            .collect::<Vec<[f32; 4]>>(),
+        _ => vec![],
+    };
+    mesh.set_attribute(Mesh::ATTRIBUTE_COLOR, values);
+
+}
 
 /// This function is for debugging purposes
 /// It spawns a grid of nodes

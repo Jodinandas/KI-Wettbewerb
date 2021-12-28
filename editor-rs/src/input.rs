@@ -1,10 +1,96 @@
 use bevy::{prelude::{Res, Entity, Query, Transform, ResMut, With, MouseButton, EventReader, KeyCode}, window::Windows, math::{Vec2, Vec3}, input::{Input, mouse::{MouseMotion, MouseWheel}}};
 
-use crate::{NodeType, SimulationID, NodeBuilderRef, UIState, get_primary_window_size, toolbar::ToolType, Camera, IONODE_SIZE, CROSSING_SIZE};
+use crate::{NodeType, SimulationID, NodeBuilderRef, UIState, get_primary_window_size, toolbar::ToolType, Camera, IONODE_SIZE, CROSSING_SIZE, CONNECTION_CIRCLE_RADIUS};
 
 const MIN_X: f32 = 300.0;
 const MAX_X: f32 = 100.0;
 const PAN_SPEED: f32 = 10.0;
+
+/// Marker for the currently connected node
+pub struct SelectedNode;
+
+/// used to mark the circles used to connect the outputs of crossings
+#[derive(Clone, Copy)]
+pub enum OutputCircle {
+    N, S, W, E
+}
+ 
+/// used to mark the circles used to connect the inputs of crossigns
+#[derive(Clone, Copy)]
+pub enum InputCircle {
+    N, S, W, E
+}
+
+/// returns the Output Circle that the mouse is currently over
+/// 
+/// This is used to be able to connect different sides of a crossing with
+/// another. (The Circle you clicked on represents one side of the crossing)
+pub fn is_mouse_over_out_circle (
+    mouse_pos: Vec2,
+    windows: Res<Windows>,
+    circles: Query<(Entity, &Transform, &OutputCircle)>,
+    camera: &Query<&Transform, With<Camera>>,
+) -> Option<(Entity, Transform, OutputCircle)> {
+    let camera_transform = match camera.single() {
+        Ok(cam) => cam,
+        Err(_)=> return None
+    };
+    // camera scaling factor
+    let scaling = camera_transform.scale.x;
+    // get position of 0,0 of world coordinate system in screen coordinates
+    let midpoint_screenspace = (get_primary_window_size(&windows) / 2.0)
+        - (Vec2::new(
+            camera_transform.translation.x,
+            camera_transform.translation.y,
+        )) / scaling;
+    let min_dist_circle_sqr = CONNECTION_CIRCLE_RADIUS * CONNECTION_CIRCLE_RADIUS;
+    circles.iter().filter( | (_entity, transform, out_circle) | {
+        // get shape position in screen coordinates
+        let position = midpoint_screenspace
+            + (Vec2::new(
+                transform.translation.x,
+                transform.translation.y,
+            )) / scaling;
+        // calculate distance, squared to improve performance so does not need to be rooted
+        let dist = (position - mouse_pos).length_squared();
+        dist <= min_dist_circle_sqr
+    }).map( |(e, t, c) | (e, t.clone(), c.clone())).next()
+}
+/// returns the Input Circle that the mouse is currently over
+/// 
+/// This is used to be able to connect different sides of a crossing with
+/// another. (The Circle you clicked on represents one side of the crossing)
+pub fn is_mouse_over_in_circle (
+    mouse_pos: Vec2,
+    windows: Res<Windows>,
+    circles: Query<(Entity, &Transform, &InputCircle)>,
+    camera: &Query<&Transform, With<Camera>>,
+) -> Option<(Entity, Transform, InputCircle)> {
+    let camera_transform = match camera.single() {
+        Ok(cam) => cam,
+        Err(_)=> return None
+    };
+    // camera scaling factor
+    let scaling = camera_transform.scale.x;
+    // get position of 0,0 of world coordinate system in screen coordinates
+    let midpoint_screenspace = (get_primary_window_size(&windows) / 2.0)
+        - (Vec2::new(
+            camera_transform.translation.x,
+            camera_transform.translation.y,
+        )) / scaling;
+    let min_dist_circle_sqr = CONNECTION_CIRCLE_RADIUS * CONNECTION_CIRCLE_RADIUS;
+    circles.iter().filter( | (_entity, transform, out_circle) | {
+        // get shape position in screen coordinates
+        let position = midpoint_screenspace
+            + (Vec2::new(
+                transform.translation.x,
+                transform.translation.y,
+            )) / scaling;
+        // calculate distance, squared to improve performance so does not need to be rooted
+        let dist = (position - mouse_pos).length_squared();
+        dist <= min_dist_circle_sqr
+    }).map( |(e, t, c) | (e, t.clone(), c.clone())).next()
+}
 
 
 pub fn get_shape_under_mouse<'a>(mouse_pos: Vec2,
@@ -19,8 +105,6 @@ pub fn get_shape_under_mouse<'a>(mouse_pos: Vec2,
     uistate: &mut ResMut<UIState>,
     camera: &Query<&Transform, With<Camera>>,
 ) -> Option<ShapeClicked<'a>> {
-    let mut closest_shape: Option<ShapeClicked<'a>> = None;
-    let mut prev_selection: Option<ShapeClicked> = None;
     // println!("{:?}", click_pos);
     if let Some(camera_transform) = camera.iter().next() {
         // camera scaling factor

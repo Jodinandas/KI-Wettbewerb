@@ -8,7 +8,7 @@ use bevy_egui::{
 use bevy_prototype_lyon::entity::ShapeBundle;
 use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder};
 
-use crate::{node_render, CurrentTheme, NodeType, StreetLinePosition, UIMode, UIState, UITheme};
+use crate::{node_render, CurrentTheme, NodeType, StreetLinePosition, UIMode, UIState, UITheme, repaint_node};
 
 /// Draws the ui
 ///
@@ -235,15 +235,8 @@ fn repaint_ui(
             NodeType::IONODE => theme.io_node,
             NodeType::STREET => theme.street,
         };
-        let mesh = meshes.get_mut(mesh_handle).unwrap();
-        let colors = mesh.attribute_mut(Mesh::ATTRIBUTE_COLOR).unwrap();
-        let values = match colors {
-            VertexAttributeValues::Float4(colors) => colors
-                .iter()
-                .map(|[_r, _g, _b, _a]| color.into())
-                .collect::<Vec<[f32; 4]>>(),
-            _ => vec![],
-        };
-        mesh.set_attribute(Mesh::ATTRIBUTE_COLOR, values);
+        repaint_node(
+            mesh_handle, color, &mut meshes
+        );
     });
 }
