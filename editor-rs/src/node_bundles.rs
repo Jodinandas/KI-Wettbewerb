@@ -1,12 +1,15 @@
 use bevy::prelude::*;
 use bevy_prototype_lyon::entity::ShapeBundle;
-use simulator::{datastructs::IntMut, nodes::{NodeBuilder, NodeBuilderTrait}};
+use simulator::{
+    datastructs::IntMut,
+    nodes::{NodeBuilder, NodeBuilderTrait},
+};
 
-use crate::{SimulationID, NodeType, StreetLinePosition, NodeBuilderRef};
+use crate::{NodeBuilderRef, NodeType, SimulationID, StreetLinePosition};
 
 #[derive(Bundle)]
 /// This is the way Crossings are saved in the frontend
-/// 
+///
 /// The bundle contains Information that is relevant to the frontend and a reference
 /// to the [simulator::SimulatorBuilder]
 pub struct CrossingBundle {
@@ -18,24 +21,29 @@ pub struct CrossingBundle {
     /// The Node type (ALWAYS CROSSING)
     node_type: NodeType,
     /// a reference to the NodeBuilder
-    node_builder_ref: NodeBuilderRef
+    node_builder_ref: NodeBuilderRef,
 }
 
 impl CrossingBundle {
-    pub fn new(id: usize, node_builder: &IntMut<NodeBuilder>, pos: Vec2, color: Color) -> CrossingBundle{
+    pub fn new(
+        id: usize,
+        node_builder: &IntMut<NodeBuilder>,
+        pos: Vec2,
+        color: Color,
+    ) -> CrossingBundle {
         let nbr = NodeBuilderRef(node_builder.clone());
         CrossingBundle {
             shape: node_render::crossing(pos, color),
             sim_id: SimulationID(id),
             node_type: NodeType::CROSSING,
-            node_builder_ref: nbr
+            node_builder_ref: nbr,
         }
     }
 }
 
 #[derive(Bundle)]
 /// This is the way Crossings are saved in the frontend
-/// 
+///
 /// The bundle contains Information that is relevant to the frontend and a reference
 /// to the [simulator::SimulatorBuilder]
 pub struct StreetBundle {
@@ -47,20 +55,26 @@ pub struct StreetBundle {
     /// The Node type (ALWAYS STREET)
     node_type: NodeType,
     /// Where the Street starts and ends.
-    /// 
+    ///
     /// Unfortunatly, this has to be saved seperatly, as the line
     /// start and end (to my knowledge) positions can't be read from
     /// the ShapeBundle
     position: StreetLinePosition,
     /// a reference to the NodeBuilder
-    node_builder_ref: NodeBuilderRef
+    node_builder_ref: NodeBuilderRef,
 }
 
 impl StreetBundle {
-    pub fn new(id: usize, node_builder: &IntMut<NodeBuilder>, start: Vec2, end: Vec2, color: Color) -> StreetBundle {
+    pub fn new(
+        id: usize,
+        node_builder: &IntMut<NodeBuilder>,
+        start: Vec2,
+        end: Vec2,
+        color: Color,
+    ) -> StreetBundle {
         let nbr = NodeBuilderRef(node_builder.clone());
         StreetBundle {
-            shape: node_render::street(start,end, color),
+            shape: node_render::street(start, end, color),
             sim_id: SimulationID(id),
             node_type: NodeType::STREET,
             node_builder_ref: nbr,
@@ -69,10 +83,9 @@ impl StreetBundle {
     }
 }
 
-
 #[derive(Bundle)]
 /// This is the way IONodes are saved in the frontend
-/// 
+///
 /// The bundle contains Information that is relevant to the frontend and a reference
 /// to the [simulator::SimulatorBuilder]
 pub struct IONodeBundle {
@@ -84,11 +97,16 @@ pub struct IONodeBundle {
     /// The Node type (ALWAYS IONODE)
     node_type: NodeType,
     /// a reference to the NodeBuilder
-    node_builder_ref: NodeBuilderRef
+    node_builder_ref: NodeBuilderRef,
 }
 
 impl IONodeBundle {
-    pub fn new(id: usize, node_builder: &IntMut<NodeBuilder>, pos: Vec2, color: Color) -> IONodeBundle{
+    pub fn new(
+        id: usize,
+        node_builder: &IntMut<NodeBuilder>,
+        pos: Vec2,
+        color: Color,
+    ) -> IONodeBundle {
         println!("Creating ref");
         let nbr = NodeBuilderRef(node_builder.clone());
         println!("Created ref");
@@ -96,7 +114,7 @@ impl IONodeBundle {
             shape: node_render::io_node(pos, color),
             sim_id: SimulationID(id),
             node_type: NodeType::CROSSING,
-            node_builder_ref: nbr
+            node_builder_ref: nbr,
         }
     }
 }

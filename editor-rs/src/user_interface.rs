@@ -8,7 +8,10 @@ use bevy_egui::{
 use bevy_prototype_lyon::entity::ShapeBundle;
 use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder};
 
-use crate::{node_render, CurrentTheme, NodeType, StreetLinePosition, UIMode, UIState, UITheme, repaint_node, NeedsRecolor, tool_systems::SelectedNode, NodeBuilderRef};
+use crate::{
+    node_render, repaint_node, tool_systems::SelectedNode, CurrentTheme, NeedsRecolor,
+    NodeBuilderRef, NodeType, StreetLinePosition, UIMode, UIState, UITheme,
+};
 
 /// Draws the ui
 ///
@@ -22,11 +25,10 @@ pub fn ui_example(
     mut theme: ResMut<UITheme>,
     mut current_theme: ResMut<CurrentTheme>,
     // mut colors: ResMut<Assets<ColorMaterial>>,
-    nodes: 
-        QuerySet<(
-            Query<Entity, With<NodeType>>,
-            Query<(Entity, &NodeBuilderRef), (With<NodeType>, With<SelectedNode>)>
-        )>, //mut crossings: Query<, With<IONodeMarker>>
+    nodes: QuerySet<(
+        Query<Entity, With<NodeType>>,
+        Query<(Entity, &NodeBuilderRef), (With<NodeType>, With<SelectedNode>)>,
+    )>, //mut crossings: Query<, With<IONodeMarker>>
 ) {
     let mut repaint_necessary = false;
     let panel = egui::TopBottomPanel::top("menu_top_panel");
@@ -227,13 +229,13 @@ fn repaint_ui(
     egui_ui: Option<&CtxRef>,
     background: &mut ResMut<ClearColor>,
     nodes: &Query<Entity, With<NodeType>>,
-    theme: ResMut<UITheme>)
-{
+    theme: ResMut<UITheme>,
+) {
     background.0 = theme.background;
     if let Some(ui) = egui_ui {
         ui.set_visuals(theme.egui_visuals.clone());
     }
-    nodes.for_each(| entity | {
+    nodes.for_each(|entity| {
         commands.entity(entity).insert(NeedsRecolor);
     });
 }

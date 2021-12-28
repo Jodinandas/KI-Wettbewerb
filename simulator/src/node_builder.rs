@@ -46,8 +46,8 @@ pub trait NodeBuilderTrait: Debug + DynClone + Sync + Send {
     /// is for use in the SimulationBuilder.
     fn set_id(&mut self, id: usize);
     /// removes a connection
-    /// 
-    /// In contrast to connect, this does not need any 
+    ///
+    /// In contrast to connect, this does not need any
     /// additional information. (connect is therefor not a part
     /// of this trait, but rather implemented individually)
     fn remove_connection(&mut self, conn: &WeakIntMut<NodeBuilder>);
@@ -182,13 +182,13 @@ impl NodeBuilderTrait for StreetBuilder {
         if let Some(conn_in) = &self.conn_in {
             if *conn_in == *conn {
                 self.conn_in = None;
-                return
+                return;
             }
         }
         if let Some(conn_out) = &self.conn_out {
             if *conn_out == *conn {
                 self.conn_out = None;
-                return
+                return;
             }
         }
     }
@@ -278,8 +278,8 @@ impl NodeBuilderTrait for IONodeBuilder {
     }
 
     fn remove_connection(&mut self, conn: &WeakIntMut<NodeBuilder>) {
-        self.connections_out.retain( | c | c != conn);
-        self.connections_in.retain( | c | c != conn);
+        self.connections_out.retain(|c| c != conn);
+        self.connections_in.retain(|c| c != conn);
     }
 }
 impl IONodeBuilder {
@@ -360,14 +360,14 @@ impl<T> CrossingConnections<T> {
     ) -> Result<(), String> {
         let connection: &mut HashMap<Direction, WeakIntMut<T>>;
         match conn_type {
-            InOut::IN => { 
+            InOut::IN => {
                 assert!(!self.is_connected(InOut::OUT, conn));
                 connection = &mut self.input
-            },
+            }
             InOut::OUT => {
                 assert!(!self.is_connected(InOut::IN, conn));
                 connection = &mut self.output
-            },
+            }
         }
         println!("Trying to set {:?}, {:?}", conn_type, dir);
         match connection.get(&dir) {
@@ -486,16 +486,13 @@ impl NodeBuilderTrait for CrossingBuilder {
             .collect()
     }
     fn get_all_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
-        let mut cout: Vec<WeakIntMut<NodeBuilder>> = self.connections
+        let mut cout: Vec<WeakIntMut<NodeBuilder>> = self
+            .connections
             .output
             .values()
             .map(|c| c.clone())
             .collect();
-        let mut cin = self.connections
-            .input
-            .values()
-            .map(|c| c.clone())
-            .collect();
+        let mut cin = self.connections.input.values().map(|c| c.clone()).collect();
         cout.append(&mut cin);
         cout
     }

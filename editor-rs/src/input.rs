@@ -1,6 +1,17 @@
-use bevy::{prelude::{Res, Entity, Query, Transform, ResMut, With, MouseButton, EventReader, KeyCode}, window::Windows, math::{Vec2, Vec3}, input::{Input, mouse::{MouseMotion, MouseWheel}}};
+use bevy::{
+    input::{
+        mouse::{MouseMotion, MouseWheel},
+        Input,
+    },
+    math::{Vec2, Vec3},
+    prelude::{Entity, EventReader, KeyCode, MouseButton, Query, Res, ResMut, Transform, With},
+    window::Windows,
+};
 
-use crate::{NodeType, SimulationID, NodeBuilderRef, UIState, get_primary_window_size, toolbar::ToolType, Camera, IONODE_SIZE, CROSSING_SIZE, CONNECTION_CIRCLE_RADIUS};
+use crate::{
+    get_primary_window_size, toolbar::ToolType, Camera, NodeBuilderRef, NodeType, SimulationID,
+    UIState, CONNECTION_CIRCLE_RADIUS, CROSSING_SIZE, IONODE_SIZE,
+};
 
 const MIN_X: f32 = 300.0;
 const MAX_X: f32 = 100.0;
@@ -9,20 +20,26 @@ const PAN_SPEED: f32 = 10.0;
 /// used to mark the circles used to connect the outputs of crossings
 #[derive(Clone, Copy)]
 pub enum OutputCircle {
-    N, S, W, E
+    N,
+    S,
+    W,
+    E,
 }
- 
+
 /// used to mark the circles used to connect the inputs of crossigns
 #[derive(Clone, Copy)]
 pub enum InputCircle {
-    N, S, W, E
+    N,
+    S,
+    W,
+    E,
 }
 
 /// returns the Output Circle that the mouse is currently over
-/// 
+///
 /// This is used to be able to connect different sides of a crossing with
 /// another. (The Circle you clicked on represents one side of the crossing)
-pub fn is_mouse_over_out_circle (
+pub fn is_mouse_over_out_circle(
     mouse_pos: Vec2,
     windows: Res<Windows>,
     circles: Query<(Entity, &Transform, &OutputCircle)>,
@@ -30,7 +47,7 @@ pub fn is_mouse_over_out_circle (
 ) -> Option<(Entity, Transform, OutputCircle)> {
     let camera_transform = match camera.single() {
         Ok(cam) => cam,
-        Err(_)=> return None
+        Err(_) => return None,
     };
     // camera scaling factor
     let scaling = camera_transform.scale.x;
@@ -41,23 +58,24 @@ pub fn is_mouse_over_out_circle (
             camera_transform.translation.y,
         )) / scaling;
     let min_dist_circle_sqr = CONNECTION_CIRCLE_RADIUS * CONNECTION_CIRCLE_RADIUS;
-    circles.iter().filter( | (_entity, transform, out_circle) | {
-        // get shape position in screen coordinates
-        let position = midpoint_screenspace
-            + (Vec2::new(
-                transform.translation.x,
-                transform.translation.y,
-            )) / scaling;
-        // calculate distance, squared to improve performance so does not need to be rooted
-        let dist = (position - mouse_pos).length_squared();
-        dist <= min_dist_circle_sqr
-    }).map( |(e, t, c) | (e, t.clone(), c.clone())).next()
+    circles
+        .iter()
+        .filter(|(_entity, transform, out_circle)| {
+            // get shape position in screen coordinates
+            let position = midpoint_screenspace
+                + (Vec2::new(transform.translation.x, transform.translation.y)) / scaling;
+            // calculate distance, squared to improve performance so does not need to be rooted
+            let dist = (position - mouse_pos).length_squared();
+            dist <= min_dist_circle_sqr
+        })
+        .map(|(e, t, c)| (e, t.clone(), c.clone()))
+        .next()
 }
 /// returns the Input Circle that the mouse is currently over
-/// 
+///
 /// This is used to be able to connect different sides of a crossing with
 /// another. (The Circle you clicked on represents one side of the crossing)
-pub fn is_mouse_over_in_circle (
+pub fn is_mouse_over_in_circle(
     mouse_pos: Vec2,
     windows: Res<Windows>,
     circles: Query<(Entity, &Transform, &InputCircle)>,
@@ -65,7 +83,7 @@ pub fn is_mouse_over_in_circle (
 ) -> Option<(Entity, Transform, InputCircle)> {
     let camera_transform = match camera.single() {
         Ok(cam) => cam,
-        Err(_)=> return None
+        Err(_) => return None,
     };
     // camera scaling factor
     let scaling = camera_transform.scale.x;
@@ -76,27 +94,24 @@ pub fn is_mouse_over_in_circle (
             camera_transform.translation.y,
         )) / scaling;
     let min_dist_circle_sqr = CONNECTION_CIRCLE_RADIUS * CONNECTION_CIRCLE_RADIUS;
-    circles.iter().filter( | (_entity, transform, out_circle) | {
-        // get shape position in screen coordinates
-        let position = midpoint_screenspace
-            + (Vec2::new(
-                transform.translation.x,
-                transform.translation.y,
-            )) / scaling;
-        // calculate distance, squared to improve performance so does not need to be rooted
-        let dist = (position - mouse_pos).length_squared();
-        dist <= min_dist_circle_sqr
-    }).map( |(e, t, c) | (e, t.clone(), c.clone())).next()
+    circles
+        .iter()
+        .filter(|(_entity, transform, out_circle)| {
+            // get shape position in screen coordinates
+            let position = midpoint_screenspace
+                + (Vec2::new(transform.translation.x, transform.translation.y)) / scaling;
+            // calculate distance, squared to improve performance so does not need to be rooted
+            let dist = (position - mouse_pos).length_squared();
+            dist <= min_dist_circle_sqr
+        })
+        .map(|(e, t, c)| (e, t.clone(), c.clone()))
+        .next()
 }
 
-
-pub fn get_shape_under_mouse<'a>(mouse_pos: Vec2,
+pub fn get_shape_under_mouse<'a>(
+    mouse_pos: Vec2,
     windows: Res<Windows>,
-    shapes: &Query<(
-        Entity,
-        &Transform,
-        &NodeType,
-    )>,
+    shapes: &Query<(Entity, &Transform, &NodeType)>,
     camera: &Query<&Transform, With<Camera>>,
 ) -> Option<(Entity, Transform, NodeType)> {
     // println!("{:?}", click_pos);
@@ -111,46 +126,39 @@ pub fn get_shape_under_mouse<'a>(mouse_pos: Vec2,
             )) / scaling;
         let min_dist_io = IONODE_SIZE * IONODE_SIZE;
         let half_square_side_len = CROSSING_SIZE / 2.0;
-        let mut shapes_under_cursor = shapes.iter().filter(
-            |(_entity, transform, node_type)| {
-                match node_type {
-                    NodeType::CROSSING => {
-                        // get shape position in screen coordinates
-                        let position = midpoint_screenspace
-                            + (Vec2::new(
-                                transform.translation.x,
-                                transform.translation.y,
-                            )) / scaling;
-                        // is the mouse in the square?
-                        position.x - half_square_side_len <= mouse_pos.x && mouse_pos.x <= position.x + half_square_side_len &&
-                        position.y - half_square_side_len <= mouse_pos.y && mouse_pos.y <= position.y + half_square_side_len 
-
-                    },
-                    NodeType::IONODE => {
-                        // get shape position in screen coordinates
-                        let position = midpoint_screenspace
-                            + (Vec2::new(
-                                transform.translation.x,
-                                transform.translation.y,
-                            )) / scaling;
-                        // calculate distance, squared to improve performance so does not need to be rooted
-                        let dist = (position - mouse_pos).length_squared();
-                        dist <= min_dist_io
-                    },
-                    NodeType::STREET => false, // streets can't be selected
+        let mut shapes_under_cursor = shapes.iter().filter(|(_entity, transform, node_type)| {
+            match node_type {
+                NodeType::CROSSING => {
+                    // get shape position in screen coordinates
+                    let position = midpoint_screenspace
+                        + (Vec2::new(transform.translation.x, transform.translation.y)) / scaling;
+                    // is the mouse in the square?
+                    position.x - half_square_side_len <= mouse_pos.x
+                        && mouse_pos.x <= position.x + half_square_side_len
+                        && position.y - half_square_side_len <= mouse_pos.y
+                        && mouse_pos.y <= position.y + half_square_side_len
                 }
-                
-            },
-        );
+                NodeType::IONODE => {
+                    // get shape position in screen coordinates
+                    let position = midpoint_screenspace
+                        + (Vec2::new(transform.translation.x, transform.translation.y)) / scaling;
+                    // calculate distance, squared to improve performance so does not need to be rooted
+                    let dist = (position - mouse_pos).length_squared();
+                    dist <= min_dist_io
+                }
+                NodeType::STREET => false, // streets can't be selected
+            }
+        });
         return match shapes_under_cursor.next() {
             Some((e, t, n)) => Some((e, t.clone(), n.clone())),
             None => None,
-        }
+        };
     }
     None
 }
 
-pub fn get_nearest_shapes<'a>(click_pos: Vec2,
+pub fn get_nearest_shapes<'a>(
+    click_pos: Vec2,
     windows: Res<Windows>,
     shapes: &'a Query<(
         Entity,
@@ -174,38 +182,35 @@ pub fn get_nearest_shapes<'a>(click_pos: Vec2,
                 camera_transform.translation.x,
                 camera_transform.translation.y,
             )) / scaling;
-        let shape_dists = shapes.iter().map(
-            |(entity, transform, node_type, sim_id, node_builder_ref)| {
-                // get shape position in scren coordinates
-                let position = midpoint_screenspace
-                    + (Vec2::new(
-                        transform.translation.x,
-                        transform.translation.y,
-                    )) / scaling;
-                // calculate distance, squared to improve performance so does not need to be rooted
-                let dist = (position - click_pos).length_squared();
-                let shape_clicked = ShapeClicked{
-                    dist: Some(dist),
-                    entity,
-                    transform,
-                    node_type,
-                    sim_id,
-                    node_builder_ref,
-                };
-                // check if this entity is the one currently selected
-                //  (we need to change the color later on when unselecting it)
-                //if let Some(selected_nb) = &uistate.selected_node {
-                //    if selected_nb.0 == shape_clicked.node_builder_ref.0 {
-                //        prev_selection =
-                //            Some(shape_clicked.clone());
-                //    }
-                //}
-                shape_clicked
-            },
-        );
-        shape_dists.for_each(| shape_information| {
-            if let Some(old_nearest) = &closest_shape
-            {
+        let shape_dists =
+            shapes
+                .iter()
+                .map(|(entity, transform, node_type, sim_id, node_builder_ref)| {
+                    // get shape position in scren coordinates
+                    let position = midpoint_screenspace
+                        + (Vec2::new(transform.translation.x, transform.translation.y)) / scaling;
+                    // calculate distance, squared to improve performance so does not need to be rooted
+                    let dist = (position - click_pos).length_squared();
+                    let shape_clicked = ShapeClicked {
+                        dist: Some(dist),
+                        entity,
+                        transform,
+                        node_type,
+                        sim_id,
+                        node_builder_ref,
+                    };
+                    // check if this entity is the one currently selected
+                    //  (we need to change the color later on when unselecting it)
+                    //if let Some(selected_nb) = &uistate.selected_node {
+                    //    if selected_nb.0 == shape_clicked.node_builder_ref.0 {
+                    //        prev_selection =
+                    //            Some(shape_clicked.clone());
+                    //    }
+                    //}
+                    shape_clicked
+                });
+        shape_dists.for_each(|shape_information| {
+            if let Some(old_nearest) = &closest_shape {
                 if shape_information.dist < old_nearest.dist {
                     closest_shape = Some(shape_information);
                 }
@@ -225,7 +230,7 @@ pub struct ShapeClicked<'a> {
     pub transform: &'a Transform,
     pub node_type: &'a NodeType,
     pub sim_id: &'a SimulationID,
-    pub node_builder_ref: &'a NodeBuilderRef
+    pub node_builder_ref: &'a NodeBuilderRef,
 }
 
 // for selection
@@ -294,7 +299,6 @@ pub fn mouse_panning(
         }
     }
 }
-
 
 // pans canvas
 pub fn keyboard_movement(

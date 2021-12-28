@@ -6,7 +6,7 @@ pub enum ToolType {
     Pan,
     AddStreet,
     Select,
-    DeleteNode
+    DeleteNode,
 }
 
 pub trait Tool: Send + Sync {
@@ -59,7 +59,7 @@ impl Default for Toolbar {
             Box::new(PanTool::new()),
             Box::new(SelectTool::new()),
             Box::new(AddStreetTool::new()),
-            Box::new(DeleteNodeTool::new())
+            Box::new(DeleteNodeTool::new()),
         ];
 
         Toolbar {

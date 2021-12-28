@@ -13,13 +13,13 @@ use themes::*;
 use tool_systems::SelectedNode;
 use toolbar::ToolType;
 use wasm_bindgen::prelude::*;
-mod user_interface;
-mod sim_manager;
-mod toolbar;
-mod node_bundles;
-mod themes;
 mod input;
+mod node_bundles;
+mod sim_manager;
+mod themes;
 mod tool_systems;
+mod toolbar;
+mod user_interface;
 use node_bundles::node_render;
 use std::time;
 
@@ -95,7 +95,6 @@ impl UIState {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub enum NodeType {
     CROSSING,
@@ -111,8 +110,6 @@ const CROSSING_SIZE: f32 = 20.0;
 const IONODE_SIZE: f32 = 20.0;
 const CONNECTION_CIRCLE_RADIUS: f32 = 10.0;
 const CONNECTION_CIRCLE_DIST_FROM_MIDDLE: f32 = 10.0;
-
-
 
 #[wasm_bindgen]
 pub fn run() {
@@ -142,13 +139,13 @@ pub fn run() {
         // .add_system(toolbarsystem.system())
         .add_system_set(
             SystemSet::new()
-            .with_run_criteria(tool_systems::run_if_delete_node.system())
-            .with_system(tool_systems::delete_node_system.system())
+                .with_run_criteria(tool_systems::run_if_delete_node.system())
+                .with_system(tool_systems::delete_node_system.system()),
         )
         .add_system_set(
             SystemSet::new()
-            .with_run_criteria(tool_systems::run_if_select.system())
-            .with_system(tool_systems::select_node.system())
+                .with_run_criteria(tool_systems::run_if_select.system())
+                .with_system(tool_systems::select_node.system()),
         )
         .run();
 }
@@ -161,17 +158,19 @@ fn spawn_camera(mut commands: Commands) {
         .insert(Camera);
 }
 
-
 pub struct NeedsRecolor;
 
 /// recolors all nodes with the marker Component [NeedsRecolor]
 pub fn recolor_nodes(
     mut commands: Commands,
-    to_recolor: Query<(Entity, &Handle<Mesh>, &NodeType, Option<&SelectedNode>), With<NeedsRecolor>>,
+    to_recolor: Query<
+        (Entity, &Handle<Mesh>, &NodeType, Option<&SelectedNode>),
+        With<NeedsRecolor>,
+    >,
     theme: Res<UITheme>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    to_recolor.for_each( | (entity, mesh_handle, ntype, selected) | {
+    to_recolor.for_each(|(entity, mesh_handle, ntype, selected)| {
         // repaint the node
         let color = match selected.is_some() {
             true => theme.highlight,
@@ -182,46 +181,40 @@ pub fn recolor_nodes(
             },
         };
         repaint_node(mesh_handle, color, &mut meshes);
-        // remove the repaint marker 
-        commands.entity(entity).remove::<NeedsRecolor>(); 
+        // remove the repaint marker
+        commands.entity(entity).remove::<NeedsRecolor>();
     });
 }
 
 /// This system marks a node under the cursor with the [UnderCursor] component
 ///  this makes it easy for tools etc. to perform actions on nodes, as the
 ///  one under the cursor can be queried with the [UnderCursor] component
-fn mark_under_cursor (
-        mut commands: Commands,
-        windows: Res<Windows>,
-        queries: QuerySet<(
-            // previously marked nodes that need to be unmarked 
-            Query<Entity, (With<NodeType>, With<UnderCursor>)>,
-            // candidates for selection
-            Query<(
-                Entity,
-                &Transform,
-                &NodeType,
-            )>,
-            // the camera 
-            Query<&Transform, With<Camera>>
-        )>,
-        mut uistate: ResMut<UIState>,
-        theme: Res<UITheme>,
+fn mark_under_cursor(
+    mut commands: Commands,
+    windows: Res<Windows>,
+    queries: QuerySet<(
+        // previously marked nodes that need to be unmarked
+        Query<Entity, (With<NodeType>, With<UnderCursor>)>,
+        // candidates for selection
+        Query<(Entity, &Transform, &NodeType)>,
+        // the camera
+        Query<&Transform, With<Camera>>,
+    )>,
+    mut uistate: ResMut<UIState>,
+    theme: Res<UITheme>,
 ) {
     // unselect previously selected
-    queries.q0().for_each( | entity | {
+    queries.q0().for_each(|entity| {
         commands.entity(entity).remove::<UnderCursor>();
     });
-    let now= time::Instant::now();
+    let now = time::Instant::now();
     let window = windows.get_primary().unwrap();
     let mouse_pos = window.cursor_position();
     if let Some(pos) = mouse_pos {
         let shape = input::get_shape_under_mouse(pos, windows, &queries.q1(), queries.q2());
         if let Some((entity, _trans, _type)) = shape {
-            // mark it 
-            commands
-                .entity(entity)
-                .insert(UnderCursor);
+            // mark it
+            commands.entity(entity).insert(UnderCursor);
         }
     }
 }
@@ -230,9 +223,12 @@ pub fn color_under_cursor(
     mut commands: Commands,
     query: Query<Entity, (With<UnderCursor>, With<NodeType>)>,
 ) {
-    query.for_each( | entity| {
-        commands.entity(entity).insert(NeedsRecolor).insert(SelectedNode);
-    } );
+    query.for_each(|entity| {
+        commands
+            .entity(entity)
+            .insert(NeedsRecolor)
+            .insert(SelectedNode);
+    });
 }
 
 /// Because it is not possible (at least to our knowledge) to query the
@@ -244,11 +240,7 @@ pub struct StreetLinePosition(Vec2, Vec2);
 #[derive(Debug, Clone)]
 pub struct NodeBuilderRef(IntMut<NodeBuilder>);
 
-pub fn repaint_node(
-    mesh_handle: &Handle<Mesh>,
-    color: Color,
-    meshes: &mut ResMut<Assets<Mesh>>,
-)  {
+pub fn repaint_node(mesh_handle: &Handle<Mesh>, color: Color, meshes: &mut ResMut<Assets<Mesh>>) {
     let mesh = meshes.get_mut(mesh_handle).unwrap();
     let colors = mesh.attribute_mut(Mesh::ATTRIBUTE_COLOR).unwrap();
     let values = match colors {
@@ -259,7 +251,6 @@ pub fn repaint_node(
         _ => vec![],
     };
     mesh.set_attribute(Mesh::ATTRIBUTE_COLOR, values);
-
 }
 
 /// This function is for debugging purposes
@@ -293,15 +284,23 @@ fn spawn_node_grid(
                 NodeBuilder::Crossing(_crossing) => {
                     let x = calc_x(i);
                     let y = calc_y(i);
-                    commands
-                        .spawn_bundle(CrossingBundle::new(i, n_builder, Vec2::new(x, y), theme.crossing));
+                    commands.spawn_bundle(CrossingBundle::new(
+                        i,
+                        n_builder,
+                        Vec2::new(x, y),
+                        theme.crossing,
+                    ));
                 }
 
                 NodeBuilder::IONode(_io_node) => {
                     let x = calc_x(i);
                     let y = calc_y(i);
-                    commands
-                        .spawn_bundle(IONodeBundle::new(i, n_builder, Vec2::new(x, y), theme.io_node));
+                    commands.spawn_bundle(IONodeBundle::new(
+                        i,
+                        n_builder,
+                        Vec2::new(x, y),
+                        theme.io_node,
+                    ));
                 }
                 NodeBuilder::Street(street) => {
                     // println!("   type=Street");
@@ -311,8 +310,13 @@ fn spawn_node_grid(
                             let index_out = conn_out.upgrade().get().get_id();
                             let pos_j = Vec2::new(calc_x(index_in), calc_y(index_in));
                             let pos_i = Vec2::new(calc_x(index_out), calc_y(index_out));
-                            commands
-                                .spawn_bundle(StreetBundle::new(i, n_builder, pos_i, pos_j, theme.street));
+                            commands.spawn_bundle(StreetBundle::new(
+                                i,
+                                n_builder,
+                                pos_i,
+                                pos_j,
+                                theme.street,
+                            ));
                         }
                     }
                     return;
