@@ -96,7 +96,7 @@ pub fn is_mouse_over_in_circle(
     let min_dist_circle_sqr = CONNECTION_CIRCLE_RADIUS * CONNECTION_CIRCLE_RADIUS;
     circles
         .iter()
-        .filter(|(_entity, transform, out_circle)| {
+        .filter(|(_entity, transform, in_circle)| {
             // get shape position in screen coordinates
             let position = midpoint_screenspace
                 + (Vec2::new(transform.translation.x, transform.translation.y)) / scaling;

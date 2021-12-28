@@ -11,7 +11,7 @@ use bevy::{
 use bevy_prototype_lyon::entity::ShapeBundle;
 use simulator::nodes::{NodeBuilderTrait, NodeBuilder, CrossingBuilder};
 
-use crate::{input, node_bundles::CrossingBundle};
+use crate::{input, node_bundles::CrossingBundle, get_primary_window_size};
 use crate::{
     node_bundles::node_render, sim_manager::SimManager, themes::UITheme, toolbar::ToolType, Camera,
     NeedsRecolor, NodeBuilderRef, NodeType, SimulationID, UIState, UnderCursor,
@@ -57,6 +57,17 @@ pub fn run_if_add_crossing(ttype: Res<UIState>) -> ShouldRun {
         _ => ShouldRun::No,
     }
 }
+pub fn screen_to_world_space(cam: &Transform, windows: &Res<Windows>) -> Vec2 {
+    // camera scaling factor
+    let scaling = cam.scale.x;
+    let midpoint_screenspace = (get_primary_window_size(windows) / 2.0)
+        - (Vec2::new(
+            cam.translation.x,
+            cam.translation.y,
+        )) / scaling;
+    midpoint_screenspace
+        + (Vec2::new(cam.translation.x, cam.translation.y)) / scaling
+}
 
 pub fn add_crossing_system(
     mut commands: Commands,
@@ -64,11 +75,16 @@ pub fn add_crossing_system(
     mouse_input: Res<Input<MouseButton>>,
     theme: ResMut<UITheme>,
     windows: Res<Windows>,
+    camera: Query<&Transform, With<Camera>>,
 ) {
-    let mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
+    let mut mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
         Some(click) => click,
         None => return,
     };
+    if let Ok(cam) = camera.single() {
+        mouse_click = screen_to_world_space(cam, &windows);
+    }
+    
     let simulation_builder = match sim_manager.modify_sim_builder() {
         Ok(builder) => builder,
         Err(_) => {eprintln!("Can't modify street builder to add crossing"); return},
