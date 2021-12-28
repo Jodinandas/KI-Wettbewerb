@@ -212,7 +212,6 @@ pub fn ui_example(
             &mut commands,
             &mut background,
             nodes,
-            current_theme,
             theme,
         );
     }
@@ -223,7 +222,6 @@ fn repaint_ui(
     commands: &mut Commands,
     background: &mut ResMut<ClearColor>,
     nodes: Query<(Entity, &Transform, Option<&StreetLinePosition>, &NodeType)>,
-    current_theme: ResMut<CurrentTheme>,
     theme: ResMut<UITheme>,
 ) {
     background.0 = theme.background;
