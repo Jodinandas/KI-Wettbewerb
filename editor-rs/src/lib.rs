@@ -152,6 +152,11 @@ pub fn run() {
                 .with_run_criteria(tool_systems::run_if_add_crossing.system())
                 .with_system(tool_systems::add_crossing_system.system()),
         )
+        .add_system_set(
+            SystemSet::new()
+                .with_run_criteria(tool_systems::run_if_add_ionode.system())
+                .with_system(tool_systems::add_io_node_system.system()),
+        )
         .run();
 }
 

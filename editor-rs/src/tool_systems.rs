@@ -9,9 +9,9 @@ use bevy::{
     window::Windows,
 };
 use bevy_prototype_lyon::entity::ShapeBundle;
-use simulator::nodes::{NodeBuilderTrait, NodeBuilder, CrossingBuilder};
+use simulator::nodes::{NodeBuilderTrait, NodeBuilder, CrossingBuilder, IONodeBuilder};
 
-use crate::{input, node_bundles::CrossingBundle, get_primary_window_size};
+use crate::{input, node_bundles::{CrossingBundle, IONodeBundle}, get_primary_window_size};
 use crate::{
     node_bundles::node_render, sim_manager::SimManager, themes::UITheme, toolbar::ToolType, Camera,
     NeedsRecolor, NodeBuilderRef, NodeType, SimulationID, UIState, UnderCursor,
@@ -54,6 +54,16 @@ pub fn run_if_add_crossing(ttype: Res<UIState>) -> ShouldRun {
     };
     match ttype {
         ToolType::AddCrossing => ShouldRun::Yes,
+        _ => ShouldRun::No,
+    }
+}
+pub fn run_if_add_ionode(ttype: Res<UIState>) -> ShouldRun {
+    let ttype = match ttype.toolbar.get_selected() {
+        Some(t) => t.get_type(),
+        None => return ShouldRun::No,
+    };
+    match ttype {
+        ToolType::AddIONode => ShouldRun::Yes,
         _ => ShouldRun::No,
     }
 }
@@ -105,6 +115,35 @@ pub fn add_crossing_system(
     commands.spawn_bundle(CrossingBundle::new(id, nbr, mouse_click, theme.crossing));
 }
 
+pub fn add_io_node_system(
+    mut commands: Commands,
+    mut sim_manager: ResMut<SimManager>,
+    mouse_input: Res<Input<MouseButton>>,
+    theme: ResMut<UITheme>,
+    windows: Res<Windows>,
+    camera: Query<&Transform, With<Camera>>,
+) {
+    let mut mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
+        Some(click) => click,
+        None => return,
+    };
+    //
+    if let Ok(cam) = camera.single() {
+        mouse_click = mouse_to_world_space(&cam, mouse_click, &windows);
+    }
+    
+    let simulation_builder = match sim_manager.modify_sim_builder() {
+        Ok(builder) => builder,
+        Err(_) => {eprintln!("Can't modify street builder to add crossing"); return},
+    };
+    let nbr = simulation_builder.add_node(
+        NodeBuilder::IONode(IONodeBuilder::new())
+    );
+    let id = nbr.get().get_id();
+    println!("Added IONode with id= {}", id); 
+    commands.spawn_bundle(IONodeBundle::new(id, nbr, mouse_click, theme.io_node));
+}
+
 /// Marker for the currently connected node
 pub struct SelectedNode;
 
@@ -118,7 +157,7 @@ pub fn delete_node_system(
     )>,
     mut commands: Commands,
 ) {
-    let mut mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
+    let mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
         Some(click) => click,
         None => return,
     };

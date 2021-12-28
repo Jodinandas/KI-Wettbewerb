@@ -6,6 +6,7 @@ pub enum ToolType {
     Pan,
     AddStreet,
     AddCrossing,
+    AddIONode,
     Select,
     DeleteNode,
 }
@@ -62,6 +63,7 @@ impl Default for Toolbar {
             Box::new(AddStreetTool::new()),
             Box::new(AddCrossingTool::new()),
             Box::new(DeleteNodeTool::new()),
+            Box::new(AddIONodeTool::new()),
         ];
 
         Toolbar {
@@ -133,6 +135,21 @@ impl AddCrossingTool {
     }
 }
 
+pub struct AddIONodeTool ;
+
+impl Tool for AddIONodeTool {
+    fn name<'a>(&'a self) -> &'a str {
+        "Add IO-Node"
+    }
+    fn get_type(&self) -> ToolType {
+        ToolType::AddIONode
+    }
+}
+impl AddIONodeTool {
+    pub fn new() -> AddIONodeTool {
+        AddIONodeTool {}
+    }
+}
 pub struct DeleteNodeTool;
 
 impl Tool for DeleteNodeTool {
