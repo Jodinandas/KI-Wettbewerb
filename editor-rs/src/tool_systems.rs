@@ -111,18 +111,28 @@ pub struct SelectedNode;
 pub fn delete_node_system(
     mut sim_manager: ResMut<SimManager>,
     mouse_input: Res<Input<MouseButton>>,
-    shape_queries: QuerySet<(
-        Query<(&SimulationID,), With<UnderCursor>>,
-        Query<(Entity, &SimulationID), With<NodeType>>,
+    windows: Res<Windows>,
+    shape_query: QuerySet<(
+        Query<(Entity, &Transform, &NodeType, &SimulationID), With<NodeType>>,
+        Query<&Transform, With<Camera>>
     )>,
     mut commands: Commands,
 ) {
-    if !mouse_input.just_pressed(MouseButton::Left) {
-        return;
-    }
+    let mut mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
+        Some(click) => click,
+        None => return,
+    };
+
+    let clicked_object = input::get_shape_under_mouse(mouse_click, windows, shape_query.q0().iter().map(| (e, t, n, _id) | (e, t, n) ), &shape_query.q1());
+    
     // select nearest object
     // get position of mouse click on screen
-    if let Ok((sim_id,)) = shape_queries.q0().single() {
+    if let Some((entity, transform, node_type)) = clicked_object {
+        let sim_id = match shape_query.q0().get(entity) {
+            Ok((_e, _t, _n, id)) => id,
+            Err(_) => return,
+        };
+        
         if let Ok(sim_builder) = sim_manager.modify_sim_builder() {
             let removed_nodes = sim_builder
                 .remove_node_and_connected_by_id(sim_id.0)
@@ -131,7 +141,7 @@ pub fn delete_node_system(
                 .iter()
                 .map(|node| node.get().get_id())
                 .collect();
-            for (entity, sim_index) in shape_queries.q1().iter() {
+            for (entity, _, _, sim_index) in shape_query.q0().iter() {
                 if indices_to_remove.contains(&sim_index.0) {
                     println!("Deleting Node wit id= {}", sim_index.0); 
                     commands.entity(entity).despawn_recursive();
@@ -156,7 +166,7 @@ pub fn select_node(
         None => return,
     };
     let (entity, _, _) =
-        match input::get_shape_under_mouse(mouse_click, windows, shapes.q0(), &camera) {
+        match input::get_shape_under_mouse(mouse_click, windows, shapes.q0().iter(), &camera) {
             Some(s) => s,
             None => return,
         };

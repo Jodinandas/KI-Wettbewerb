@@ -108,10 +108,10 @@ pub fn is_mouse_over_in_circle(
         .next()
 }
 
-pub fn get_shape_under_mouse<'a>(
+pub fn get_shape_under_mouse<'a, T: Iterator<Item=(Entity, &'a Transform, &'a NodeType)>>(
     mouse_pos: Vec2,
     windows: Res<Windows>,
-    shapes: &Query<(Entity, &Transform, &NodeType)>,
+    shapes: T,// &Query<(Entity, &Transform, &NodeType)>,
     camera: &Query<&Transform, With<Camera>>,
 ) -> Option<(Entity, Transform, NodeType)> {
     // println!("{:?}", click_pos);
@@ -126,7 +126,7 @@ pub fn get_shape_under_mouse<'a>(
             )) / scaling;
         let min_dist_io = IONODE_SIZE * IONODE_SIZE;
         let half_square_side_len = CROSSING_SIZE / 2.0;
-        let mut shapes_under_cursor = shapes.iter().filter(|(_entity, transform, node_type)| {
+        let mut shapes_under_cursor = shapes.filter(|(_entity, transform, node_type)| {
             match node_type {
                 NodeType::CROSSING => {
                     // get shape position in screen coordinates

@@ -216,7 +216,7 @@ fn mark_under_cursor(
     let window = windows.get_primary().unwrap();
     let mouse_pos = window.cursor_position();
     if let Some(pos) = mouse_pos {
-        let shape = input::get_shape_under_mouse(pos, windows, &queries.q1(), queries.q2());
+        let shape = input::get_shape_under_mouse(pos, windows, &mut queries.q1().iter(), queries.q2());
         if let Some((entity, _trans, _type)) = shape {
             // mark it
             commands.entity(entity).insert(UnderCursor);
