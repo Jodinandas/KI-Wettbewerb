@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_egui::egui::Visuals;
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::prelude::*;
@@ -12,7 +11,6 @@ use themes::*;
 use toolbar::ToolType;
 use wasm_bindgen::prelude::*;
 mod user_interface;
-use bevy::input::mouse::{MouseMotion, MouseWheel};
 mod sim_manager;
 mod toolbar;
 mod node_bundles;
@@ -97,7 +95,7 @@ pub enum NodeType {
 }
 
 const GRID_NODE_SPACING: usize = 100;
-const GRID_SIDE_LENGTH: usize = 70;
+const GRID_SIDE_LENGTH: usize = 7;
 const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
 const CROSSING_SIZE: f32 = 20.0;
@@ -160,7 +158,7 @@ fn highlight_nearest(
     let window = windows.get_primary().unwrap();
     let mouse_pos = window.cursor_position();
     if let Some(pos) = mouse_pos {
-        let (shape, last_shape) = input::intersect_shapes_with_click(pos, windows, &queries.q0(), &mut uistate, queries.q1());
+        let shape = input::get_shape_under_mouse(pos, windows, &queries.q0(), &mut uistate, queries.q1());
         if let Some(shape) = shape {
             let pos = shape.transform.translation;
             let new_shape_bundle = match shape.node_type {
@@ -169,25 +167,6 @@ fn highlight_nearest(
                 }
                 NodeType::IONODE => {
                     node_render::io_node(Vec2::new(pos.x, pos.y), theme.highlight)
-                }
-                NodeType::STREET => {
-                    todo!("Street selection is not implemented yet!")
-                }
-            };
-            commands
-                .entity(shape.entity)
-                .remove_bundle::<ShapeBundle>()
-                .insert_bundle(new_shape_bundle);
-
-        }
-        if let Some(shape) = last_shape {
-            let pos = shape.transform.translation;
-            let new_shape_bundle = match shape.node_type {
-                NodeType::CROSSING => {
-                    node_render::crossing(Vec2::new(pos.x, pos.y), theme.crossing)
-                }
-                NodeType::IONODE => {
-                    node_render::io_node(Vec2::new(pos.x, pos.y), theme.io_node)
                 }
                 NodeType::STREET => {
                     todo!("Street selection is not implemented yet!")
@@ -276,7 +255,7 @@ fn toolbarsystem(
     mouse_input: Res<Input<MouseButton>>,
     windows: Res<Windows>,
     mut sim_manager: ResMut<SimManager>,
-    mut shapes: Query<(
+    shapes: Query<(
         Entity,
         &Transform,
         &NodeType,
@@ -284,9 +263,9 @@ fn toolbarsystem(
         &NodeBuilderRef,
     )>,
     mut uistate: ResMut<UIState>,
-    mut theme: ResMut<UITheme>,
+    theme: ResMut<UITheme>,
     mut commands: Commands,
-    mut camera: Query<&Transform, With<Camera>>,
+    camera: Query<&Transform, With<Camera>>,
 ) {
     if let Some(tool) = uistate.toolbar.get_selected() {
         match tool.get_type() {
@@ -299,12 +278,12 @@ fn toolbarsystem(
                 let click_pos = input::handle_mouse_clicks(&mouse_input, &windows);
                 // only recognize click if not in gui
                 if let Some(pos) = click_pos {
-                    let (closest_shape, prev_selection) = input::intersect_shapes_with_click(pos, windows, &shapes, &mut uistate, &camera);
+                    let (closest_shape, prev_selection) = input::get_nearest_shapes(pos, windows, &shapes, &mut uistate, &camera);
                     if let Some(closest_shape) = closest_shape {
                         uistate.selected_node = None;
                         if let Ok(sim_builder) = sim_manager.modify_sim_builder() {
                             
-                            let removed_nodes = sim_builder.remove_node_and_connected_by_id(closest_shape.sim_index.0).expect("Unable to remove node");
+                            let removed_nodes = sim_builder.remove_node_and_connected_by_id(closest_shape.sim_id.0).expect("Unable to remove node");
                             let indices_to_remove: Vec<usize> = removed_nodes.iter().map(| node | node.get().get_id()).collect();
                             for (entity, _, _, sim_index, _) in shapes.iter() {
                                 if indices_to_remove.contains(&sim_index.0) {
@@ -322,7 +301,7 @@ fn toolbarsystem(
                 let click_pos = input::handle_mouse_clicks(&mouse_input, &windows);
                 // only recognize click if not in gui
                 if let Some(pos) = click_pos {
-                    let (closest_shape, prev_selection) = input::intersect_shapes_with_click(pos, windows, &shapes, &mut uistate, &camera);
+                    let (closest_shape, prev_selection) = input::get_nearest_shapes(pos, windows, &shapes, &mut uistate, &camera);
                     if let Some(closest_shape) = closest_shape {
                         if let Some(prev_selection) =
                             prev_selection

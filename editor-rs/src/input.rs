@@ -1,14 +1,87 @@
 use bevy::{prelude::{Res, Entity, Query, Transform, ResMut, With, MouseButton, EventReader, KeyCode}, window::Windows, math::{Vec2, Vec3}, input::{Input, mouse::{MouseMotion, MouseWheel}}};
 
-use crate::{NodeType, SimulationID, NodeBuilderRef, UIState, get_primary_window_size, toolbar::ToolType, Camera};
+use crate::{NodeType, SimulationID, NodeBuilderRef, UIState, get_primary_window_size, toolbar::ToolType, Camera, IONODE_SIZE, CROSSING_SIZE};
 
 const MIN_X: f32 = 300.0;
 const MAX_X: f32 = 100.0;
 const PAN_SPEED: f32 = 10.0;
 
 
+pub fn get_shape_under_mouse<'a>(mouse_pos: Vec2,
+    windows: Res<Windows>,
+    shapes: &'a Query<(
+        Entity,
+        &Transform,
+        &NodeType,
+        &SimulationID,
+        &NodeBuilderRef,
+    )>,
+    uistate: &mut ResMut<UIState>,
+    camera: &Query<&Transform, With<Camera>>,
+) -> Option<ShapeClicked<'a>> {
+    let mut closest_shape: Option<ShapeClicked<'a>> = None;
+    let mut prev_selection: Option<ShapeClicked> = None;
+    // println!("{:?}", click_pos);
+    if let Some(camera_transform) = camera.iter().next() {
+        // camera scaling factor
+        let scaling = camera_transform.scale.x;
+        // get position of 0,0 of world coordinate system in screen coordinates
+        let midpoint_screenspace = (get_primary_window_size(&windows) / 2.0)
+            - (Vec2::new(
+                camera_transform.translation.x,
+                camera_transform.translation.y,
+            )) / scaling;
+        let min_dist_io = IONODE_SIZE * IONODE_SIZE;
+        let half_square_side_len = CROSSING_SIZE / 2.0;
+        let mut shapes_under_cursor = shapes.iter().filter(
+            |(_entity, transform, node_type, _sim_index, _node_builder_ref)| {
+                match node_type {
+                    NodeType::CROSSING => {
+                        // get shape position in screen coordinates
+                        let position = midpoint_screenspace
+                            + (Vec2::new(
+                                transform.translation.x,
+                                transform.translation.y,
+                            )) / scaling;
+                        // is the mouse in the square?
+                        position.x - half_square_side_len <= mouse_pos.x && mouse_pos.x <= position.x + half_square_side_len &&
+                        position.y - half_square_side_len <= mouse_pos.y && mouse_pos.y <= position.y + half_square_side_len 
 
-pub fn intersect_shapes_with_click<'a>(click_pos: Vec2,
+                    },
+                    NodeType::IONODE => {
+                        // get shape position in screen coordinates
+                        let position = midpoint_screenspace
+                            + (Vec2::new(
+                                transform.translation.x,
+                                transform.translation.y,
+                            )) / scaling;
+                        // calculate distance, squared to improve performance so does not need to be rooted
+                        let dist = (position - mouse_pos).length_squared();
+                        dist <= min_dist_io
+                    },
+                    NodeType::STREET => false, // streets can't be selected
+                }
+                
+            },
+        );
+        return match shapes_under_cursor.next() {
+            Some((entity, transform, node_type, sim_id, nbr)) => {
+                Some(ShapeClicked {
+                    dist: None,
+                    entity,
+                    transform,
+                    node_type,
+                    sim_id,
+                    node_builder_ref: nbr,
+                })
+            },
+            None => None,
+        }
+    }
+    None
+}
+
+pub fn get_nearest_shapes<'a>(click_pos: Vec2,
     windows: Res<Windows>,
     shapes: &'a Query<(
         Entity,
@@ -33,7 +106,7 @@ pub fn intersect_shapes_with_click<'a>(click_pos: Vec2,
                 camera_transform.translation.y,
             )) / scaling;
         let shape_dists = shapes.iter().map(
-            |(entity, transform, node_type, sim_index, node_builder_ref)| {
+            |(entity, transform, node_type, sim_id, node_builder_ref)| {
                 // get shape position in scren coordinates
                 let position = midpoint_screenspace
                     + (Vec2::new(
@@ -43,11 +116,11 @@ pub fn intersect_shapes_with_click<'a>(click_pos: Vec2,
                 // calculate distance, squared to improve performance so does not need to be rooted
                 let dist = (position - click_pos).length_squared();
                 let shape_clicked = ShapeClicked{
-                    dist,
+                    dist: Some(dist),
                     entity,
                     transform,
                     node_type,
-                    sim_index,
+                    sim_id,
                     node_builder_ref,
                 };
                 // check if this entity is the one currently selected
@@ -78,11 +151,11 @@ pub fn intersect_shapes_with_click<'a>(click_pos: Vec2,
 // used by the code that check if a shape was clicked
 #[derive(Clone)]
 pub struct ShapeClicked<'a> {
-    pub dist: f32,
+    pub dist: Option<f32>,
     pub entity: Entity,
     pub transform: &'a Transform,
     pub node_type: &'a NodeType,
-    pub sim_index: &'a SimulationID,
+    pub sim_id: &'a SimulationID,
     pub node_builder_ref: &'a NodeBuilderRef
 }
 
