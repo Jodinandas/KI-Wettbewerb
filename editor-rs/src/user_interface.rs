@@ -8,7 +8,7 @@ use bevy_egui::{
 use bevy_prototype_lyon::entity::ShapeBundle;
 use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder};
 
-use crate::{node_render, CurrentTheme, NodeType, StreetLinePosition, UIMode, UIState, UITheme, repaint_node};
+use crate::{node_render, CurrentTheme, NodeType, StreetLinePosition, UIMode, UIState, UITheme, repaint_node, NeedsRecolor, tool_systems::SelectedNode, NodeBuilderRef};
 
 /// Draws the ui
 ///
@@ -22,7 +22,11 @@ pub fn ui_example(
     mut theme: ResMut<UITheme>,
     mut current_theme: ResMut<CurrentTheme>,
     // mut colors: ResMut<Assets<ColorMaterial>>,
-    nodes: Query<(&Handle<Mesh>, &NodeType)>, //mut crossings: Query<, With<IONodeMarker>>
+    nodes: 
+        QuerySet<(
+            Query<Entity, With<NodeType>>,
+            Query<(Entity, &NodeBuilderRef), (With<NodeType>, With<SelectedNode>)>
+        )>, //mut crossings: Query<, With<IONodeMarker>>
 ) {
     let mut repaint_necessary = false;
     let panel = egui::TopBottomPanel::top("menu_top_panel");
@@ -53,8 +57,8 @@ pub fn ui_example(
                     //  (each node type has different fields and possibilites
                     //   for modification by the user. Therefor, different ui
                     //   are needed)
-                    if let Some(selected_node_wrapper) = &mut ui_state.selected_node {
-                        let selected_node = &mut selected_node_wrapper.0;
+                    if let Ok((entity, selected_node_ref)) = nodes.q1().single() {
+                        let selected_node = &selected_node_ref.0;
                         let display_conns = |ui: &mut Ui,
                                              conns: &mut HashMap<
                             simulator::nodes::Direction,
@@ -209,34 +213,27 @@ pub fn ui_example(
     }
     if repaint_necessary {
         repaint_ui(
+            commands,
             Some(egui_context.ctx()),
-            meshes,
             &mut background,
-            nodes,
+            nodes.q0(),
             theme,
         );
     }
 }
 
 fn repaint_ui(
+    mut commands: Commands,
     egui_ui: Option<&CtxRef>,
-    mut meshes: ResMut<Assets<Mesh>>,
     background: &mut ResMut<ClearColor>,
-    nodes: Query<(&Handle<Mesh>, &NodeType)>,
-    theme: ResMut<UITheme>,
-) {
+    nodes: &Query<Entity, With<NodeType>>,
+    theme: ResMut<UITheme>)
+{
     background.0 = theme.background;
     if let Some(ui) = egui_ui {
         ui.set_visuals(theme.egui_visuals.clone());
     }
-    nodes.for_each_mut(|( mesh_handle, node_type)| {
-        let color = match node_type {
-            NodeType::CROSSING => theme.crossing,
-            NodeType::IONODE => theme.io_node,
-            NodeType::STREET => theme.street,
-        };
-        repaint_node(
-            mesh_handle, color, &mut meshes
-        );
+    nodes.for_each(| entity | {
+        commands.entity(entity).insert(NeedsRecolor);
     });
 }

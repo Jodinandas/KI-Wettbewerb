@@ -1,3 +1,4 @@
+use bevy::ecs::schedule::ShouldRun;
 use bevy::prelude::*;
 use bevy::render::mesh::VertexAttributeValues;
 use bevy_egui::EguiPlugin;
@@ -9,6 +10,7 @@ use simulator::datastructs::IntMut;
 use simulator::debug::build_grid_sim;
 use simulator::nodes::{NodeBuilder, NodeBuilderTrait};
 use themes::*;
+use tool_systems::SelectedNode;
 use toolbar::ToolType;
 use wasm_bindgen::prelude::*;
 mod user_interface;
@@ -17,6 +19,7 @@ mod toolbar;
 mod node_bundles;
 mod themes;
 mod input;
+mod tool_systems;
 use node_bundles::node_render;
 use std::time;
 
@@ -74,7 +77,6 @@ pub struct UIState {
     toolbar: toolbar::Toolbar,
     mode: UIMode,
     prev_mode: Option<UIMode>,
-    selected_node: Option<NodeBuilderRef>,
 }
 impl UIState {
     /// if there was a previous mode, switch to it
@@ -94,7 +96,7 @@ impl UIState {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum NodeType {
     CROSSING,
     IONODE,
@@ -136,7 +138,18 @@ pub fn run() {
         //.add_system(rotation_test.system())
         .add_system(input::keyboard_movement.system())
         .add_system(input::mouse_panning.system())
-        .add_system(toolbarsystem.system())
+        .add_system(recolor_nodes.system())
+        // .add_system(toolbarsystem.system())
+        .add_system_set(
+            SystemSet::new()
+            .with_run_criteria(tool_systems::run_if_delete_node.system())
+            .with_system(tool_systems::delete_node_system.system())
+        )
+        .add_system_set(
+            SystemSet::new()
+            .with_run_criteria(tool_systems::run_if_select.system())
+            .with_system(tool_systems::select_node.system())
+        )
         .run();
 }
 
@@ -148,6 +161,32 @@ fn spawn_camera(mut commands: Commands) {
         .insert(Camera);
 }
 
+
+pub struct NeedsRecolor;
+
+/// recolors all nodes with the marker Component [NeedsRecolor]
+pub fn recolor_nodes(
+    mut commands: Commands,
+    to_recolor: Query<(Entity, &Handle<Mesh>, &NodeType, Option<&SelectedNode>), With<NeedsRecolor>>,
+    theme: Res<UITheme>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    to_recolor.for_each( | (entity, mesh_handle, ntype, selected) | {
+        // repaint the node
+        let color = match selected.is_some() {
+            true => theme.highlight,
+            false => match ntype {
+                NodeType::CROSSING => theme.crossing,
+                NodeType::IONODE => theme.io_node,
+                NodeType::STREET => theme.street,
+            },
+        };
+        repaint_node(mesh_handle, color, &mut meshes);
+        // remove the repaint marker 
+        commands.entity(entity).remove::<NeedsRecolor>(); 
+    });
+}
+
 /// This system marks a node under the cursor with the [UnderCursor] component
 ///  this makes it easy for tools etc. to perform actions on nodes, as the
 ///  one under the cursor can be queried with the [UnderCursor] component
@@ -155,15 +194,13 @@ fn mark_under_cursor (
         mut commands: Commands,
         windows: Res<Windows>,
         queries: QuerySet<(
-            // previously selected nodes that need to be unselected
-            Query<(Entity), (With<NodeType>, With<UnderCursor>)>,
+            // previously marked nodes that need to be unmarked 
+            Query<Entity, (With<NodeType>, With<UnderCursor>)>,
             // candidates for selection
             Query<(
                 Entity,
                 &Transform,
                 &NodeType,
-                &SimulationID,
-                &NodeBuilderRef,
             )>,
             // the camera 
             Query<&Transform, With<Camera>>
@@ -179,11 +216,11 @@ fn mark_under_cursor (
     let window = windows.get_primary().unwrap();
     let mouse_pos = window.cursor_position();
     if let Some(pos) = mouse_pos {
-        let shape = input::get_shape_under_mouse(pos, windows, &queries.q1(), &mut uistate, queries.q2());
-        if let Some(shape) = shape {
+        let shape = input::get_shape_under_mouse(pos, windows, &queries.q1(), queries.q2());
+        if let Some((entity, _trans, _type)) = shape {
             // mark it 
             commands
-                .entity(shape.entity)
+                .entity(entity)
                 .insert(UnderCursor);
         }
     }
@@ -191,11 +228,10 @@ fn mark_under_cursor (
 
 pub fn color_under_cursor(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    query: Query<(&Handle<Mesh>, &NodeType), With<UnderCursor>>,
+    query: Query<Entity, (With<UnderCursor>, With<NodeType>)>,
 ) {
-    query.for_each( | (mesh_handle, node_type) | {
-        repaint_node(mesh_handle, Color::rgb(0.0, 0.0, 0.0), &mut meshes);
+    query.for_each( | entity| {
+        commands.entity(entity).insert(NeedsRecolor).insert(SelectedNode);
     } );
 }
 
@@ -284,104 +320,6 @@ fn spawn_node_grid(
             }
         });
     println!("built Grid");
-}
-
-fn toolbarsystem(
-    mouse_input: Res<Input<MouseButton>>,
-    windows: Res<Windows>,
-    mut sim_manager: ResMut<SimManager>,
-    shapes: Query<(
-        Entity,
-        &Transform,
-        &NodeType,
-        &SimulationID,
-        &NodeBuilderRef,
-    )>,
-    mut uistate: ResMut<UIState>,
-    theme: ResMut<UITheme>,
-    mut commands: Commands,
-    camera: Query<&Transform, With<Camera>>,
-) {
-    if let Some(tool) = uistate.toolbar.get_selected() {
-        match tool.get_type() {
-            ToolType::Pan => {
-                // nothing. this conde is located in mouse_panning.
-            },
-            ToolType::DeleteNode => { 
-                // select nearest object
-                // get position of mouse click on screen
-                let click_pos = input::handle_mouse_clicks(&mouse_input, &windows);
-                // only recognize click if not in gui
-                if let Some(pos) = click_pos {
-                    let (closest_shape, prev_selection) = input::get_nearest_shapes(pos, windows, &shapes, &mut uistate, &camera);
-                    if let Some(closest_shape) = closest_shape {
-                        uistate.selected_node = None;
-                        if let Ok(sim_builder) = sim_manager.modify_sim_builder() {
-                            
-                            let removed_nodes = sim_builder.remove_node_and_connected_by_id(closest_shape.sim_id.0).expect("Unable to remove node");
-                            let indices_to_remove: Vec<usize> = removed_nodes.iter().map(| node | node.get().get_id()).collect();
-                            for (entity, _, _, sim_index, _) in shapes.iter() {
-                                if indices_to_remove.contains(&sim_index.0) {
-                                    
-                                    commands.entity(entity).despawn_recursive();
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            ToolType::Select => {
-                // select nearest object
-                // get position of mouse click on screen
-                let click_pos = input::handle_mouse_clicks(&mouse_input, &windows);
-                // only recognize click if not in gui
-                if let Some(pos) = click_pos {
-                    let (closest_shape, prev_selection) = input::get_nearest_shapes(pos, windows, &shapes, &mut uistate, &camera);
-                    if let Some(closest_shape) = closest_shape {
-                        if let Some(prev_selection) =
-                            prev_selection
-                        {
-                            let pos = prev_selection.transform.translation;
-                            let new_shape_bundle = match prev_selection.node_type {
-                                NodeType::CROSSING => {
-                                    node_render::crossing(Vec2::new(pos.x, pos.y), theme.crossing)
-                                }
-                                NodeType::IONODE => {
-                                    node_render::io_node(Vec2::new(pos.x, pos.y), theme.io_node)
-                                }
-                                NodeType::STREET => {
-                                    todo!("Street selection is not implemented yet!")
-                                }
-                            };
-                            commands
-                                .entity(prev_selection.entity)
-                                .remove_bundle::<ShapeBundle>()
-                                .insert_bundle(new_shape_bundle);
-                        }
-                        uistate.selected_node = Some(closest_shape.node_builder_ref.clone());
-                        let pos = closest_shape.transform.translation;
-                        let new_shape_bundle = match closest_shape.node_type {
-                            NodeType::CROSSING => {
-                                node_render::crossing(Vec2::new(pos.x, pos.y), theme.highlight)
-                            }
-                            NodeType::IONODE => {
-                                node_render::io_node(Vec2::new(pos.x, pos.y), theme.highlight)
-                            }
-                            NodeType::STREET => {
-                                todo!("Street selection is not implemented yet!")
-                            }
-                        };
-                        commands
-                            .entity(closest_shape.entity)
-                            .remove_bundle::<ShapeBundle>()
-                            .insert_bundle(new_shape_bundle);
-                    }
-                    };
-            }
-            ToolType::None => (),
-            ToolType::AddStreet => (),
-        }
-    }
 }
 
 fn get_primary_window_size(windows: &Res<Windows>) -> Vec2 {

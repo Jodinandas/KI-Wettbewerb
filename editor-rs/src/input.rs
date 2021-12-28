@@ -6,9 +6,6 @@ const MIN_X: f32 = 300.0;
 const MAX_X: f32 = 100.0;
 const PAN_SPEED: f32 = 10.0;
 
-/// Marker for the currently connected node
-pub struct SelectedNode;
-
 /// used to mark the circles used to connect the outputs of crossings
 #[derive(Clone, Copy)]
 pub enum OutputCircle {
@@ -95,16 +92,13 @@ pub fn is_mouse_over_in_circle (
 
 pub fn get_shape_under_mouse<'a>(mouse_pos: Vec2,
     windows: Res<Windows>,
-    shapes: &'a Query<(
+    shapes: &Query<(
         Entity,
         &Transform,
         &NodeType,
-        &SimulationID,
-        &NodeBuilderRef,
     )>,
-    uistate: &mut ResMut<UIState>,
     camera: &Query<&Transform, With<Camera>>,
-) -> Option<ShapeClicked<'a>> {
+) -> Option<(Entity, Transform, NodeType)> {
     // println!("{:?}", click_pos);
     if let Some(camera_transform) = camera.iter().next() {
         // camera scaling factor
@@ -118,7 +112,7 @@ pub fn get_shape_under_mouse<'a>(mouse_pos: Vec2,
         let min_dist_io = IONODE_SIZE * IONODE_SIZE;
         let half_square_side_len = CROSSING_SIZE / 2.0;
         let mut shapes_under_cursor = shapes.iter().filter(
-            |(_entity, transform, node_type, _sim_index, _node_builder_ref)| {
+            |(_entity, transform, node_type)| {
                 match node_type {
                     NodeType::CROSSING => {
                         // get shape position in screen coordinates
@@ -149,16 +143,7 @@ pub fn get_shape_under_mouse<'a>(mouse_pos: Vec2,
             },
         );
         return match shapes_under_cursor.next() {
-            Some((entity, transform, node_type, sim_id, nbr)) => {
-                Some(ShapeClicked {
-                    dist: None,
-                    entity,
-                    transform,
-                    node_type,
-                    sim_id,
-                    node_builder_ref: nbr,
-                })
-            },
+            Some((e, t, n)) => Some((e, t.clone(), n.clone())),
             None => None,
         }
     }
@@ -209,12 +194,12 @@ pub fn get_nearest_shapes<'a>(click_pos: Vec2,
                 };
                 // check if this entity is the one currently selected
                 //  (we need to change the color later on when unselecting it)
-                if let Some(selected_nb) = &uistate.selected_node {
-                    if selected_nb.0 == shape_clicked.node_builder_ref.0 {
-                        prev_selection =
-                            Some(shape_clicked.clone());
-                    }
-                }
+                //if let Some(selected_nb) = &uistate.selected_node {
+                //    if selected_nb.0 == shape_clicked.node_builder_ref.0 {
+                //        prev_selection =
+                //            Some(shape_clicked.clone());
+                //    }
+                //}
                 shape_clicked
             },
         );
