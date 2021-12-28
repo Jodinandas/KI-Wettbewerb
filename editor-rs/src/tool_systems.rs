@@ -64,9 +64,16 @@ pub fn screen_to_world_space(cam: &Transform, windows: &Res<Windows>) -> Vec2 {
         - (Vec2::new(
             cam.translation.x,
             cam.translation.y,
-        )) / scaling;
+        ))/scaling;
     midpoint_screenspace
-        + (Vec2::new(cam.translation.x, cam.translation.y)) / scaling
+}
+pub fn mouse_to_world_space(cam: &Transform, mouse_pos: Vec2, windows: &Res<Windows>) -> Vec2{
+    let midpoint_screenspace = (get_primary_window_size(windows)/2.0)
+        - (Vec2::new(
+            cam.translation.x,
+            cam.translation.y,
+        ));
+    (mouse_pos - midpoint_screenspace)*cam.scale.x
 }
 
 pub fn add_crossing_system(
@@ -81,8 +88,9 @@ pub fn add_crossing_system(
         Some(click) => click,
         None => return,
     };
+    //
     if let Ok(cam) = camera.single() {
-        mouse_click = screen_to_world_space(cam, &windows);
+        mouse_click = mouse_to_world_space(&cam, mouse_click, &windows);
     }
     
     let simulation_builder = match sim_manager.modify_sim_builder() {
