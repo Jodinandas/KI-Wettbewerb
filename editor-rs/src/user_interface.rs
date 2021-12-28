@@ -234,7 +234,7 @@ fn repaint_ui(
         match node_type {
             NodeType::CROSSING => {
                 let pos = transform.translation;
-                let new_shape_bundle = node_render::crossing(pos.x, pos.y, theme.crossing);
+                let new_shape_bundle = node_render::crossing(Vec2::new(pos.x, pos.y), theme.crossing);
                 commands
                     .entity(entity)
                     .remove_bundle::<ShapeBundle>()
@@ -242,7 +242,7 @@ fn repaint_ui(
             }
             NodeType::IONODE => {
                 let pos = transform.translation;
-                let new_shape_bundle = node_render::io_node(pos.x, pos.y, theme.io_node);
+                let new_shape_bundle = node_render::io_node(Vec2::new(pos.x, pos.y), theme.io_node);
                 commands
                     .entity(entity)
                     .remove_bundle::<ShapeBundle>()

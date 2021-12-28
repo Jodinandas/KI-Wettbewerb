@@ -15,6 +15,9 @@ use bevy::input::mouse::{MouseMotion, MouseWheel};
 mod sim_manager;
 mod toolbar;
 mod node_bundles;
+use node_bundles::node_render;
+
+use crate::node_bundles::{CrossingBundle, IONodeBundle, StreetBundle};
 
 #[derive(PartialEq)]
 pub enum Theme {
@@ -183,65 +186,6 @@ pub fn run() {
         .run();
 }
 
-mod node_render {
-    use bevy::{
-        math::Vec2,
-        prelude::{Color, Transform},
-    };
-    use bevy_prototype_lyon::{
-        entity::ShapeBundle,
-        prelude::{DrawMode, FillOptions, GeometryBuilder, ShapeColors, StrokeOptions},
-        shapes,
-    };
-
-    use crate::{CROSSING_SIZE, IONODE_SIZE, STREET_THICKNESS};
-
-    pub fn crossing(x: f32, y: f32, color: Color) -> ShapeBundle {
-        let rect = shapes::Rectangle {
-            width: CROSSING_SIZE,
-            height: CROSSING_SIZE,
-            ..shapes::Rectangle::default()
-        };
-        GeometryBuilder::build_as(
-            &rect,
-            ShapeColors::outlined(color, Color::WHITE),
-            DrawMode::Fill(FillOptions::default()), //DrawMode::Outlined {
-            //    fill_options: FillOptions::default(),
-            //    outline_options: StrokeOptions::default().with_line_width(10.0)
-            //}
-            Transform::from_xyz(x, y, 0.),
-        )
-    }
-
-    pub fn io_node(x: f32, y: f32, color: Color) -> ShapeBundle {
-        let test_shape = shapes::Circle {
-            radius: IONODE_SIZE,
-            ..shapes::Circle::default()
-        };
-        GeometryBuilder::build_as(
-            &test_shape,
-            ShapeColors::outlined(color, Color::WHITE),
-            DrawMode::Fill(FillOptions::default()), //DrawMode::Outlined {
-            //    fill_options: FillOptions::default(),
-            //    outline_options: StrokeOptions::default().with_line_width(10.0)
-            //}
-            Transform::from_xyz(x, y, 0.),
-        )
-    }
-    pub fn street(p1: Vec2, p2: Vec2, color: Color) -> ShapeBundle {
-        let line = shapes::Line(p1, p2);
-        GeometryBuilder::build_as(
-            &line,
-            ShapeColors::outlined(color, color),
-            //DrawMode::Fill(FillOptions::default()),
-            DrawMode::Outlined {
-                fill_options: FillOptions::default(),
-                outline_options: StrokeOptions::default().with_line_width(STREET_THICKNESS),
-            },
-            Transform::default(), // Transform::from_xyz(calc_x(i), calc_y(i), 0.0)
-        )
-    }
-}
 
 fn spawn_camera(mut commands: Commands) {
     commands
@@ -249,14 +193,14 @@ fn spawn_camera(mut commands: Commands) {
         .insert(Camera);
 }
 
-/// Because it is not possible (at least to out knowledge) to query the
+/// Because it is not possible (at least to our knowledge) to query the
 ///  start and end position of the line as a Shape bundle, we store the
 ///  line positions seperatly
 pub struct StreetLinePosition(Vec2, Vec2);
 
 /// Holds an IntMut (interior mutability) for a nodebuilder
 #[derive(Debug, Clone)]
-struct NodeBuilderRef(IntMut<NodeBuilder>);
+pub struct NodeBuilderRef(IntMut<NodeBuilder>);
 
 /// This function is for debugging purposes
 /// It spawns a grid of nodes
@@ -289,26 +233,15 @@ fn spawn_node_grid(
                 NodeBuilder::Crossing(_crossing) => {
                     let x = calc_x(i);
                     let y = calc_y(i);
-                    let geometry = node_render::crossing(x, y, theme.crossing);
                     commands
-                        .spawn()
-                        .insert_bundle(geometry)
-                        .insert(SimulationID(i))
-                        // insert direct reference to the NodeBuilder
-                        .insert(NodeBuilderRef(n_builder.clone()))
-                        .insert(NodeType::CROSSING);
+                        .spawn_bundle(CrossingBundle::new(i, n_builder, Vec2::new(x, y), theme.crossing));
                 }
 
                 NodeBuilder::IONode(_io_node) => {
                     let x = calc_x(i);
                     let y = calc_y(i);
-                    let geometry = node_render::io_node(x, y, theme.crossing);
                     commands
-                        .spawn_bundle(geometry)
-                        .insert(SimulationID(i))
-                        // insert direct reference to the NodeBuilder
-                        .insert(NodeBuilderRef(n_builder.clone()))
-                        .insert(NodeType::IONODE);
+                        .spawn_bundle(IONodeBundle::new(i, n_builder, Vec2::new(x, y), theme.io_node));
                 }
                 NodeBuilder::Street(street) => {
                     // println!("   type=Street");
@@ -318,14 +251,8 @@ fn spawn_node_grid(
                             let index_out = conn_out.upgrade().get().get_id();
                             let pos_j = Vec2::new(calc_x(index_in), calc_y(index_in));
                             let pos_i = Vec2::new(calc_x(index_out), calc_y(index_out));
-                            let geometry = node_render::street(pos_i, pos_j, theme.street);
                             commands
-                                .spawn_bundle(geometry)
-                                .insert(SimulationID(i))
-                                .insert(NodeType::STREET)
-                                // insert direct reference to the NodeBuilder
-                                .insert(NodeBuilderRef(n_builder.clone()))
-                                .insert(StreetLinePosition(pos_i, pos_j));
+                                .spawn_bundle(StreetBundle::new(i, n_builder, pos_i, pos_j, theme.street));
                         }
                     }
                     return;
@@ -422,10 +349,10 @@ fn toolbarsystem(
                             let pos = prev_selection.transform.translation;
                             let new_shape_bundle = match prev_selection.node_type {
                                 NodeType::CROSSING => {
-                                    node_render::crossing(pos.x, pos.y, theme.crossing)
+                                    node_render::crossing(Vec2::new(pos.x, pos.y), theme.crossing)
                                 }
                                 NodeType::IONODE => {
-                                    node_render::io_node(pos.x, pos.y, theme.io_node)
+                                    node_render::io_node(Vec2::new(pos.x, pos.y), theme.io_node)
                                 }
                                 NodeType::STREET => {
                                     todo!("Street selection is not implemented yet!")
@@ -440,10 +367,10 @@ fn toolbarsystem(
                         let pos = closest_shape.transform.translation;
                         let new_shape_bundle = match closest_shape.node_type {
                             NodeType::CROSSING => {
-                                node_render::crossing(pos.x, pos.y, theme.highlight)
+                                node_render::crossing(Vec2::new(pos.x, pos.y), theme.highlight)
                             }
                             NodeType::IONODE => {
-                                node_render::io_node(pos.x, pos.y, theme.highlight)
+                                node_render::io_node(Vec2::new(pos.x, pos.y), theme.highlight)
                             }
                             NodeType::STREET => {
                                 todo!("Street selection is not implemented yet!")
