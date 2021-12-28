@@ -34,6 +34,7 @@ pub mod path {
 }
 pub mod datastructs {
     pub use crate::int_mut::{IntMut, WeakIntMut};
+    pub use crate::movable::MovableStatus;
 }
 pub use simulation::Simulator;
 pub use simulation_builder::SimulatorBuilder;

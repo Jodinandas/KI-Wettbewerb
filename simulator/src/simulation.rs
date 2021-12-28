@@ -1,5 +1,8 @@
+use crate::movable::MovableStatus;
+use crate::movable::RandCar;
 use crate::traits::Movable;
 use crate::traits::NodeTrait;
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{self, Display};
 use std::time::{Duration, SystemTime};
@@ -18,11 +21,14 @@ use super::node::Node;
 /// are connected to each other. Cars are spawned and destroyed
 /// by so called IONodes
 #[derive(Debug)]
-pub struct Simulator {
+pub struct Simulator<Car = RandCar>
+where
+    Car: Movable,
+{
     /// A list of all the nodes.
     ///
     /// The nodes themselves save the index themselves
-    pub nodes: Vec<IntMut<Node>>,
+    pub nodes: Vec<IntMut<Node<Car>>>,
     /// The simulation can be set to stop after simulation
     /// a set amount of steps
     pub max_iter: Option<usize>,
@@ -42,7 +48,7 @@ impl Display for NodeDoesntExistError {
 
 /// The simulator, the top level struct that is instaniated to simulate traffic
 
-impl Simulator {
+impl<Car: Movable> Simulator<Car> {
     /// Update all nodes moving the cars and people to the next
     /// nodes
     pub fn update_all_nodes(&mut self, dt: f64) {
@@ -50,9 +56,9 @@ impl Simulator {
             let node = &mut self.nodes[i].get();
             let mut cars_at_end = node.update_cars(dt);
             // TODO: Use something more efficient than cloning the whole Vec here
-            let options = node.get_connections();
+            let options = node.get_out_connections();
             for j in cars_at_end.len()..0 {
-                let next: Result<WeakIntMut<Node>, Box<dyn Error>> =
+                let next: Result<WeakIntMut<Node<Car>>, Box<dyn Error>> =
                     cars_at_end[j].decide_next(&options);
                 match next {
                     Err(_) => {
@@ -105,6 +111,18 @@ impl Simulator {
         // At the moment all nodes are updated
         self.update_all_nodes(dt);
     }
+
+    /// returns status information for all of the cars in the simulation
+    ///
+    /// the key of the HashMap is the node index
+    pub fn get_car_status(&self) -> HashMap<usize, Vec<MovableStatus>> {
+        let mut mapped_node = HashMap::new();
+        for n in self.nodes.iter() {
+            let n = n.get();
+            mapped_node.insert(n.id(), n.get_car_status());
+        }
+        mapped_node
+    }
 }
 
 /// just returns the name of the of the type passed in
@@ -128,7 +146,7 @@ impl Display for Simulator {
         for (i, n) in self.nodes.iter().enumerate() {
             let name = get_type_of(&*n);
             s.push_str(&format!("\t\t{}: {} ->\t", i, name));
-            for _connection in n.get().get_connections().iter() {
+            for _connection in n.get().get_out_connections().iter() {
                 // find the index
                 let mut index = 0;
                 for (i, node) in self.nodes.iter().enumerate() {

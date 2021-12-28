@@ -6,19 +6,20 @@ Have dedicated "ports" for streets in each crossing per direction, like with ble
 ## TODO/Design Goals
 
 ### Frontend
-* Functions (nodes = IONode, Crossing, Street):
-    *  ~~Pan around~~
+- [ ] Functions (nodes = IONode, Crossing, Street):
+    - [x]  ~~Pan around~~
         * ~~Mouse~~
         * ~~Keyboard~~
-    * add Nodes
-    * delete nodes
-    * change nodes
+    - [x] add Nodes
+        * TODO: Make sure, the street length ist set correctly
+    - [x] delete nodes
+    - [ ] change nodes
         * Streets: lanes, length (?) -> very careful (?)
         * IONodes: frequency
         * Crossing
 * Modes
     * Standard create-Street-constellation
-    * Simulation (lock nodes)
+    - [ ] Simulation (lock nodes)
         * show one thread simulating
         * Diagram id & score
         * 

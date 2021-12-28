@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, render::mesh::VertexAttributeValues};
 use bevy_egui::{
     egui::{self, CollapsingHeader, CtxRef, Ui},
     EguiContext,
@@ -8,7 +8,10 @@ use bevy_egui::{
 use bevy_prototype_lyon::entity::ShapeBundle;
 use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder};
 
-use crate::{node_render, CurrentTheme, NodeType, StreetLinePosition, UIMode, UIState, UITheme};
+use crate::{
+    node_render, repaint_node, tool_systems::SelectedNode, CurrentTheme, NeedsRecolor,
+    NodeBuilderRef, NodeType, StreetLinePosition, UIMode, UIState, UITheme,
+};
 
 /// Draws the ui
 ///
@@ -17,11 +20,15 @@ pub fn ui_example(
     mut commands: Commands,
     egui_context: ResMut<EguiContext>,
     mut ui_state: ResMut<UIState>,
+    meshes: ResMut<Assets<Mesh>>,
     mut background: ResMut<ClearColor>,
     mut theme: ResMut<UITheme>,
     mut current_theme: ResMut<CurrentTheme>,
     // mut colors: ResMut<Assets<ColorMaterial>>,
-    nodes: Query<(Entity, &Transform, Option<&StreetLinePosition>, &NodeType)>, //mut crossings: Query<, With<IONodeMarker>>
+    nodes: QuerySet<(
+        Query<Entity, With<NodeType>>,
+        Query<(Entity, &NodeBuilderRef), (With<NodeType>, With<SelectedNode>)>,
+    )>, //mut crossings: Query<, With<IONodeMarker>>
 ) {
     let mut repaint_necessary = false;
     let panel = egui::TopBottomPanel::top("menu_top_panel");
@@ -52,8 +59,8 @@ pub fn ui_example(
                     //  (each node type has different fields and possibilites
                     //   for modification by the user. Therefor, different ui
                     //   are needed)
-                    if let Some(selected_node_wrapper) = &mut ui_state.selected_node {
-                        let selected_node = &mut selected_node_wrapper.0;
+                    if let Ok((entity, selected_node_ref)) = nodes.q1().single() {
+                        let selected_node = &selected_node_ref.0;
                         let display_conns = |ui: &mut Ui,
                                              conns: &mut HashMap<
                             simulator::nodes::Direction,
@@ -108,11 +115,11 @@ pub fn ui_example(
                                 );
                                 CollapsingHeader::new(format!(
                                     "Connections ({})",
-                                    node.connections.len()
+                                    node.connections_out.len()
                                 ))
                                 .default_open(true)
                                 .show(ui, |ui| {
-                                    for c in node.connections.iter() {
+                                    for c in node.connections_out.iter() {
                                         let (ntype, id) = match &*c.upgrade().get() {
                                             NodeBuilder::IONode(n) => ("In/Out Node", n.id),
                                             NodeBuilder::Crossing(n) => ("Crossing", n.id),
@@ -208,56 +215,27 @@ pub fn ui_example(
     }
     if repaint_necessary {
         repaint_ui(
+            commands,
             Some(egui_context.ctx()),
-            &mut commands,
             &mut background,
-            nodes,
-            current_theme,
+            nodes.q0(),
             theme,
         );
     }
 }
 
 fn repaint_ui(
+    mut commands: Commands,
     egui_ui: Option<&CtxRef>,
-    commands: &mut Commands,
     background: &mut ResMut<ClearColor>,
-    nodes: Query<(Entity, &Transform, Option<&StreetLinePosition>, &NodeType)>,
-    current_theme: ResMut<CurrentTheme>,
+    nodes: &Query<Entity, With<NodeType>>,
     theme: ResMut<UITheme>,
 ) {
     background.0 = theme.background;
     if let Some(ui) = egui_ui {
         ui.set_visuals(theme.egui_visuals.clone());
     }
-    nodes.for_each_mut(|(entity, mut transform, street_line_position, node_type)| {
-        match node_type {
-            NodeType::CROSSING => {
-                let pos = transform.translation;
-                let new_shape_bundle = node_render::crossing(pos.x, pos.y, theme.crossing);
-                commands
-                    .entity(entity)
-                    .remove_bundle::<ShapeBundle>()
-                    .insert_bundle(new_shape_bundle);
-            }
-            NodeType::IONODE => {
-                let pos = transform.translation;
-                let new_shape_bundle = node_render::io_node(pos.x, pos.y, theme.io_node);
-                commands
-                    .entity(entity)
-                    .remove_bundle::<ShapeBundle>()
-                    .insert_bundle(new_shape_bundle);
-            }
-            NodeType::STREET => {
-                if let Some(line) = street_line_position {
-                    let (p1, p2) = (line.0, line.1);
-                    let new_shape_bundle = node_render::street(p1, p2, theme.street);
-                    commands
-                        .entity(entity)
-                        .remove_bundle::<ShapeBundle>()
-                        .insert_bundle(new_shape_bundle);
-                }
-            }
-        };
+    nodes.for_each(|entity| {
+        commands.entity(entity).insert(NeedsRecolor);
     });
 }

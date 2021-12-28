@@ -1,0 +1,149 @@
+use bevy::{
+    ecs::schedule::ShouldRun,
+    input::Input,
+    math::Vec2,
+    prelude::{
+        Commands, DespawnRecursiveExt, Entity, MouseButton, Query, QuerySet, Res, ResMut,
+        Transform, With,
+    },
+    window::Windows,
+};
+use bevy_prototype_lyon::entity::ShapeBundle;
+use simulator::nodes::{NodeBuilderTrait, NodeBuilder, CrossingBuilder};
+
+use crate::{input, node_bundles::CrossingBundle};
+use crate::{
+    node_bundles::node_render, sim_manager::SimManager, themes::UITheme, toolbar::ToolType, Camera,
+    NeedsRecolor, NodeBuilderRef, NodeType, SimulationID, UIState, UnderCursor,
+};
+
+pub fn run_if_delete_node(ttype: Res<UIState>) -> ShouldRun {
+    let ttype = match ttype.toolbar.get_selected() {
+        Some(t) => t.get_type(),
+        None => return ShouldRun::No,
+    };
+    match ttype {
+        ToolType::DeleteNode => ShouldRun::Yes,
+        _ => ShouldRun::No,
+    }
+}
+pub fn run_if_select(ttype: Res<UIState>) -> ShouldRun {
+    let ttype = match ttype.toolbar.get_selected() {
+        Some(t) => t.get_type(),
+        None => return ShouldRun::No,
+    };
+    match ttype {
+        ToolType::Select => ShouldRun::Yes,
+        _ => ShouldRun::No,
+    }
+}
+pub fn run_if_add_street(ttype: Res<UIState>) -> ShouldRun {
+    let ttype = match ttype.toolbar.get_selected() {
+        Some(t) => t.get_type(),
+        None => return ShouldRun::No,
+    };
+    match ttype {
+        ToolType::AddStreet => ShouldRun::Yes,
+        _ => ShouldRun::No,
+    }
+}
+pub fn run_if_add_crossing(ttype: Res<UIState>) -> ShouldRun {
+    let ttype = match ttype.toolbar.get_selected() {
+        Some(t) => t.get_type(),
+        None => return ShouldRun::No,
+    };
+    match ttype {
+        ToolType::AddCrossing => ShouldRun::Yes,
+        _ => ShouldRun::No,
+    }
+}
+
+pub fn add_crossing_system(
+    mut commands: Commands,
+    mut sim_manager: ResMut<SimManager>,
+    mouse_input: Res<Input<MouseButton>>,
+    theme: ResMut<UITheme>,
+    windows: Res<Windows>,
+) {
+    let mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
+        Some(click) => click,
+        None => return,
+    };
+    let simulation_builder = match sim_manager.modify_sim_builder() {
+        Ok(builder) => builder,
+        Err(_) => {eprintln!("Can't modify street builder to add crossing"); return},
+    };
+    let nbr = simulation_builder.add_node(
+        NodeBuilder::Crossing(CrossingBuilder::new())
+    );
+    let id = nbr.get().get_id();
+    println!("Added Crossing wit id= {}", id); 
+    commands.spawn_bundle(CrossingBundle::new(id, nbr, mouse_click, theme.crossing));
+}
+
+/// Marker for the currently connected node
+pub struct SelectedNode;
+
+pub fn delete_node_system(
+    mut sim_manager: ResMut<SimManager>,
+    mouse_input: Res<Input<MouseButton>>,
+    shape_queries: QuerySet<(
+        Query<(&SimulationID,), With<UnderCursor>>,
+        Query<(Entity, &SimulationID), With<NodeType>>,
+    )>,
+    mut commands: Commands,
+) {
+    if !mouse_input.just_pressed(MouseButton::Left) {
+        return;
+    }
+    // select nearest object
+    // get position of mouse click on screen
+    if let Ok((sim_id,)) = shape_queries.q0().single() {
+        if let Ok(sim_builder) = sim_manager.modify_sim_builder() {
+            let removed_nodes = sim_builder
+                .remove_node_and_connected_by_id(sim_id.0)
+                .expect("Unable to remove node");
+            let indices_to_remove: Vec<usize> = removed_nodes
+                .iter()
+                .map(|node| node.get().get_id())
+                .collect();
+            for (entity, sim_index) in shape_queries.q1().iter() {
+                if indices_to_remove.contains(&sim_index.0) {
+                    println!("Deleting Node wit id= {}", sim_index.0); 
+                    commands.entity(entity).despawn_recursive();
+                }
+            }
+        }
+    }
+}
+
+pub fn select_node(
+    mut commands: Commands,
+    mouse_input: Res<Input<MouseButton>>,
+    windows: Res<Windows>,
+    shapes: QuerySet<(
+        Query<(Entity, &Transform, &NodeType)>,
+        Query<Entity, With<SelectedNode>>,
+    )>,
+    camera: Query<&Transform, With<Camera>>,
+) {
+    let mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
+        Some(click) => click,
+        None => return,
+    };
+    let (entity, _, _) =
+        match input::get_shape_under_mouse(mouse_click, windows, shapes.q0(), &camera) {
+            Some(s) => s,
+            None => return,
+        };
+    if let Ok(prev_selected) = shapes.q1().single() {
+        commands
+            .entity(prev_selected)
+            .remove::<SelectedNode>()
+            .insert(NeedsRecolor);
+    }
+    commands
+        .entity(entity)
+        .insert(SelectedNode)
+        .insert(NeedsRecolor);
+}
