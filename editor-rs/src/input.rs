@@ -1,9 +1,10 @@
-use bevy::{prelude::{Res, Entity, Query, Transform, ResMut, With, MouseButton, EventReader}, window::Windows, math::{Vec2, Vec3}, input::{Input, mouse::{MouseMotion, MouseWheel}}};
+use bevy::{prelude::{Res, Entity, Query, Transform, ResMut, With, MouseButton, EventReader, KeyCode}, window::Windows, math::{Vec2, Vec3}, input::{Input, mouse::{MouseMotion, MouseWheel}}};
 
 use crate::{NodeType, SimulationID, NodeBuilderRef, UIState, get_primary_window_size, toolbar::ToolType, Camera};
 
 const MIN_X: f32 = 300.0;
 const MAX_X: f32 = 100.0;
+const PAN_SPEED: f32 = 10.0;
 
 
 
@@ -148,6 +149,36 @@ pub fn mouse_panning(
                 let scr = f32::powf(1.1, scroll);
                 transform.scale *= Vec3::new(scr, scr, 1.0);
             }
+        }
+    }
+}
+
+
+// pans canvas
+pub fn keyboard_movement(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut camera: Query<&mut Transform, With<Camera>>,
+) {
+    let speed: f32 = PAN_SPEED;
+    for mut transform in camera.iter_mut() {
+        let s: Vec3 = transform.scale;
+        if keyboard_input.pressed(KeyCode::Right) || keyboard_input.pressed(KeyCode::D) {
+            transform.translation.x += speed * s.x;
+        }
+        if keyboard_input.pressed(KeyCode::Left) || keyboard_input.pressed(KeyCode::A) {
+            transform.translation.x -= speed * s.x;
+        }
+        if keyboard_input.pressed(KeyCode::Up) || keyboard_input.pressed(KeyCode::W) {
+            transform.translation.y += speed * s.y;
+        }
+        if keyboard_input.pressed(KeyCode::Down) || keyboard_input.pressed(KeyCode::S) {
+            transform.translation.y -= speed * s.y;
+        }
+        if keyboard_input.pressed(KeyCode::Q) {
+            transform.scale += Vec3::from((0.1 * s.x, 0.1 * s.y, 0.0));
+        }
+        if keyboard_input.pressed(KeyCode::E) {
+            transform.scale -= Vec3::from((0.1 * s.x, 0.1 * s.y, 0.0));
         }
     }
 }

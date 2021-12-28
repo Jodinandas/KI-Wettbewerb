@@ -103,7 +103,6 @@ const STREET_THICKNESS: f32 = 5.0;
 const CROSSING_SIZE: f32 = 20.0;
 const IONODE_SIZE: f32 = 20.0;
 
-const PAN_SPEED: f32 = 10.0;
 
 #[wasm_bindgen]
 pub fn run() {
@@ -124,9 +123,9 @@ pub fn run() {
         .insert_resource(CurrentTheme::DARK) // Theme
         .insert_resource(bevy::input::InputSystem)
         .add_system(user_interface::ui_example.system())
-        .add_system(highlight_nearest.system())
+        // .add_system(highlight_nearest.system())
         //.add_system(rotation_test.system())
-        .add_system(keyboard_movement.system())
+        .add_system(input::keyboard_movement.system())
         .add_system(input::mouse_panning.system())
         .add_system(toolbarsystem.system())
         .run();
@@ -273,34 +272,6 @@ fn spawn_node_grid(
     println!("built Grid");
 }
 
-// pans canvas
-fn keyboard_movement(
-    keyboard_input: Res<Input<KeyCode>>,
-    mut camera: Query<&mut Transform, With<Camera>>,
-) {
-    let speed: f32 = PAN_SPEED;
-    for mut transform in camera.iter_mut() {
-        let s: Vec3 = transform.scale;
-        if keyboard_input.pressed(KeyCode::Right) || keyboard_input.pressed(KeyCode::D) {
-            transform.translation.x += speed * s.x;
-        }
-        if keyboard_input.pressed(KeyCode::Left) || keyboard_input.pressed(KeyCode::A) {
-            transform.translation.x -= speed * s.x;
-        }
-        if keyboard_input.pressed(KeyCode::Up) || keyboard_input.pressed(KeyCode::W) {
-            transform.translation.y += speed * s.y;
-        }
-        if keyboard_input.pressed(KeyCode::Down) || keyboard_input.pressed(KeyCode::S) {
-            transform.translation.y -= speed * s.y;
-        }
-        if keyboard_input.pressed(KeyCode::Q) {
-            transform.scale += Vec3::from((0.1 * s.x, 0.1 * s.y, 0.0));
-        }
-        if keyboard_input.pressed(KeyCode::E) {
-            transform.scale -= Vec3::from((0.1 * s.x, 0.1 * s.y, 0.0));
-        }
-    }
-}
 fn toolbarsystem(
     mouse_input: Res<Input<MouseButton>>,
     windows: Res<Windows>,

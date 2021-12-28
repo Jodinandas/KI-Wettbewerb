@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, render::mesh::VertexAttributeValues};
 use bevy_egui::{
     egui::{self, CollapsingHeader, CtxRef, Ui},
     EguiContext,
@@ -17,11 +17,12 @@ pub fn ui_example(
     mut commands: Commands,
     egui_context: ResMut<EguiContext>,
     mut ui_state: ResMut<UIState>,
+    meshes: ResMut<Assets<Mesh>>,
     mut background: ResMut<ClearColor>,
     mut theme: ResMut<UITheme>,
     mut current_theme: ResMut<CurrentTheme>,
     // mut colors: ResMut<Assets<ColorMaterial>>,
-    nodes: Query<(Entity, &Transform, Option<&StreetLinePosition>, &NodeType)>, //mut crossings: Query<, With<IONodeMarker>>
+    nodes: Query<(&Handle<Mesh>, &NodeType)>, //mut crossings: Query<, With<IONodeMarker>>
 ) {
     let mut repaint_necessary = false;
     let panel = egui::TopBottomPanel::top("menu_top_panel");
@@ -209,7 +210,7 @@ pub fn ui_example(
     if repaint_necessary {
         repaint_ui(
             Some(egui_context.ctx()),
-            &mut commands,
+            meshes,
             &mut background,
             nodes,
             theme,
@@ -219,43 +220,30 @@ pub fn ui_example(
 
 fn repaint_ui(
     egui_ui: Option<&CtxRef>,
-    commands: &mut Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
     background: &mut ResMut<ClearColor>,
-    nodes: Query<(Entity, &Transform, Option<&StreetLinePosition>, &NodeType)>,
+    nodes: Query<(&Handle<Mesh>, &NodeType)>,
     theme: ResMut<UITheme>,
 ) {
     background.0 = theme.background;
     if let Some(ui) = egui_ui {
         ui.set_visuals(theme.egui_visuals.clone());
     }
-    nodes.for_each_mut(|(entity, mut transform, street_line_position, node_type)| {
-        match node_type {
-            NodeType::CROSSING => {
-                let pos = transform.translation;
-                let new_shape_bundle = node_render::crossing(Vec2::new(pos.x, pos.y), theme.crossing);
-                commands
-                    .entity(entity)
-                    .remove_bundle::<ShapeBundle>()
-                    .insert_bundle(new_shape_bundle);
-            }
-            NodeType::IONODE => {
-                let pos = transform.translation;
-                let new_shape_bundle = node_render::io_node(Vec2::new(pos.x, pos.y), theme.io_node);
-                commands
-                    .entity(entity)
-                    .remove_bundle::<ShapeBundle>()
-                    .insert_bundle(new_shape_bundle);
-            }
-            NodeType::STREET => {
-                if let Some(line) = street_line_position {
-                    let (p1, p2) = (line.0, line.1);
-                    let new_shape_bundle = node_render::street(p1, p2, theme.street);
-                    commands
-                        .entity(entity)
-                        .remove_bundle::<ShapeBundle>()
-                        .insert_bundle(new_shape_bundle);
-                }
-            }
+    nodes.for_each_mut(|( mesh_handle, node_type)| {
+        let color = match node_type {
+            NodeType::CROSSING => theme.crossing,
+            NodeType::IONODE => theme.io_node,
+            NodeType::STREET => theme.street,
         };
+        let mesh = meshes.get_mut(mesh_handle).unwrap();
+        let colors = mesh.attribute_mut(Mesh::ATTRIBUTE_COLOR).unwrap();
+        let values = match colors {
+            VertexAttributeValues::Float4(colors) => colors
+                .iter()
+                .map(|[_r, _g, _b, _a]| color.into())
+                .collect::<Vec<[f32; 4]>>(),
+            _ => vec![],
+        };
+        mesh.set_attribute(Mesh::ATTRIBUTE_COLOR, values);
     });
 }
