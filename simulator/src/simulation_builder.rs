@@ -96,6 +96,9 @@ pub struct SimulatorBuilder {
     max_iter: Option<usize>,
     cache: Option<Vec<IntMut<Node>>>,
     delay: u64,
+    /// The id of the next node. This is necessary, as the length of the nodes
+    /// vector is not always the id. (because nodes can be deleted as well)
+    next_id: usize
 }
 
 impl SimulatorBuilder {
@@ -106,6 +109,7 @@ impl SimulatorBuilder {
             max_iter: None,
             delay: 0,
             cache: None,
+            next_id: 0
         }
     }
     /// creates a `Simulator` object from a `&str` formatted in a json-like way
@@ -180,7 +184,8 @@ impl SimulatorBuilder {
         new_street
             .connect(InOut::IN, node1)
             .connect(InOut::OUT, node2);
-        new_street.set_id(self.nodes.len());
+        new_street.set_id(self.next_id);
+        self.next_id += 1;
 
         // wrap the street (this is how it is stored internally)
         let new_street = IntMut::new(NodeBuilder::Street(new_street));
@@ -344,10 +349,11 @@ impl SimulatorBuilder {
         // the internals change
         self.drop_cache();
         // set the internal id. Is later used for calculating paths
-        let id = self.nodes.len();
-        node.set_id(id);
+        node.set_id(self.next_id);
+        self.next_id += 1;
+        let new_node_index = self.nodes.len();
         self.nodes.push(IntMut::new(node));
-        &self.nodes[id]
+        &self.nodes[new_node_index]
     }
     /// an optional delay between each iteration
     pub fn with_delay(&mut self, value: u64) -> &mut SimulatorBuilder {

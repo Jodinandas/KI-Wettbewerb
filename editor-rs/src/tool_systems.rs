@@ -77,7 +77,7 @@ pub fn add_crossing_system(
         NodeBuilder::Crossing(CrossingBuilder::new())
     );
     let id = nbr.get().get_id();
-    println!("Added Crossing to Simulation");
+    println!("Added Crossing wit id= {}", id); 
     commands.spawn_bundle(CrossingBundle::new(id, nbr, mouse_click, theme.crossing));
 }
 
@@ -109,6 +109,7 @@ pub fn delete_node_system(
                 .collect();
             for (entity, sim_index) in shape_queries.q1().iter() {
                 if indices_to_remove.contains(&sim_index.0) {
+                    println!("Deleting Node wit id= {}", sim_index.0); 
                     commands.entity(entity).despawn_recursive();
                 }
             }
