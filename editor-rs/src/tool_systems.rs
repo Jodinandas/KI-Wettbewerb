@@ -106,40 +106,58 @@ pub fn generate_connectors(
         }
         let mut connectors: Vec<Entity> = Vec::new();
         let nbr = &nbr.0.get();
-        let crossing_builder = match &**nbr {
-            NodeBuilder::IONode(_) | NodeBuilder::Street(_) => return,
-            NodeBuilder::Crossing(inner) => inner,
-        };
-        match *stage {
-            AddStreetStage::SelectingOutput => {
-                let dirs = [
-                    (OutputCircle::N, Direction::N),
-                    (OutputCircle::S, Direction::S),
-                    (OutputCircle::W, Direction::W),
-                    (OutputCircle::E, Direction::E),
-                ];
-                for (cdir, ndir) in dirs.iter() {
-                    if !crossing_builder.has_connection(InOut::OUT, *ndir) {
+        match &**nbr {
+            NodeBuilder::Street(_) => return,
+            NodeBuilder::IONode(_node) => {
+                // draw a connector in the middle of the ionode
+                match *stage {
+                    AddStreetStage::SelectingOutput => {
                         let id = commands
-                            .spawn_bundle(ConnectorCircleOut::new(*cdir, theme.connector_out))
+                            .spawn_bundle(ConnectorCircleOut::new(OutputCircle::Middle, theme.connector_out))
                             .id();
                         connectors.push(id);
-                    }
+                    },
+                    AddStreetStage::SelectingInput => {
+                        let id = commands
+                            .spawn_bundle(ConnectorCircleIn::new(InputCircle::Middle, theme.connector_in))
+                            .id();
+                        connectors.push(id);
+                    },
                 }
-            }
-            AddStreetStage::SelectingInput => {
-                let dirs = [
-                    (InputCircle::N, Direction::N),
-                    (InputCircle::S, Direction::S),
-                    (InputCircle::W, Direction::W),
-                    (InputCircle::E, Direction::E),
-                ];
-                for (cdir, ndir) in dirs.iter() {
-                    if !crossing_builder.has_connection(InOut::IN, *ndir) {
-                        let id = commands
-                            .spawn_bundle(ConnectorCircleIn::new(*cdir, theme.connector_in))
-                            .id();
-                        connectors.push(id);
+            },
+            NodeBuilder::Crossing(crossing_builder) => {
+                match *stage {
+                    AddStreetStage::SelectingOutput => {
+                        let dirs = [
+                            OutputCircle::N,
+                            OutputCircle::S,
+                            OutputCircle::W,
+                            OutputCircle::E,
+                        ];
+                        for cdir in dirs.iter() {
+                            if !crossing_builder.has_connection(InOut::OUT, cdir.as_dir()) {
+                                let id = commands
+                                    .spawn_bundle(ConnectorCircleOut::new(*cdir, theme.connector_out))
+                                    .id();
+                                connectors.push(id);
+                            }
+                        }
+                    },
+                    AddStreetStage::SelectingInput => {
+                        let dirs = [
+                            InputCircle::N,
+                            InputCircle::S,
+                            InputCircle::W,
+                            InputCircle::E
+                        ];
+                        for cdir in dirs.iter() {
+                            if !crossing_builder.has_connection(InOut::IN, cdir.as_dir()) {
+                                let id = commands
+                                    .spawn_bundle(ConnectorCircleIn::new(*cdir, theme.connector_in))
+                                    .id();
+                                connectors.push(id);
+                            }
+                        }
                     }
                 }
             }
@@ -166,7 +184,6 @@ pub fn connector_clicked(
     street: Query<(Entity, &NewStreetInfo, &StreetLinePosition), With<PlacingStreet>>,
     parent_nodes: Query<&SimulationID>,
     mut sim_manager: ResMut<SimManager>,
-    current_street: Query<Entity, With<PlacingStreet>>,
     windows: Res<Windows>,
     theme: Res<UITheme>,
     mut ui_state: ResMut<UIState>,
@@ -178,7 +195,6 @@ pub fn connector_clicked(
         Some(p) => p,
         None => return,
     };
-    println!("eslfkjelö");
 
     if let Ok(cam) = camera.single() {
         mouse_pos = mouse_to_world_space(&cam, mouse_pos, &windows);
@@ -235,12 +251,10 @@ pub fn connector_clicked(
                     street_pos.1,
                     theme.street,
                 );
+                println!("new_street bundle ==================================================>");
                 commands
-                    .entity(entity)
-                    .remove::<PlacingStreet>()
-                    .remove::<NewStreetInfo>()
-                    .remove_bundle::<ShapeBundle>()
-                    .insert_bundle(street_bundle);
+                    .entity(entity).despawn();
+                commands.spawn_bundle(street_bundle);
                 *stage = AddStreetStage::SelectingOutput;
                 ui_state.toolbar.locked = false;
             }
@@ -270,7 +284,6 @@ pub fn remove_connectors_out_of_bounds(
         .for_each(|(entity, connectors, transform)| {
             let conn_pos = Vec2::new(transform.translation.x, transform.translation.y);
             if (conn_pos - mouse_pos).length_squared() > max_dist_sqr {
-                println!("Removing Connectors");
                 // remove connectors
                 connectors.iter().for_each(|c| {
                     commands.entity(*c).despawn();

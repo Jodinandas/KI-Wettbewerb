@@ -220,9 +220,7 @@ pub fn recolor_nodes(
         };
         repaint_node(mesh_handle, color, &mut meshes);
         // remove the repaint marker
-        println!("Removing Recolor Marker");
         commands.entity(entity).remove::<NeedsRecolor>();
-        println!("Removed Recolor Marker");
     });
 }
 
@@ -245,9 +243,7 @@ fn mark_under_cursor(
 ) {
     // unselect previously selected
     queries.q0().for_each(|entity| {
-        println!("unselect all prev selected");
         commands.entity(entity).remove::<UnderCursor>();
-        println!("unselected all prev selected");
     });
     let window = windows.get_primary().unwrap();
     let mouse_pos = window.cursor_position();
@@ -256,9 +252,7 @@ fn mark_under_cursor(
             input::get_shape_under_mouse(pos, windows, &mut queries.q1().iter(), queries.q2());
         if let Some((entity, _trans, _type)) = shape {
             // mark it
-            println!("mark newly under cursor");
             commands.entity(entity).insert(UnderCursor);
-            println!("marked newly under cursor");
         }
     }
 }

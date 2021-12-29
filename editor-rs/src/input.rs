@@ -66,7 +66,6 @@ pub fn mark_connector_under_cursor(
         let dist = (position - mouse_pos).length_squared();
         // mark the node if it is in range
         if dist <= min_dist_circle_sqr {
-            println!("Marked connector");
             commands.entity(entity).insert(UnderCursor);
         }
     });

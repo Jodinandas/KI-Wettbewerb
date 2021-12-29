@@ -206,6 +206,7 @@ pub enum OutputCircle {
     S,
     W,
     E,
+    Middle
 }
 
 impl OutputCircle {
@@ -215,6 +216,7 @@ impl OutputCircle {
             OutputCircle::S => Direction::S,
             OutputCircle::W => Direction::W,
             OutputCircle::E => Direction::E,
+            OutputCircle::Middle => Direction::N, // doesn't matter
         }
     }
 }
@@ -226,6 +228,7 @@ pub enum InputCircle {
     S,
     W,
     E,
+    Middle
 }
 impl InputCircle {
     pub fn as_dir(&self) -> Direction {
@@ -234,6 +237,7 @@ impl InputCircle {
             InputCircle::S => Direction::S,
             InputCircle::W => Direction::W,
             InputCircle::E => Direction::E,
+            InputCircle::Middle => Direction::N, // doesn't matter
         }
     }
 }
@@ -259,6 +263,7 @@ impl ConnectorCircleIn {
             InputCircle::S => Vec2::new(CROSSING_SIZE / 4.0, -CROSSING_SIZE / 2.0),
             InputCircle::W => Vec2::new(-CROSSING_SIZE / 2.0, -CROSSING_SIZE / 4.0),
             InputCircle::E => Vec2::new(CROSSING_SIZE / 2.0, CROSSING_SIZE / 4.0),
+            InputCircle::Middle => Vec2::ZERO,
         };
         let mut shape_bundle = node_render::connector(offset, color);
         // should always be in the foreground
@@ -297,6 +302,7 @@ impl ConnectorCircleOut {
             OutputCircle::S => Vec2::new(-CROSSING_SIZE / 4.0, -CROSSING_SIZE / 2.0),
             OutputCircle::W => Vec2::new(-CROSSING_SIZE / 2.0, CROSSING_SIZE / 4.0),
             OutputCircle::E => Vec2::new(CROSSING_SIZE / 2.0, -CROSSING_SIZE / 4.0),
+            OutputCircle::Middle => Vec2::ZERO,
         };
         let mut shape_bundle = node_render::connector(offset, color);
         // should always be in the foreground
