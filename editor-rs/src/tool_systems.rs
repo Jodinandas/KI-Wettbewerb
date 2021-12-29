@@ -335,8 +335,6 @@ pub fn render_new_street(
     }
 }
 
-pub fn add_street_system() {}
-
 pub fn add_crossing_system(
     mut commands: Commands,
     mut sim_manager: ResMut<SimManager>,
