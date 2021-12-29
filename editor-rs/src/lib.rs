@@ -171,7 +171,6 @@ pub fn run() {
             SystemSet::new()
                 .with_run_criteria(tool_systems::run_if_add_street.system())
                 .with_system(tool_systems::generate_connectors.system())
-                .with_system(tool_systems::add_street_system.system())
                 .with_system(tool_systems::render_new_street.system())
                 .with_system(input::mark_connector_under_cursor.system())
         )
