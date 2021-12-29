@@ -109,6 +109,7 @@ const STREET_THICKNESS: f32 = 5.0;
 const CROSSING_SIZE: f32 = 20.0;
 const IONODE_SIZE: f32 = 20.0;
 const CONNECTION_CIRCLE_RADIUS: f32 = 10.0;
+const CONNECTOR_DISPLAY_RADIUS: f32 = 100.0;
 const CONNECTION_CIRCLE_DIST_FROM_MIDDLE: f32 = 10.0;
 
 #[wasm_bindgen]
@@ -131,7 +132,7 @@ pub fn run() {
         .insert_resource(bevy::input::InputSystem)
         .add_system(user_interface::ui_example.system())
         .add_system_to_stage(CoreStage::PreUpdate, mark_under_cursor.system())
-        //.add_system(color_under_cursor.system())
+        // .add_system(color_under_cursor.system())
         //.add_system(rotation_test.system())
         .add_system(input::keyboard_movement.system())
         .add_system(input::mouse_panning.system())
@@ -142,6 +143,12 @@ pub fn run() {
             SystemSet::new()
                 .with_run_criteria(tool_systems::run_if_delete_node.system())
                 .with_system(tool_systems::delete_node_system_simple.system()),
+        )
+        .add_system_set_to_stage(
+            CoreStage::PostUpdate,
+            SystemSet::new()
+                .with_run_criteria(tool_systems::run_if_add_street.system())
+                .with_system(tool_systems::remove_connectors_out_of_bounds.system()),
         )
         .add_system_set(
             SystemSet::new()
@@ -228,7 +235,6 @@ fn mark_under_cursor(
         commands.entity(entity).remove::<UnderCursor>();
         println!("unselected all prev selected");
     });
-    let now = time::Instant::now();
     let window = windows.get_primary().unwrap();
     let mouse_pos = window.cursor_position();
     if let Some(pos) = mouse_pos {

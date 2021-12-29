@@ -4,7 +4,7 @@ use bevy::{
     math::Vec2,
     prelude::{
         Commands, DespawnRecursiveExt, Entity, MouseButton, Query, QuerySet, Res, ResMut,
-        Transform, With, Without, BuildChildren,
+        Transform, With, Without, BuildChildren, Children,
     },
     window::Windows,
 };
@@ -13,7 +13,7 @@ use simulator::nodes::{CrossingBuilder, IONodeBuilder, NodeBuilder, NodeBuilderT
 
 use crate::{
     get_primary_window_size, input,
-    node_bundles::{CrossingBundle, IONodeBundle, OutputCircle, ConnectorCircleOut},
+    node_bundles::{CrossingBundle, IONodeBundle, OutputCircle, ConnectorCircleOut}, CONNECTOR_DISPLAY_RADIUS,
 };
 use crate::{
     node_bundles::node_render, sim_manager::SimManager, themes::UITheme, toolbar::ToolType, Camera,
@@ -83,7 +83,7 @@ pub fn screen_to_world_space(cam: &Transform, windows: &Res<Windows>) -> Vec2 {
 
 pub fn mouse_to_world_space(cam: &Transform, mouse_pos: Vec2, windows: &Res<Windows>) -> Vec2 {
     let midpoint_screenspace = (get_primary_window_size(windows) / 2.0)
-        - (Vec2::new(cam.translation.x, cam.translation.y));
+        - Vec2::new(cam.translation.x, cam.translation.y) / cam.scale.x;
     (mouse_pos - midpoint_screenspace) * cam.scale.x
 }
 
@@ -95,18 +95,49 @@ pub struct HasConnectors;
 pub fn generate_connectors(
     mut commands: Commands,
     theme: Res<UITheme>,
-    node_under_cursor: Query<(Entity, &Transform, &NodeType), (With<UnderCursor>, Without<HasConnectors>)>
+    node_under_cursor: Query<(Entity, &NodeType), (With<UnderCursor>, Without<HasConnectors>)>
 ) {
-    if let Ok((entity, transform, ntype)) = node_under_cursor.single() {
+    if let Ok((entity, ntype)) = node_under_cursor.single() {
         if *ntype != NodeType::CROSSING { 
             return
         }
         let connectors: Vec<Entity> =
         [OutputCircle::N, OutputCircle::S, OutputCircle::W, OutputCircle::E].iter().map( | direction | 
             commands.spawn_bundle(ConnectorCircleOut::new(*direction, theme.connector_out)).id()).collect();
-        commands.entity(entity).push_children(&connectors);
+        commands.entity(entity).push_children(&connectors).insert(HasConnectors);
     }
 }
+
+/// removes connectors if the mouse leaves a set distance 
+pub fn remove_connectors_out_of_bounds (
+    mut commands: Commands,
+    conn_query: Query<(Entity, &Children, &Transform), With<HasConnectors>>,
+    windows: Res<Windows>,
+    camera: Query<&Transform, With<Camera>>,
+) {
+    let window = windows.get_primary().unwrap();
+    let mut mouse_pos = match window.cursor_position() {
+        Some(p) => p,
+        None => return,
+    };
+    
+    if let Ok(cam) = camera.single() {
+        mouse_pos = mouse_to_world_space(&cam, mouse_pos, &windows);
+    }
+    let max_dist_sqr = CONNECTOR_DISPLAY_RADIUS * CONNECTOR_DISPLAY_RADIUS;
+    conn_query.iter().for_each( | (entity, connectors,  transform) |   {
+        let conn_pos = Vec2::new(transform.translation.x, transform.translation.y);
+        if (conn_pos - mouse_pos).length_squared() > max_dist_sqr {
+            println!("Removing Connectors");
+            // remove connectors
+            connectors.iter().for_each( | c | {
+                commands.entity(*c).despawn();
+            });
+            commands.entity(entity).remove::<HasConnectors>();
+        }
+    });
+}
+
 
 pub fn add_street_system() {
 

@@ -10,7 +10,7 @@ use bevy::{
 
 use crate::{
     get_primary_window_size, toolbar::ToolType, Camera, NodeBuilderRef, NodeType, SimulationID,
-    UIState, CONNECTION_CIRCLE_RADIUS, CROSSING_SIZE, IONODE_SIZE, node_bundles::{OutputCircle, InputCircle},
+    UIState, CONNECTION_CIRCLE_RADIUS, CROSSING_SIZE, IONODE_SIZE, node_bundles::{OutputCircle, InputCircle}, tool_systems::mouse_to_world_space,
 };
 
 const MIN_X: f32 = 300.0;
@@ -92,29 +92,24 @@ pub fn is_mouse_over_in_circle(
 }
 
 pub fn get_shape_under_mouse<'a, T: Iterator<Item = (Entity, &'a Transform, &'a NodeType)>>(
-    mouse_pos: Vec2,
+    m_pos: Vec2,
     windows: Res<Windows>,
     shapes: T, // &Query<(Entity, &Transform, &NodeType)>,
     camera: &Query<&Transform, With<Camera>>,
 ) -> Option<(Entity, Transform, NodeType)> {
     // println!("{:?}", click_pos);
-    if let Some(camera_transform) = camera.iter().next() {
+    if let Ok(camera_transform) = camera.single() {
         // camera scaling factor
-        let scaling = camera_transform.scale.x;
+        // let scaling = camera_transform.scale.x;
         // get position of 0,0 of world coordinate system in screen coordinates
-        let midpoint_screenspace = (get_primary_window_size(&windows) / 2.0)
-            - (Vec2::new(
-                camera_transform.translation.x,
-                camera_transform.translation.y,
-            )) / scaling;
+        let mouse_pos = mouse_to_world_space(camera_transform, m_pos, &windows);
+        // dbg!(mouse_pos);
         let min_dist_io = IONODE_SIZE * IONODE_SIZE;
         let half_square_side_len = CROSSING_SIZE / 2.0;
         let mut shapes_under_cursor = shapes.filter(|(_entity, transform, node_type)| {
             match node_type {
                 NodeType::CROSSING => {
-                    // get shape position in screen coordinates
-                    let position = midpoint_screenspace
-                        + (Vec2::new(transform.translation.x, transform.translation.y)) / scaling;
+                    let position = Vec2::new(transform.translation.x, transform.translation.y);
                     // is the mouse in the square?
                     position.x - half_square_side_len <= mouse_pos.x
                         && mouse_pos.x <= position.x + half_square_side_len
@@ -122,9 +117,7 @@ pub fn get_shape_under_mouse<'a, T: Iterator<Item = (Entity, &'a Transform, &'a 
                         && mouse_pos.y <= position.y + half_square_side_len
                 }
                 NodeType::IONODE => {
-                    // get shape position in screen coordinates
-                    let position = midpoint_screenspace
-                        + (Vec2::new(transform.translation.x, transform.translation.y)) / scaling;
+                    let position = Vec2::new(transform.translation.x, transform.translation.y);
                     // calculate distance, squared to improve performance so does not need to be rooted
                     let dist = (position - mouse_pos).length_squared();
                     dist <= min_dist_io
