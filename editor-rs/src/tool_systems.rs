@@ -4,7 +4,7 @@ use bevy::{
     math::Vec2,
     prelude::{
         Commands, DespawnRecursiveExt, Entity, MouseButton, Query, QuerySet, Res, ResMut,
-        Transform, With, Without,
+        Transform, With, Without, BuildChildren,
     },
     window::Windows,
 };
@@ -13,7 +13,7 @@ use simulator::nodes::{CrossingBuilder, IONodeBuilder, NodeBuilder, NodeBuilderT
 
 use crate::{
     get_primary_window_size, input,
-    node_bundles::{CrossingBundle, IONodeBundle},
+    node_bundles::{CrossingBundle, IONodeBundle, OutputCircle, ConnectorCircleOut},
 };
 use crate::{
     node_bundles::node_render, sim_manager::SimManager, themes::UITheme, toolbar::ToolType, Camera,
@@ -85,6 +85,31 @@ pub fn mouse_to_world_space(cam: &Transform, mouse_pos: Vec2, windows: &Res<Wind
     let midpoint_screenspace = (get_primary_window_size(windows) / 2.0)
         - (Vec2::new(cam.translation.x, cam.translation.y));
     (mouse_pos - midpoint_screenspace) * cam.scale.x
+}
+
+/// A marker for crossings currently displaying connectors
+pub struct HasConnectors;
+
+/// generates connectors over crossings, so they can be connected using the
+/// Add Street tool
+pub fn generate_connectors(
+    mut commands: Commands,
+    theme: Res<UITheme>,
+    node_under_cursor: Query<(Entity, &Transform, &NodeType), (With<UnderCursor>, Without<HasConnectors>)>
+) {
+    if let Ok((entity, transform, ntype)) = node_under_cursor.single() {
+        if *ntype != NodeType::CROSSING { 
+            return
+        }
+        let connectors: Vec<Entity> =
+        [OutputCircle::N, OutputCircle::S, OutputCircle::W, OutputCircle::E].iter().map( | direction | 
+            commands.spawn_bundle(ConnectorCircleOut::new(*direction, transform, theme.connector_out)).id()).collect();
+        commands.entity(entity).push_children(&connectors);
+    }
+}
+
+pub fn add_street_system() {
+
 }
 
 pub fn add_crossing_system(

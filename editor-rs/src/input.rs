@@ -10,30 +10,13 @@ use bevy::{
 
 use crate::{
     get_primary_window_size, toolbar::ToolType, Camera, NodeBuilderRef, NodeType, SimulationID,
-    UIState, CONNECTION_CIRCLE_RADIUS, CROSSING_SIZE, IONODE_SIZE,
+    UIState, CONNECTION_CIRCLE_RADIUS, CROSSING_SIZE, IONODE_SIZE, node_bundles::{OutputCircle, InputCircle},
 };
 
 const MIN_X: f32 = 300.0;
 const MAX_X: f32 = 100.0;
 const PAN_SPEED: f32 = 10.0;
 
-/// used to mark the circles used to connect the outputs of crossings
-#[derive(Clone, Copy)]
-pub enum OutputCircle {
-    N,
-    S,
-    W,
-    E,
-}
-
-/// used to mark the circles used to connect the inputs of crossigns
-#[derive(Clone, Copy)]
-pub enum InputCircle {
-    N,
-    S,
-    W,
-    E,
-}
 
 /// returns the Output Circle that the mouse is currently over
 ///

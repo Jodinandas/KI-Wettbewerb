@@ -5,7 +5,7 @@ use simulator::{
     nodes::{NodeBuilder, NodeBuilderTrait},
 };
 
-use crate::{NodeBuilderRef, NodeType, SimulationID, StreetLinePosition};
+use crate::{NodeBuilderRef, NodeType, SimulationID, StreetLinePosition, CROSSING_SIZE};
 
 #[derive(Bundle)]
 /// This is the way Crossings are saved in the frontend
@@ -130,7 +130,7 @@ pub mod node_render {
         shapes,
     };
 
-    use crate::{CROSSING_SIZE, IONODE_SIZE, STREET_THICKNESS};
+    use crate::{CROSSING_SIZE, IONODE_SIZE, STREET_THICKNESS, CONNECTION_CIRCLE_RADIUS};
 
     pub fn crossing(pos: Vec2, color: Color) -> ShapeBundle {
         let rect = shapes::Rectangle {
@@ -176,5 +176,135 @@ pub mod node_render {
             },
             Transform::default(), // Transform::from_xyz(calc_x(i), calc_y(i), 0.0)
         )
+    }
+    pub fn connector(pos: Vec2, color: Color) -> ShapeBundle {
+        let circle = shapes::Circle {
+            radius: CONNECTION_CIRCLE_RADIUS,
+            ..shapes::Circle::default()
+        };
+        GeometryBuilder::build_as(
+            &circle,
+            ShapeColors::outlined(color, Color::WHITE),
+            DrawMode::Fill(FillOptions::default()), //DrawMode::Outlined {
+            //    fill_options: FillOptions::default(),
+            //    outline_options: StrokeOptions::default().with_line_width(10.0)
+            //}
+            Transform::from_xyz(pos.x, pos.y, 0.),
+        )
+    }
+}
+
+
+/// used to mark the circles used to connect the outputs of crossings
+#[derive(Clone, Copy)]
+pub enum OutputCircle {
+    N,
+    S,
+    W,
+    E,
+}
+
+/// used to mark the circles used to connect the inputs of crossigns
+#[derive(Clone, Copy)]
+pub enum InputCircle {
+    N,
+    S,
+    W,
+    E,
+}
+
+/// These circles are displayed when hovering over a crossing when
+/// having selected the AddStreet Tool. They are displayed as a way
+/// to connect specific outputs  /inputs of crossings
+/// 
+/// This Bundle should be used when spawning an entity as a child of 
+/// a crossing
+#[derive(Bundle)]
+pub struct ConnectorCircleIn {
+    pub ctype: InputCircle,
+    #[bundle]
+    pub shape: ShapeBundle
+}
+
+impl ConnectorCircleIn {
+    pub fn new(ctype: InputCircle, parent_pos: &Transform, color: Color) -> ConnectorCircleIn {
+        let mut raw_pos = Vec2::new(parent_pos.translation.x, parent_pos.translation.y);
+        // depending on the type, move the connector to a specific position on the crossing        
+        match ctype {
+            InputCircle::N => {
+                raw_pos.y += CROSSING_SIZE / 2.0;
+                raw_pos.x -= CROSSING_SIZE / 4.0;
+            },
+            InputCircle::S => {
+                raw_pos.y -= CROSSING_SIZE / 2.0;
+                raw_pos.x += CROSSING_SIZE / 4.0;
+            },
+            InputCircle::W => {
+                raw_pos.x -= CROSSING_SIZE / 2.0;
+                raw_pos.y -= CROSSING_SIZE / 4.0;
+            },
+            InputCircle::E => {
+                raw_pos.x += CROSSING_SIZE / 2.0;
+                raw_pos.y += CROSSING_SIZE / 4.0;
+            } 
+        }
+        let mut shape_bundle = node_render::connector(raw_pos, color);
+        // should always be in the foreground
+        shape_bundle.transform.translation.z += 10.0;
+        ConnectorCircleIn {
+            ctype,
+            shape: shape_bundle,
+        }
+    }
+}
+
+/// These circles are displayed when hovering over a crossing when
+/// having selected the AddStreet Tool. They are displayed as a way
+/// to connect specific outputs  /inputs of crossings
+/// 
+/// This Bundle should be used when spawning an entity as a child of 
+/// a crossing
+/// 
+/// ## Why have separate Bundles for In- and OutConnectors?
+///  While this may cause come redundant code, it is way easer to
+///  query for a specific Component ([ConnectorCircleIn]/[ConnectorCircleOut])
+///  than to query for an enum with both options as variants. With the variants,
+///  one would have to query for both in and out circles and then match them.
+#[derive(Bundle)]
+pub struct ConnectorCircleOut {
+    pub ctype: OutputCircle,
+    #[bundle]
+    pub shape: ShapeBundle
+}
+
+impl ConnectorCircleOut {
+    pub fn new(ctype: OutputCircle, parent_pos: &Transform, color: Color) -> ConnectorCircleOut {
+        let mut raw_pos = Vec2::new(parent_pos.translation.x, parent_pos.translation.y);
+        // depending on the type, move the connector to a specific position on the crossing        
+        match ctype {
+            OutputCircle::N => {
+                raw_pos.y += CROSSING_SIZE / 2.0;
+                raw_pos.x += CROSSING_SIZE / 4.0;
+            },
+            OutputCircle::S => {
+                raw_pos.y -= CROSSING_SIZE / 2.0;
+                raw_pos.x -= CROSSING_SIZE / 4.0;
+            },
+            OutputCircle::W => {
+                raw_pos.x -= CROSSING_SIZE / 2.0;
+                raw_pos.y += CROSSING_SIZE / 4.0;
+            },
+            OutputCircle::E => {
+                raw_pos.x += CROSSING_SIZE / 2.0;
+                raw_pos.y -= CROSSING_SIZE / 4.0;
+            } 
+        }
+        let mut shape_bundle = node_render::connector(raw_pos, color);
+        // should always be in the foreground
+        shape_bundle.transform.translation.z += 10.0;
+        ConnectorCircleOut {
+            ctype,
+            shape: shape_bundle,
+        }
     }
 }

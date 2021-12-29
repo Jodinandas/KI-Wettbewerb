@@ -13,6 +13,8 @@ pub struct UITheme {
     pub street: Color,
     pub crossing: Color,
     pub highlight: Color,
+    pub connector_in: Color,
+    pub connector_out: Color,
     pub egui_visuals: Visuals,
 }
 
@@ -30,6 +32,8 @@ impl UITheme {
             street: Color::rgb(100., 50., 0.),
             crossing: Color::rgb(0.0, 200.0, 0.0),
             highlight: Color::rgb(255.0, 0.0, 0.0),
+            connector_in: Color::rgb(0.0, 0.0, 255.0),
+            connector_out: Color::rgb(255.0, 0.0, 0.0),
             egui_visuals: Visuals::light(),
         }
     }
@@ -40,6 +44,8 @@ impl UITheme {
             street: Color::rgb(255., 255., 255.),
             crossing: Color::rgb(200.0, 200.0, 0.0),
             highlight: Color::rgb(255.0, 0.0, 0.0),
+            connector_in: Color::rgb(0.0, 0.0, 255.0),
+            connector_out: Color::rgb(255.0, 0.0, 0.0),
             egui_visuals: Visuals::dark(),
         }
     }

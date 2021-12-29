@@ -95,7 +95,7 @@ impl UIState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NodeType {
     CROSSING,
     IONODE,
@@ -147,6 +147,12 @@ pub fn run() {
             SystemSet::new()
                 .with_run_criteria(tool_systems::run_if_select.system())
                 .with_system(tool_systems::select_node.system()),
+        )
+        .add_system_set(
+            SystemSet::new()
+                .with_run_criteria(tool_systems::run_if_add_street.system())
+                .with_system(tool_systems::generate_connectors.system())
+                .with_system(tool_systems::add_street_system.system()),
         )
         .add_system_set(
             SystemSet::new()
