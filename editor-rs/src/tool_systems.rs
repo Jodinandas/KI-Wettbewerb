@@ -161,7 +161,7 @@ pub fn generate_connectors(
                             InputCircle::E
                         ];
                         for cdir in dirs.iter() {
-                            if !crossing_builder.has_connection(InOut::OUT, cdir.as_dir()) {
+                            if !crossing_builder.has_connection(InOut::IN, cdir.as_dir()) {
                                 let id = commands
                                     .spawn_bundle(ConnectorCircleIn::new(*cdir, theme.connector_in))
                                     .id();

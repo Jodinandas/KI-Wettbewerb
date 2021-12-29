@@ -159,7 +159,8 @@ pub fn run() {
             CoreStage::PostUpdate,
             SystemSet::new()
                 .with_run_criteria(tool_systems::run_if_add_street.system())
-                .with_system(tool_systems::remove_connectors_out_of_bounds.system()),
+                .with_system(tool_systems::remove_connectors_out_of_bounds.system())
+                .with_system(tool_systems::connector_clicked.system()),
         )
         .add_system_set(
             SystemSet::new()
@@ -173,7 +174,6 @@ pub fn run() {
                 .with_system(tool_systems::add_street_system.system())
                 .with_system(tool_systems::render_new_street.system())
                 .with_system(input::mark_connector_under_cursor.system())
-                .with_system(tool_systems::connector_clicked.system()),
         )
         .add_system_set(
             SystemSet::new()
