@@ -72,6 +72,16 @@ impl UIMode {
 // }
 pub struct UnderCursor;
 
+pub enum AddStreetStage {
+    SelectingOutput,
+    SelectingInput,
+}
+impl Default for AddStreetStage {
+    fn default() -> Self {
+        AddStreetStage::SelectingOutput
+    }
+}
+
 #[derive(Default)]
 pub struct UIState {
     toolbar: toolbar::Toolbar,
@@ -95,7 +105,7 @@ impl UIState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NodeType {
     CROSSING,
     IONODE,
@@ -108,7 +118,8 @@ const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
 const CROSSING_SIZE: f32 = 20.0;
 const IONODE_SIZE: f32 = 20.0;
-const CONNECTION_CIRCLE_RADIUS: f32 = 10.0;
+const CONNECTION_CIRCLE_RADIUS: f32 = 5.0;
+const CONNECTOR_DISPLAY_RADIUS: f32 = 30.0;
 const CONNECTION_CIRCLE_DIST_FROM_MIDDLE: f32 = 10.0;
 
 #[wasm_bindgen]
@@ -118,6 +129,7 @@ pub fn run() {
         .add_plugin(EguiPlugin)
         .add_plugin(ShapePlugin)
         .init_resource::<UIState>()
+        .init_resource::<AddStreetStage>()
         //app.add_plugins(bevy_webgl2::DefaultPlugins);
         // when building for Web, use WebGL2 rendering
         //#[cfg(target_arch = "wasm32")]
@@ -130,17 +142,25 @@ pub fn run() {
         .insert_resource(CurrentTheme::DARK) // Theme
         .insert_resource(bevy::input::InputSystem)
         .add_system(user_interface::ui_example.system())
-        .add_system(mark_under_cursor.system())
-        //.add_system(color_under_cursor.system())
+        .add_system_to_stage(CoreStage::PreUpdate, mark_under_cursor.system())
+        // .add_system(color_under_cursor.system())
         //.add_system(rotation_test.system())
         .add_system(input::keyboard_movement.system())
         .add_system(input::mouse_panning.system())
         .add_system(recolor_nodes.system())
         // .add_system(toolbarsystem.system())
-        .add_system_set(
+        .add_system_set_to_stage(
+            CoreStage::PostUpdate,
             SystemSet::new()
                 .with_run_criteria(tool_systems::run_if_delete_node.system())
-                .with_system(tool_systems::delete_node_system.system()),
+                .with_system(tool_systems::delete_node_system_simple.system()),
+        )
+        .add_system_set_to_stage(
+            CoreStage::PostUpdate,
+            SystemSet::new()
+                .with_run_criteria(tool_systems::run_if_add_street.system())
+                .with_system(tool_systems::remove_connectors_out_of_bounds.system())
+                .with_system(tool_systems::connector_clicked.system()),
         )
         .add_system_set(
             SystemSet::new()
@@ -149,8 +169,20 @@ pub fn run() {
         )
         .add_system_set(
             SystemSet::new()
+                .with_run_criteria(tool_systems::run_if_add_street.system())
+                .with_system(tool_systems::generate_connectors.system())
+                .with_system(tool_systems::render_new_street.system())
+                .with_system(input::mark_connector_under_cursor.system())
+        )
+        .add_system_set(
+            SystemSet::new()
                 .with_run_criteria(tool_systems::run_if_add_crossing.system())
                 .with_system(tool_systems::add_crossing_system.system()),
+        )
+        .add_system_set(
+            SystemSet::new()
+                .with_run_criteria(tool_systems::run_if_add_ionode.system())
+                .with_system(tool_systems::add_io_node_system.system()),
         )
         .run();
 }
@@ -212,11 +244,11 @@ fn mark_under_cursor(
     queries.q0().for_each(|entity| {
         commands.entity(entity).remove::<UnderCursor>();
     });
-    let now = time::Instant::now();
     let window = windows.get_primary().unwrap();
     let mouse_pos = window.cursor_position();
     if let Some(pos) = mouse_pos {
-        let shape = input::get_shape_under_mouse(pos, windows, &queries.q1(), queries.q2());
+        let shape =
+            input::get_shape_under_mouse(pos, windows, &mut queries.q1().iter(), queries.q2());
         if let Some((entity, _trans, _type)) = shape {
             // mark it
             commands.entity(entity).insert(UnderCursor);
@@ -229,10 +261,12 @@ pub fn color_under_cursor(
     query: Query<Entity, (With<UnderCursor>, With<NodeType>)>,
 ) {
     query.for_each(|entity| {
+        println!("Coloring under cursor");
         commands
             .entity(entity)
             .insert(NeedsRecolor)
             .insert(SelectedNode);
+        println!("Colored under cursor");
     });
 }
 
@@ -276,8 +310,8 @@ fn spawn_node_grid(
     *new_builder = build_grid_sim(side_len as u32);
     println!("Build Grid");
 
-    let calc_x = |ie| (ie / side_len * spacing) as f32;
-    let calc_y = |ie| (ie % side_len * spacing) as f32; // - 4. * (spacing as f32);
+    let calc_y = |ie| ((side_len - ie / side_len) * spacing) as f32;
+    let calc_x = |ie| (ie % side_len * spacing) as f32; // - 4. * (spacing as f32);
 
     new_builder
         .nodes

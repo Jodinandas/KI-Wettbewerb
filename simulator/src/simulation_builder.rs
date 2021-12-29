@@ -98,7 +98,7 @@ pub struct SimulatorBuilder {
     delay: u64,
     /// The id of the next node. This is necessary, as the length of the nodes
     /// vector is not always the id. (because nodes can be deleted as well)
-    next_id: usize
+    next_id: usize,
 }
 
 impl SimulatorBuilder {
@@ -109,7 +109,7 @@ impl SimulatorBuilder {
             max_iter: None,
             delay: 0,
             cache: None,
-            next_id: 0
+            next_id: 0,
         }
     }
     /// creates a `Simulator` object from a `&str` formatted in a json-like way
@@ -164,19 +164,34 @@ impl SimulatorBuilder {
         }
         Ok(builder)
     }
-    /// Connects two node, ONE WAY ONLY, adding a street in between
+    /// Connects two nodes, ONE WAY ONLY, adding a street in between
     pub fn connect_with_street(
         &mut self,
         node_info1: (usize, Direction),
         node_info2: (usize, Direction),
         lanes: u8,
-    ) -> Result<(), Box<dyn Error>> {
-        let (inode1, dir1) = node_info1;
-        let (inode2, dir2) = node_info2;
-        // make sure the second nodes actually exist
-        if inode1 >= self.nodes.len() || inode2 >= self.nodes.len() {
+    ) -> Result<&IntMut<NodeBuilder>, Box<dyn Error>> {
+        let (idnode1, dir1) = node_info1;
+        let (idnode2, dir2) = node_info2;
+        // make sure the second nodes actually exist and get their indices
+        let mut inode1: Option<usize> = None;
+        let mut inode2: Option<usize> = None;
+        for (i, node) in self.nodes.iter().enumerate() {
+            if node.get().get_id() == idnode1 {
+                inode1 = Some(i);
+            } else if node.get().get_id() == idnode2 {
+                inode2 = Some(i);
+            }
+            if inode1.is_some() && inode2.is_some() {
+                break;
+            }
+        }
+        if inode1.is_none() || inode2.is_none() {
             return Err(Box::new(IndexError("Node doesn't exist".to_string())));
         }
+        let inode1 = inode1.unwrap();
+        let inode2 = inode2.unwrap();
+
         let node1 = &self.nodes[inode1];
         let node2 = &self.nodes[inode2];
         // create a new street to connect them
@@ -228,7 +243,7 @@ impl SimulatorBuilder {
         }
         println!("Connecting: {}->{}", inode1, inode2);
         self.nodes.push(new_street);
-        Ok(())
+        Ok(self.nodes.last().unwrap())
     }
 
     /// Creates a new simulator from the templates
@@ -515,10 +530,8 @@ mod tests {
         use crate::node_builder::{CrossingBuilder, IONodeBuilder, NodeBuilder};
         use crate::simulation_builder::SimulatorBuilder;
         let mut simulator = SimulatorBuilder::new();
-        simulator
-            .add_node(NodeBuilder::IONode(IONodeBuilder::new()));
-        simulator
-            .add_node(NodeBuilder::Crossing(CrossingBuilder::new()));
+        simulator.add_node(NodeBuilder::IONode(IONodeBuilder::new()));
+        simulator.add_node(NodeBuilder::Crossing(CrossingBuilder::new()));
         simulator
             .connect_with_street((0, Direction::E), (1, Direction::W), 2)
             .unwrap();
