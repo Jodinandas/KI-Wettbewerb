@@ -103,7 +103,7 @@ pub fn generate_connectors(
         }
         let connectors: Vec<Entity> =
         [OutputCircle::N, OutputCircle::S, OutputCircle::W, OutputCircle::E].iter().map( | direction | 
-            commands.spawn_bundle(ConnectorCircleOut::new(*direction, transform, theme.connector_out)).id()).collect();
+            commands.spawn_bundle(ConnectorCircleOut::new(*direction, theme.connector_out)).id()).collect();
         commands.entity(entity).push_children(&connectors);
     }
 }

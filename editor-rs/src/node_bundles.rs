@@ -227,28 +227,36 @@ pub struct ConnectorCircleIn {
 }
 
 impl ConnectorCircleIn {
-    pub fn new(ctype: InputCircle, parent_pos: &Transform, color: Color) -> ConnectorCircleIn {
-        let mut raw_pos = Vec2::new(parent_pos.translation.x, parent_pos.translation.y);
+    pub fn new(ctype: InputCircle, color: Color) -> ConnectorCircleIn {
+        let offset = 
         // depending on the type, move the connector to a specific position on the crossing        
         match ctype {
             InputCircle::N => {
-                raw_pos.y += CROSSING_SIZE / 2.0;
-                raw_pos.x -= CROSSING_SIZE / 4.0;
+                Vec2::new(
+                CROSSING_SIZE / 2.0,
+                -CROSSING_SIZE / 4.0
+                )
             },
             InputCircle::S => {
-                raw_pos.y -= CROSSING_SIZE / 2.0;
-                raw_pos.x += CROSSING_SIZE / 4.0;
+                Vec2::new(
+                -CROSSING_SIZE / 2.0,
+                  CROSSING_SIZE / 4.0
+                )
             },
             InputCircle::W => {
-                raw_pos.x -= CROSSING_SIZE / 2.0;
-                raw_pos.y -= CROSSING_SIZE / 4.0;
+                Vec2::new(
+                -CROSSING_SIZE / 2.0,
+                -CROSSING_SIZE / 4.0
+                )
             },
             InputCircle::E => {
-                raw_pos.x += CROSSING_SIZE / 2.0;
-                raw_pos.y += CROSSING_SIZE / 4.0;
-            } 
-        }
-        let mut shape_bundle = node_render::connector(raw_pos, color);
+                Vec2::new(
+                CROSSING_SIZE / 2.0,
+                CROSSING_SIZE / 4.0
+                )
+            }
+        };
+        let mut shape_bundle = node_render::connector(offset, color);
         // should always be in the foreground
         shape_bundle.transform.translation.z += 10.0;
         ConnectorCircleIn {
@@ -278,28 +286,36 @@ pub struct ConnectorCircleOut {
 }
 
 impl ConnectorCircleOut {
-    pub fn new(ctype: OutputCircle, parent_pos: &Transform, color: Color) -> ConnectorCircleOut {
-        let mut raw_pos = Vec2::new(parent_pos.translation.x, parent_pos.translation.y);
+    pub fn new(ctype: OutputCircle, color: Color) -> ConnectorCircleOut {
+        let offset = 
         // depending on the type, move the connector to a specific position on the crossing        
         match ctype {
             OutputCircle::N => {
-                raw_pos.y += CROSSING_SIZE / 2.0;
-                raw_pos.x += CROSSING_SIZE / 4.0;
+                Vec2::new(
+                CROSSING_SIZE / 2.0,
+                CROSSING_SIZE / 4.0
+                )
             },
             OutputCircle::S => {
-                raw_pos.y -= CROSSING_SIZE / 2.0;
-                raw_pos.x -= CROSSING_SIZE / 4.0;
+                Vec2::new(
+                -CROSSING_SIZE / 2.0,
+                -CROSSING_SIZE / 4.0
+                )
             },
             OutputCircle::W => {
-                raw_pos.x -= CROSSING_SIZE / 2.0;
-                raw_pos.y += CROSSING_SIZE / 4.0;
+                Vec2::new(
+                -CROSSING_SIZE / 2.0,
+                CROSSING_SIZE / 4.0
+                )
             },
             OutputCircle::E => {
-                raw_pos.x += CROSSING_SIZE / 2.0;
-                raw_pos.y -= CROSSING_SIZE / 4.0;
-            } 
-        }
-        let mut shape_bundle = node_render::connector(raw_pos, color);
+                Vec2::new(
+                CROSSING_SIZE / 2.0,
+                -CROSSING_SIZE / 4.0
+                )
+            }
+        };
+        let mut shape_bundle = node_render::connector(offset, color);
         // should always be in the foreground
         shape_bundle.transform.translation.z += 10.0;
         ConnectorCircleOut {
