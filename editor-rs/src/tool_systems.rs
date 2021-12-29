@@ -95,6 +95,7 @@ pub fn generate_connectors(
     mut commands: Commands,
     theme: Res<UITheme>,
     stage: Res<AddStreetStage>,
+    street: Query<&NewStreetInfo, With<PlacingStreet>>,
     node_under_cursor: Query<
         (Entity, &NodeBuilderRef, &NodeType),
         (With<UnderCursor>, Without<HasConnectors>),
@@ -106,28 +107,18 @@ pub fn generate_connectors(
         }
         let mut connectors: Vec<Entity> = Vec::new();
         let nbr = &nbr.0.get();
-        match &**nbr {
-            NodeBuilder::Street(_) => return,
-            NodeBuilder::IONode(_node) => {
-                // draw a connector in the middle of the ionode
-                match *stage {
-                    AddStreetStage::SelectingOutput => {
+        match *stage {
+            AddStreetStage::SelectingOutput => {
+                match &**nbr {
+                    NodeBuilder::Street(_) => return,
+                    NodeBuilder::IONode(_node) => {
+                        // draw a connector in the middle of the ionode
                         let id = commands
                             .spawn_bundle(ConnectorCircleOut::new(OutputCircle::Middle, theme.connector_out))
                             .id();
                         connectors.push(id);
                     },
-                    AddStreetStage::SelectingInput => {
-                        let id = commands
-                            .spawn_bundle(ConnectorCircleIn::new(InputCircle::Middle, theme.connector_in))
-                            .id();
-                        connectors.push(id);
-                    },
-                }
-            },
-            NodeBuilder::Crossing(crossing_builder) => {
-                match *stage {
-                    AddStreetStage::SelectingOutput => {
+                    NodeBuilder::Crossing(crossing_builder) => {
                         let dirs = [
                             OutputCircle::N,
                             OutputCircle::S,
@@ -142,8 +133,27 @@ pub fn generate_connectors(
                                 connectors.push(id);
                             }
                         }
+                    }
+               }
+ 
+            },
+            AddStreetStage::SelectingInput => {
+                let street_info = street
+                    .single()
+                    .expect("Unable to get street even though stage is set to SelectingInput");
+                if nbr.get_id() == street_info.start_id.0 {
+                    return 
+                }
+                match &**nbr {
+                    NodeBuilder::Street(_) => return,
+                    NodeBuilder::IONode(_node) => {
+                        // draw a connector in the middle of the ionode
+                        let id = commands
+                            .spawn_bundle(ConnectorCircleIn::new(InputCircle::Middle, theme.connector_in))
+                            .id();
+                        connectors.push(id);
                     },
-                    AddStreetStage::SelectingInput => {
+                    NodeBuilder::Crossing(crossing_builder) => {
                         let dirs = [
                             InputCircle::N,
                             InputCircle::S,
@@ -151,7 +161,7 @@ pub fn generate_connectors(
                             InputCircle::E
                         ];
                         for cdir in dirs.iter() {
-                            if !crossing_builder.has_connection(InOut::IN, cdir.as_dir()) {
+                            if !crossing_builder.has_connection(InOut::OUT, cdir.as_dir()) {
                                 let id = commands
                                     .spawn_bundle(ConnectorCircleIn::new(*cdir, theme.connector_in))
                                     .id();
@@ -159,8 +169,9 @@ pub fn generate_connectors(
                             }
                         }
                     }
-                }
-            }
+               }
+ 
+            },
         }
         commands
             .entity(entity)
