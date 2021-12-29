@@ -157,10 +157,10 @@ pub fn delete_node_system_simple(
     )>,
     mut commands: Commands,
 ) {
-    //let mut _mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
-    //    Some(click) => click,
-    //    None => return,
-    //};
+    let mut _mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
+        Some(click) => click,
+        None => return,
+    };
     
         
     if let Ok((entity, sim_id)) = nodes.q0().single() {
