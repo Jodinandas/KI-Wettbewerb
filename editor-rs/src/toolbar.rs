@@ -119,7 +119,7 @@ impl AddStreetTool {
         AddStreetTool {}
     }
 }
-pub struct AddCrossingTool ;
+pub struct AddCrossingTool;
 
 impl Tool for AddCrossingTool {
     fn name<'a>(&'a self) -> &'a str {
@@ -135,7 +135,7 @@ impl AddCrossingTool {
     }
 }
 
-pub struct AddIONodeTool ;
+pub struct AddIONodeTool;
 
 impl Tool for AddIONodeTool {
     fn name<'a>(&'a self) -> &'a str {

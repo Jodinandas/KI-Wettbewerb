@@ -9,9 +9,12 @@ use bevy::{
     window::Windows,
 };
 use bevy_prototype_lyon::entity::ShapeBundle;
-use simulator::nodes::{NodeBuilderTrait, NodeBuilder, CrossingBuilder, IONodeBuilder};
+use simulator::nodes::{CrossingBuilder, IONodeBuilder, NodeBuilder, NodeBuilderTrait};
 
-use crate::{input, node_bundles::{CrossingBundle, IONodeBundle}, get_primary_window_size};
+use crate::{
+    get_primary_window_size, input,
+    node_bundles::{CrossingBundle, IONodeBundle},
+};
 use crate::{
     node_bundles::node_render, sim_manager::SimManager, themes::UITheme, toolbar::ToolType, Camera,
     NeedsRecolor, NodeBuilderRef, NodeType, SimulationID, UIState, UnderCursor,
@@ -47,6 +50,7 @@ pub fn run_if_add_street(ttype: Res<UIState>) -> ShouldRun {
         _ => ShouldRun::No,
     }
 }
+
 pub fn run_if_add_crossing(ttype: Res<UIState>) -> ShouldRun {
     let ttype = match ttype.toolbar.get_selected() {
         Some(t) => t.get_type(),
@@ -57,6 +61,7 @@ pub fn run_if_add_crossing(ttype: Res<UIState>) -> ShouldRun {
         _ => ShouldRun::No,
     }
 }
+
 pub fn run_if_add_ionode(ttype: Res<UIState>) -> ShouldRun {
     let ttype = match ttype.toolbar.get_selected() {
         Some(t) => t.get_type(),
@@ -67,23 +72,19 @@ pub fn run_if_add_ionode(ttype: Res<UIState>) -> ShouldRun {
         _ => ShouldRun::No,
     }
 }
+
 pub fn screen_to_world_space(cam: &Transform, windows: &Res<Windows>) -> Vec2 {
     // camera scaling factor
     let scaling = cam.scale.x;
     let midpoint_screenspace = (get_primary_window_size(windows) / 2.0)
-        - (Vec2::new(
-            cam.translation.x,
-            cam.translation.y,
-        ))/scaling;
+        - (Vec2::new(cam.translation.x, cam.translation.y)) / scaling;
     midpoint_screenspace
 }
-pub fn mouse_to_world_space(cam: &Transform, mouse_pos: Vec2, windows: &Res<Windows>) -> Vec2{
-    let midpoint_screenspace = (get_primary_window_size(windows)/2.0)
-        - (Vec2::new(
-            cam.translation.x,
-            cam.translation.y,
-        ));
-    (mouse_pos - midpoint_screenspace)*cam.scale.x
+
+pub fn mouse_to_world_space(cam: &Transform, mouse_pos: Vec2, windows: &Res<Windows>) -> Vec2 {
+    let midpoint_screenspace = (get_primary_window_size(windows) / 2.0)
+        - (Vec2::new(cam.translation.x, cam.translation.y));
+    (mouse_pos - midpoint_screenspace) * cam.scale.x
 }
 
 pub fn add_crossing_system(
@@ -102,16 +103,17 @@ pub fn add_crossing_system(
     if let Ok(cam) = camera.single() {
         mouse_click = mouse_to_world_space(&cam, mouse_click, &windows);
     }
-    
+
     let simulation_builder = match sim_manager.modify_sim_builder() {
         Ok(builder) => builder,
-        Err(_) => {eprintln!("Can't modify street builder to add crossing"); return},
+        Err(_) => {
+            eprintln!("Can't modify street builder to add crossing");
+            return;
+        }
     };
-    let nbr = simulation_builder.add_node(
-        NodeBuilder::Crossing(CrossingBuilder::new())
-    );
+    let nbr = simulation_builder.add_node(NodeBuilder::Crossing(CrossingBuilder::new()));
     let id = nbr.get().get_id();
-    println!("Added Crossing wit id= {}", id); 
+    println!("Added Crossing wit id= {}", id);
     commands.spawn_bundle(CrossingBundle::new(id, nbr, mouse_click, theme.crossing));
 }
 
@@ -131,16 +133,17 @@ pub fn add_io_node_system(
     if let Ok(cam) = camera.single() {
         mouse_click = mouse_to_world_space(&cam, mouse_click, &windows);
     }
-    
+
     let simulation_builder = match sim_manager.modify_sim_builder() {
         Ok(builder) => builder,
-        Err(_) => {eprintln!("Can't modify street builder to add crossing"); return},
+        Err(_) => {
+            eprintln!("Can't modify street builder to add crossing");
+            return;
+        }
     };
-    let nbr = simulation_builder.add_node(
-        NodeBuilder::IONode(IONodeBuilder::new())
-    );
+    let nbr = simulation_builder.add_node(NodeBuilder::IONode(IONodeBuilder::new()));
     let id = nbr.get().get_id();
-    println!("Added IONode with id= {}", id); 
+    println!("Added IONode with id= {}", id);
     commands.spawn_bundle(IONodeBundle::new(id, nbr, mouse_click, theme.io_node));
 }
 
@@ -152,8 +155,8 @@ pub fn delete_node_system_simple(
     windows: Res<Windows>,
     mut sim_manager: ResMut<SimManager>,
     nodes: QuerySet<(
-        Query<(Entity, &SimulationID), (With<NodeType>, With<UnderCursor>)>, 
-        Query<(Entity, &SimulationID), (With<NodeType>, Without<UnderCursor>)>
+        Query<(Entity, &SimulationID), (With<NodeType>, With<UnderCursor>)>,
+        Query<(Entity, &SimulationID), (With<NodeType>, Without<UnderCursor>)>,
     )>,
     mut commands: Commands,
 ) {
@@ -161,8 +164,7 @@ pub fn delete_node_system_simple(
         Some(click) => click,
         None => return,
     };
-    
-        
+
     if let Ok((entity, sim_id)) = nodes.q0().single() {
         if let Ok(sim_builder) = sim_manager.modify_sim_builder() {
             commands.entity(entity).despawn();
@@ -175,20 +177,22 @@ pub fn delete_node_system_simple(
                 .collect();
             for (entity, sim_index) in nodes.q1().iter() {
                 if indices_to_remove.contains(&sim_index.0) {
-                    println!("Deleting Node wit id= {} (Entity: {:?})", sim_index.0, entity); 
+                    println!(
+                        "Deleting Node wit id= {} (Entity: {:?})",
+                        sim_index.0, entity
+                    );
                     commands.entity(entity).despawn();
                     println!("Deleted Node");
                 }
             }
         }
-    } 
+    }
 }
 
-
 /// This systems deletes a node if the cursor is over it and the mouse is clicked
-/// 
+///
 /// currently, this system has a weird bug, which causes the system to crash
-/// 
+///
 /// to reduce developement time, [delete_node_system_simple] is used instead
 pub fn delete_node_system(
     mut sim_manager: ResMut<SimManager>,
@@ -196,7 +200,7 @@ pub fn delete_node_system(
     windows: Res<Windows>,
     shape_query: QuerySet<(
         Query<(Entity, &Transform, &NodeType, &SimulationID), With<NodeType>>,
-        Query<&Transform, With<Camera>>
+        Query<&Transform, With<Camera>>,
     )>,
     mut commands: Commands,
 ) {
@@ -205,8 +209,13 @@ pub fn delete_node_system(
         None => return,
     };
 
-    let clicked_object = input::get_shape_under_mouse(mouse_click, windows, shape_query.q0().iter().map(| (e, t, n, _id) | (e, t, n) ), &shape_query.q1());
-    
+    let clicked_object = input::get_shape_under_mouse(
+        mouse_click,
+        windows,
+        shape_query.q0().iter().map(|(e, t, n, _id)| (e, t, n)),
+        &shape_query.q1(),
+    );
+
     // select nearest object
     // get position of mouse click on screen
     if let Some((entity, transform, node_type)) = clicked_object {
@@ -214,7 +223,7 @@ pub fn delete_node_system(
             Ok((_e, _t, _n, id)) => id,
             Err(_) => return,
         };
-        
+
         if let Ok(sim_builder) = sim_manager.modify_sim_builder() {
             let removed_nodes = sim_builder
                 .remove_node_and_connected_by_id(sim_id.0)
@@ -225,7 +234,10 @@ pub fn delete_node_system(
                 .collect();
             for (entity, _, _, sim_index) in shape_query.q0().iter() {
                 if indices_to_remove.contains(&sim_index.0) {
-                    println!("Deleting Node wit id= {} (Entity: {:?})", sim_index.0, entity); 
+                    println!(
+                        "Deleting Node wit id= {} (Entity: {:?})",
+                        sim_index.0, entity
+                    );
                     commands.entity(entity).despawn();
                     println!("Deleted Node");
                 }

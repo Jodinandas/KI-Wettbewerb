@@ -108,10 +108,10 @@ pub fn is_mouse_over_in_circle(
         .next()
 }
 
-pub fn get_shape_under_mouse<'a, T: Iterator<Item=(Entity, &'a Transform, &'a NodeType)>>(
+pub fn get_shape_under_mouse<'a, T: Iterator<Item = (Entity, &'a Transform, &'a NodeType)>>(
     mouse_pos: Vec2,
     windows: Res<Windows>,
-    shapes: T,// &Query<(Entity, &Transform, &NodeType)>,
+    shapes: T, // &Query<(Entity, &Transform, &NodeType)>,
     camera: &Query<&Transform, With<Camera>>,
 ) -> Option<(Entity, Transform, NodeType)> {
     // println!("{:?}", click_pos);

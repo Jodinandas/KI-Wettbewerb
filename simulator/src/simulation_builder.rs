@@ -98,7 +98,7 @@ pub struct SimulatorBuilder {
     delay: u64,
     /// The id of the next node. This is necessary, as the length of the nodes
     /// vector is not always the id. (because nodes can be deleted as well)
-    next_id: usize
+    next_id: usize,
 }
 
 impl SimulatorBuilder {
@@ -109,7 +109,7 @@ impl SimulatorBuilder {
             max_iter: None,
             delay: 0,
             cache: None,
-            next_id: 0
+            next_id: 0,
         }
     }
     /// creates a `Simulator` object from a `&str` formatted in a json-like way
@@ -515,10 +515,8 @@ mod tests {
         use crate::node_builder::{CrossingBuilder, IONodeBuilder, NodeBuilder};
         use crate::simulation_builder::SimulatorBuilder;
         let mut simulator = SimulatorBuilder::new();
-        simulator
-            .add_node(NodeBuilder::IONode(IONodeBuilder::new()));
-        simulator
-            .add_node(NodeBuilder::Crossing(CrossingBuilder::new()));
+        simulator.add_node(NodeBuilder::IONode(IONodeBuilder::new()));
+        simulator.add_node(NodeBuilder::Crossing(CrossingBuilder::new()));
         simulator
             .connect_with_street((0, Direction::E), (1, Direction::W), 2)
             .unwrap();
