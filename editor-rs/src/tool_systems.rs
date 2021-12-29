@@ -4,7 +4,7 @@ use bevy::{
     math::Vec2,
     prelude::{
         Commands, DespawnRecursiveExt, Entity, MouseButton, Query, QuerySet, Res, ResMut,
-        Transform, With,
+        Transform, With, Without,
     },
     window::Windows,
 };
@@ -147,6 +147,49 @@ pub fn add_io_node_system(
 /// Marker for the currently connected node
 pub struct SelectedNode;
 
+pub fn delete_node_system_simple(
+    mouse_input: Res<Input<MouseButton>>,
+    windows: Res<Windows>,
+    mut sim_manager: ResMut<SimManager>,
+    nodes: QuerySet<(
+        Query<(Entity, &SimulationID), (With<NodeType>, With<UnderCursor>)>, 
+        Query<(Entity, &SimulationID), (With<NodeType>, Without<UnderCursor>)>
+    )>,
+    mut commands: Commands,
+) {
+    //let mut _mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
+    //    Some(click) => click,
+    //    None => return,
+    //};
+    
+        
+    if let Ok((entity, sim_id)) = nodes.q0().single() {
+        if let Ok(sim_builder) = sim_manager.modify_sim_builder() {
+            commands.entity(entity).despawn();
+            let removed_nodes = sim_builder
+                .remove_node_and_connected_by_id(sim_id.0)
+                .expect("Unable to remove node");
+            let indices_to_remove: Vec<usize> = removed_nodes
+                .iter()
+                .map(|node| node.get().get_id())
+                .collect();
+            for (entity, sim_index) in nodes.q1().iter() {
+                if indices_to_remove.contains(&sim_index.0) {
+                    println!("Deleting Node wit id= {} (Entity: {:?})", sim_index.0, entity); 
+                    commands.entity(entity).despawn();
+                    println!("Deleted Node");
+                }
+            }
+        }
+    } 
+}
+
+
+/// This systems deletes a node if the cursor is over it and the mouse is clicked
+/// 
+/// currently, this system has a weird bug, which causes the system to crash
+/// 
+/// to reduce developement time, [delete_node_system_simple] is used instead
 pub fn delete_node_system(
     mut sim_manager: ResMut<SimManager>,
     mouse_input: Res<Input<MouseButton>>,
@@ -182,8 +225,9 @@ pub fn delete_node_system(
                 .collect();
             for (entity, _, _, sim_index) in shape_query.q0().iter() {
                 if indices_to_remove.contains(&sim_index.0) {
-                    println!("Deleting Node wit id= {}", sim_index.0); 
-                    commands.entity(entity).despawn_recursive();
+                    println!("Deleting Node wit id= {} (Entity: {:?})", sim_index.0, entity); 
+                    commands.entity(entity).despawn();
+                    println!("Deleted Node");
                 }
             }
         }
@@ -210,13 +254,17 @@ pub fn select_node(
             None => return,
         };
     if let Ok(prev_selected) = shapes.q1().single() {
+        println!("Getting prev selected");
         commands
             .entity(prev_selected)
             .remove::<SelectedNode>()
             .insert(NeedsRecolor);
+        println!("Got prev selected");
     }
+    println!("Getting new selected");
     commands
         .entity(entity)
         .insert(SelectedNode)
         .insert(NeedsRecolor);
+    println!("Got new selected");
 }

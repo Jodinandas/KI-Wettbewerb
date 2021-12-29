@@ -130,17 +130,18 @@ pub fn run() {
         .insert_resource(CurrentTheme::DARK) // Theme
         .insert_resource(bevy::input::InputSystem)
         .add_system(user_interface::ui_example.system())
-        .add_system(mark_under_cursor.system())
+        .add_system_to_stage(CoreStage::PreUpdate, mark_under_cursor.system())
         //.add_system(color_under_cursor.system())
         //.add_system(rotation_test.system())
         .add_system(input::keyboard_movement.system())
         .add_system(input::mouse_panning.system())
         .add_system(recolor_nodes.system())
         // .add_system(toolbarsystem.system())
-        .add_system_set(
+        .add_system_set_to_stage(
+            CoreStage::PostUpdate,
             SystemSet::new()
                 .with_run_criteria(tool_systems::run_if_delete_node.system())
-                .with_system(tool_systems::delete_node_system.system()),
+                .with_system(tool_systems::delete_node_system_simple.system()),
         )
         .add_system_set(
             SystemSet::new()
@@ -192,7 +193,9 @@ pub fn recolor_nodes(
         };
         repaint_node(mesh_handle, color, &mut meshes);
         // remove the repaint marker
+        println!("Removing Recolor Marker");
         commands.entity(entity).remove::<NeedsRecolor>();
+        println!("Removed Recolor Marker");
     });
 }
 
@@ -215,7 +218,9 @@ fn mark_under_cursor(
 ) {
     // unselect previously selected
     queries.q0().for_each(|entity| {
+        println!("unselect all prev selected");
         commands.entity(entity).remove::<UnderCursor>();
+        println!("unselected all prev selected");
     });
     let now = time::Instant::now();
     let window = windows.get_primary().unwrap();
@@ -224,7 +229,9 @@ fn mark_under_cursor(
         let shape = input::get_shape_under_mouse(pos, windows, &mut queries.q1().iter(), queries.q2());
         if let Some((entity, _trans, _type)) = shape {
             // mark it
+            println!("mark newly under cursor");
             commands.entity(entity).insert(UnderCursor);
+            println!("marked newly under cursor");
         }
     }
 }
@@ -234,10 +241,12 @@ pub fn color_under_cursor(
     query: Query<Entity, (With<UnderCursor>, With<NodeType>)>,
 ) {
     query.for_each(|entity| {
+        println!("Coloring under cursor");
         commands
             .entity(entity)
             .insert(NeedsRecolor)
             .insert(SelectedNode);
+        println!("Colored under cursor");
     });
 }
 
