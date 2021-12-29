@@ -32,8 +32,11 @@ impl CrossingBundle {
         color: Color,
     ) -> CrossingBundle {
         let nbr = NodeBuilderRef(node_builder.clone());
+        let mut shape = node_render::crossing(pos, color);
+        // Crossings should be rendered on top of streets
+        shape.transform.translation.z = 1.0;
         CrossingBundle {
-            shape: node_render::crossing(pos, color),
+            shape,
             sim_id: SimulationID(id),
             node_type: NodeType::CROSSING,
             node_builder_ref: nbr,
@@ -107,9 +110,10 @@ impl IONodeBundle {
         pos: Vec2,
         color: Color,
     ) -> IONodeBundle {
-        println!("Creating ref");
         let nbr = NodeBuilderRef(node_builder.clone());
-        println!("Created ref");
+        let mut shape = node_render::io_node(pos, color);
+        // IONodes should be rendered on top of streets
+        shape.transform.translation.z = 1.0;
         IONodeBundle {
             shape: node_render::io_node(pos, color),
             sim_id: SimulationID(id),
@@ -130,7 +134,7 @@ pub mod node_render {
         shapes,
     };
 
-    use crate::{CROSSING_SIZE, IONODE_SIZE, STREET_THICKNESS, CONNECTION_CIRCLE_RADIUS};
+    use crate::{CONNECTION_CIRCLE_RADIUS, CROSSING_SIZE, IONODE_SIZE, STREET_THICKNESS};
 
     pub fn crossing(pos: Vec2, color: Color) -> ShapeBundle {
         let rect = shapes::Rectangle {
@@ -194,7 +198,6 @@ pub mod node_render {
     }
 }
 
-
 /// used to mark the circles used to connect the outputs of crossings
 #[derive(Clone, Copy)]
 pub enum OutputCircle {
@@ -216,14 +219,14 @@ pub enum InputCircle {
 /// These circles are displayed when hovering over a crossing when
 /// having selected the AddStreet Tool. They are displayed as a way
 /// to connect specific outputs  /inputs of crossings
-/// 
-/// This Bundle should be used when spawning an entity as a child of 
+///
+/// This Bundle should be used when spawning an entity as a child of
 /// a crossing
 #[derive(Bundle)]
 pub struct ConnectorCircleIn {
     pub ctype: InputCircle,
     #[bundle]
-    pub shape: ShapeBundle
+    pub shape: ShapeBundle,
 }
 
 impl ConnectorCircleIn {
@@ -269,10 +272,10 @@ impl ConnectorCircleIn {
 /// These circles are displayed when hovering over a crossing when
 /// having selected the AddStreet Tool. They are displayed as a way
 /// to connect specific outputs  /inputs of crossings
-/// 
-/// This Bundle should be used when spawning an entity as a child of 
+///
+/// This Bundle should be used when spawning an entity as a child of
 /// a crossing
-/// 
+///
 /// ## Why have separate Bundles for In- and OutConnectors?
 ///  While this may cause come redundant code, it is way easer to
 ///  query for a specific Component ([ConnectorCircleIn]/[ConnectorCircleOut])
@@ -282,7 +285,7 @@ impl ConnectorCircleIn {
 pub struct ConnectorCircleOut {
     pub ctype: OutputCircle,
     #[bundle]
-    pub shape: ShapeBundle
+    pub shape: ShapeBundle,
 }
 
 impl ConnectorCircleOut {
@@ -292,14 +295,14 @@ impl ConnectorCircleOut {
         match ctype {
             OutputCircle::N => {
                 Vec2::new(
-                CROSSING_SIZE / 2.0,
-                CROSSING_SIZE / 4.0
+                CROSSING_SIZE / 4.0,
+                CROSSING_SIZE / 2.0
                 )
             },
             OutputCircle::S => {
                 Vec2::new(
-                -CROSSING_SIZE / 2.0,
-                -CROSSING_SIZE / 4.0
+                -CROSSING_SIZE / 4.0,
+                -CROSSING_SIZE / 2.0
                 )
             },
             OutputCircle::W => {

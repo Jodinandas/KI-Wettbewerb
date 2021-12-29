@@ -108,8 +108,8 @@ const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
 const CROSSING_SIZE: f32 = 20.0;
 const IONODE_SIZE: f32 = 20.0;
-const CONNECTION_CIRCLE_RADIUS: f32 = 10.0;
-const CONNECTOR_DISPLAY_RADIUS: f32 = 100.0;
+const CONNECTION_CIRCLE_RADIUS: f32 = 5.0;
+const CONNECTOR_DISPLAY_RADIUS: f32 = 30.0;
 const CONNECTION_CIRCLE_DIST_FROM_MIDDLE: f32 = 10.0;
 
 #[wasm_bindgen]
@@ -303,8 +303,8 @@ fn spawn_node_grid(
     *new_builder = build_grid_sim(side_len as u32);
     println!("Build Grid");
 
-    let calc_x = |ie| (ie / side_len * spacing) as f32;
-    let calc_y = |ie| (ie % side_len * spacing) as f32; // - 4. * (spacing as f32);
+    let calc_y = |ie| ((side_len - ie / side_len) * spacing) as f32;
+    let calc_x = |ie| (ie % side_len * spacing) as f32; // - 4. * (spacing as f32);
 
     new_builder
         .nodes

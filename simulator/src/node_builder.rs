@@ -307,7 +307,7 @@ impl IONodeBuilder {
 }
 
 /// North, East, South, West
-#[derive(Hash, PartialEq, Eq, Debug, Clone)]
+#[derive(Hash, PartialEq, Eq, Debug, Clone, Copy)]
 pub enum Direction {
     ///
     N,
@@ -430,6 +430,15 @@ impl<T> CrossingConnections<T> {
             None => None,
         }
     }
+    /// Returns true, if there is a conneciton at the specified position
+    pub fn has_connection(&self, conn_type: InOut, dir: Direction) -> bool {
+        let connection: &HashMap<Direction, WeakIntMut<T>>;
+        match conn_type {
+            InOut::IN => connection = &self.input,
+            InOut::OUT => connection = &self.output,
+        }
+        connection.contains_key(&dir)
+    }
 }
 // impl Debug for CrossingConnections {
 //     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -540,5 +549,9 @@ impl CrossingBuilder {
     ) -> Result<&mut Self, Box<dyn Error>> {
         self.connections.add(dir, conn_type, other)?;
         Ok(self)
+    }
+    /// returns true, if there a connection is present at the specified position 
+    pub fn has_connection(&self, conn_type: InOut, dir: Direction) -> bool {
+        self.connections.has_connection(conn_type, dir)
     }
 }

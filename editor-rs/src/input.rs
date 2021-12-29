@@ -9,14 +9,17 @@ use bevy::{
 };
 
 use crate::{
-    get_primary_window_size, toolbar::ToolType, Camera, NodeBuilderRef, NodeType, SimulationID,
-    UIState, CONNECTION_CIRCLE_RADIUS, CROSSING_SIZE, IONODE_SIZE, node_bundles::{OutputCircle, InputCircle}, tool_systems::mouse_to_world_space,
+    get_primary_window_size,
+    node_bundles::{InputCircle, OutputCircle},
+    tool_systems::mouse_to_world_space,
+    toolbar::ToolType,
+    Camera, NodeBuilderRef, NodeType, SimulationID, UIState, CONNECTION_CIRCLE_RADIUS,
+    CROSSING_SIZE, IONODE_SIZE,
 };
 
 const MIN_X: f32 = 300.0;
 const MAX_X: f32 = 100.0;
 const PAN_SPEED: f32 = 10.0;
-
 
 /// returns the Output Circle that the mouse is currently over
 ///

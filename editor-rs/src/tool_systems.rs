@@ -3,17 +3,18 @@ use bevy::{
     input::Input,
     math::Vec2,
     prelude::{
-        Commands, DespawnRecursiveExt, Entity, MouseButton, Query, QuerySet, Res, ResMut,
-        Transform, With, Without, BuildChildren, Children,
+        BuildChildren, Children, Commands, DespawnRecursiveExt, Entity, MouseButton, Query,
+        QuerySet, Res, ResMut, Transform, With, Without,
     },
     window::Windows,
 };
 use bevy_prototype_lyon::entity::ShapeBundle;
-use simulator::nodes::{CrossingBuilder, IONodeBuilder, NodeBuilder, NodeBuilderTrait};
+use simulator::nodes::{CrossingBuilder, IONodeBuilder, NodeBuilder, NodeBuilderTrait, Direction, InOut};
 
 use crate::{
     get_primary_window_size, input,
-    node_bundles::{CrossingBundle, IONodeBundle, OutputCircle, ConnectorCircleOut}, CONNECTOR_DISPLAY_RADIUS,
+    node_bundles::{ConnectorCircleOut, CrossingBundle, IONodeBundle, OutputCircle},
+    CONNECTOR_DISPLAY_RADIUS,
 };
 use crate::{
     node_bundles::node_render, sim_manager::SimManager, themes::UITheme, toolbar::ToolType, Camera,
@@ -95,21 +96,44 @@ pub struct HasConnectors;
 pub fn generate_connectors(
     mut commands: Commands,
     theme: Res<UITheme>,
-    node_under_cursor: Query<(Entity, &NodeType), (With<UnderCursor>, Without<HasConnectors>)>
+    node_under_cursor: Query<
+        (Entity, &NodeBuilderRef, &NodeType),
+        (With<UnderCursor>, Without<HasConnectors>),
+    >,
 ) {
-    if let Ok((entity, ntype)) = node_under_cursor.single() {
-        if *ntype != NodeType::CROSSING { 
-            return
+    if let Ok((entity, nbr, ntype)) = node_under_cursor.single() {
+        if *ntype != NodeType::CROSSING {
+            return;
         }
-        let connectors: Vec<Entity> =
-        [OutputCircle::N, OutputCircle::S, OutputCircle::W, OutputCircle::E].iter().map( | direction | 
-            commands.spawn_bundle(ConnectorCircleOut::new(*direction, theme.connector_out)).id()).collect();
-        commands.entity(entity).push_children(&connectors).insert(HasConnectors);
+        let mut connectors: Vec<Entity> = Vec::new();
+        let nbr = &nbr.0.get();
+        let crossing_builder = match &**nbr {
+            NodeBuilder::IONode(_) | NodeBuilder::Street(_) => return,
+            NodeBuilder::Crossing(inner) => inner,
+        };
+        let dirs = [
+            (OutputCircle::N, Direction::N),
+            (OutputCircle::S, Direction::S),
+            (OutputCircle::W, Direction::W),
+            (OutputCircle::E, Direction::E),
+        ];
+        for (cdir, ndir) in dirs.iter() { 
+            if !crossing_builder.has_connection(InOut::OUT, *ndir) {
+                let id = commands
+                    .spawn_bundle(ConnectorCircleOut::new(*cdir, theme.connector_out))
+                    .id();
+                connectors.push(id);
+            }
+        }
+        commands
+            .entity(entity)
+            .push_children(&connectors)
+            .insert(HasConnectors);
     }
 }
 
-/// removes connectors if the mouse leaves a set distance 
-pub fn remove_connectors_out_of_bounds (
+/// removes connectors if the mouse leaves a set distance
+pub fn remove_connectors_out_of_bounds(
     mut commands: Commands,
     conn_query: Query<(Entity, &Children, &Transform), With<HasConnectors>>,
     windows: Res<Windows>,
@@ -120,28 +144,27 @@ pub fn remove_connectors_out_of_bounds (
         Some(p) => p,
         None => return,
     };
-    
+
     if let Ok(cam) = camera.single() {
         mouse_pos = mouse_to_world_space(&cam, mouse_pos, &windows);
     }
     let max_dist_sqr = CONNECTOR_DISPLAY_RADIUS * CONNECTOR_DISPLAY_RADIUS;
-    conn_query.iter().for_each( | (entity, connectors,  transform) |   {
-        let conn_pos = Vec2::new(transform.translation.x, transform.translation.y);
-        if (conn_pos - mouse_pos).length_squared() > max_dist_sqr {
-            println!("Removing Connectors");
-            // remove connectors
-            connectors.iter().for_each( | c | {
-                commands.entity(*c).despawn();
-            });
-            commands.entity(entity).remove::<HasConnectors>();
-        }
-    });
+    conn_query
+        .iter()
+        .for_each(|(entity, connectors, transform)| {
+            let conn_pos = Vec2::new(transform.translation.x, transform.translation.y);
+            if (conn_pos - mouse_pos).length_squared() > max_dist_sqr {
+                println!("Removing Connectors");
+                // remove connectors
+                connectors.iter().for_each(|c| {
+                    commands.entity(*c).despawn();
+                });
+                commands.entity(entity).remove::<HasConnectors>();
+            }
+        });
 }
 
-
-pub fn add_street_system() {
-
-}
+pub fn add_street_system() {}
 
 pub fn add_crossing_system(
     mut commands: Commands,
