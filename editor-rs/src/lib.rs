@@ -72,6 +72,16 @@ impl UIMode {
 // }
 pub struct UnderCursor;
 
+pub enum AddStreetStage {
+    SelectingOutput,
+    SelectingInput,
+}
+impl Default for AddStreetStage {
+    fn default() -> Self {
+        AddStreetStage::SelectingOutput
+    }
+}
+
 #[derive(Default)]
 pub struct UIState {
     toolbar: toolbar::Toolbar,
@@ -119,6 +129,7 @@ pub fn run() {
         .add_plugin(EguiPlugin)
         .add_plugin(ShapePlugin)
         .init_resource::<UIState>()
+        .init_resource::<AddStreetStage>()
         //app.add_plugins(bevy_webgl2::DefaultPlugins);
         // when building for Web, use WebGL2 rendering
         //#[cfg(target_arch = "wasm32")]
@@ -159,7 +170,10 @@ pub fn run() {
             SystemSet::new()
                 .with_run_criteria(tool_systems::run_if_add_street.system())
                 .with_system(tool_systems::generate_connectors.system())
-                .with_system(tool_systems::add_street_system.system()),
+                .with_system(tool_systems::add_street_system.system())
+                .with_system(tool_systems::render_new_street.system())
+                .with_system(input::mark_connector_under_cursor.system())
+                .with_system(tool_systems::connector_clicked.system()),
         )
         .add_system_set(
             SystemSet::new()

@@ -4,7 +4,10 @@ use bevy::{
         Input,
     },
     math::{Vec2, Vec3},
-    prelude::{Entity, EventReader, KeyCode, MouseButton, Query, Res, ResMut, Transform, With},
+    prelude::{
+        Commands, Entity, EventReader, GlobalTransform, KeyCode, MouseButton, Or, Query, QuerySet,
+        Res, ResMut, Transform, With, Without,
+    },
     window::Windows,
 };
 
@@ -13,7 +16,7 @@ use crate::{
     node_bundles::{InputCircle, OutputCircle},
     tool_systems::mouse_to_world_space,
     toolbar::ToolType,
-    Camera, NodeBuilderRef, NodeType, SimulationID, UIState, CONNECTION_CIRCLE_RADIUS,
+    Camera, NodeBuilderRef, NodeType, SimulationID, UIState, UnderCursor, CONNECTION_CIRCLE_RADIUS,
     CROSSING_SIZE, IONODE_SIZE,
 };
 
@@ -21,77 +24,52 @@ const MIN_X: f32 = 300.0;
 const MAX_X: f32 = 100.0;
 const PAN_SPEED: f32 = 10.0;
 
-/// returns the Output Circle that the mouse is currently over
-///
 /// This is used to be able to connect different sides of a crossing with
 /// another. (The Circle you clicked on represents one side of the crossing)
-pub fn is_mouse_over_out_circle(
-    mouse_pos: Vec2,
-    windows: Res<Windows>,
-    circles: Query<(Entity, &Transform, &OutputCircle)>,
-    camera: &Query<&Transform, With<Camera>>,
-) -> Option<(Entity, Transform, OutputCircle)> {
-    let camera_transform = match camera.single() {
-        Ok(cam) => cam,
-        Err(_) => return None,
-    };
-    // camera scaling factor
-    let scaling = camera_transform.scale.x;
-    // get position of 0,0 of world coordinate system in screen coordinates
-    let midpoint_screenspace = (get_primary_window_size(&windows) / 2.0)
-        - (Vec2::new(
-            camera_transform.translation.x,
-            camera_transform.translation.y,
-        )) / scaling;
-    let min_dist_circle_sqr = CONNECTION_CIRCLE_RADIUS * CONNECTION_CIRCLE_RADIUS;
-    circles
-        .iter()
-        .filter(|(_entity, transform, out_circle)| {
-            // get shape position in screen coordinates
-            let position = midpoint_screenspace
-                + (Vec2::new(transform.translation.x, transform.translation.y)) / scaling;
-            // calculate distance, squared to improve performance so does not need to be rooted
-            let dist = (position - mouse_pos).length_squared();
-            dist <= min_dist_circle_sqr
-        })
-        .map(|(e, t, c)| (e, t.clone(), c.clone()))
-        .next()
-}
-/// returns the Input Circle that the mouse is currently over
 ///
-/// This is used to be able to connect different sides of a crossing with
-/// another. (The Circle you clicked on represents one side of the crossing)
-pub fn is_mouse_over_in_circle(
-    mouse_pos: Vec2,
+/// If a connector is under the cursor, an [UnderCursor] component is added to it
+pub fn mark_connector_under_cursor(
+    mut commands: Commands,
     windows: Res<Windows>,
-    circles: Query<(Entity, &Transform, &InputCircle)>,
-    camera: &Query<&Transform, With<Camera>>,
-) -> Option<(Entity, Transform, InputCircle)> {
+    queries: QuerySet<(
+        // previously marked nodes that need to be unmarked
+        Query<
+            Entity,
+            (
+                Or<(With<OutputCircle>, With<InputCircle>)>,
+                With<UnderCursor>,
+            ),
+        >,
+        // candidates for selection
+        Query<(Entity, &GlobalTransform), (Or<(With<OutputCircle>, With<InputCircle>)>)>,
+    )>,
+    camera: Query<&Transform, With<Camera>>,
+) {
     let camera_transform = match camera.single() {
         Ok(cam) => cam,
-        Err(_) => return None,
+        Err(_) => return,
     };
-    // camera scaling factor
-    let scaling = camera_transform.scale.x;
-    // get position of 0,0 of world coordinate system in screen coordinates
-    let midpoint_screenspace = (get_primary_window_size(&windows) / 2.0)
-        - (Vec2::new(
-            camera_transform.translation.x,
-            camera_transform.translation.y,
-        )) / scaling;
+    let window = windows.get_primary().unwrap();
+    let mouse_pos = match window.cursor_position() {
+        Some(p) => mouse_to_world_space(camera_transform, p, &windows),
+        None => return,
+    };
+    // remove connectors previously under the cursor
+    queries.q0().iter().for_each(|prev_selected| {
+        commands.entity(prev_selected).remove::<UnderCursor>();
+    });
+
     let min_dist_circle_sqr = CONNECTION_CIRCLE_RADIUS * CONNECTION_CIRCLE_RADIUS;
-    circles
-        .iter()
-        .filter(|(_entity, transform, in_circle)| {
-            // get shape position in screen coordinates
-            let position = midpoint_screenspace
-                + (Vec2::new(transform.translation.x, transform.translation.y)) / scaling;
-            // calculate distance, squared to improve performance so does not need to be rooted
-            let dist = (position - mouse_pos).length_squared();
-            dist <= min_dist_circle_sqr
-        })
-        .map(|(e, t, c)| (e, t.clone(), c.clone()))
-        .next()
+    queries.q1().iter().for_each(|(entity, transform)| {
+        let position = Vec2::new(transform.translation.x, transform.translation.y);
+        // calculate distance, squared to improve performance so does not need to be rooted
+        let dist = (position - mouse_pos).length_squared();
+        // mark the node if it is in range
+        if dist <= min_dist_circle_sqr {
+            println!("Marked connector");
+            commands.entity(entity).insert(UnderCursor);
+        }
+    });
 }
 
 pub fn get_shape_under_mouse<'a, T: Iterator<Item = (Entity, &'a Transform, &'a NodeType)>>(
@@ -136,72 +114,7 @@ pub fn get_shape_under_mouse<'a, T: Iterator<Item = (Entity, &'a Transform, &'a 
     None
 }
 
-pub fn get_nearest_shapes<'a>(
-    click_pos: Vec2,
-    windows: Res<Windows>,
-    shapes: &'a Query<(
-        Entity,
-        &Transform,
-        &NodeType,
-        &SimulationID,
-        &NodeBuilderRef,
-    )>,
-    uistate: &mut ResMut<UIState>,
-    camera: &Query<&Transform, With<Camera>>,
-) -> (Option<ShapeClicked<'a>>, Option<ShapeClicked<'a>>) {
-    let mut closest_shape: Option<ShapeClicked<'a>> = None;
-    let mut prev_selection: Option<ShapeClicked> = None;
-    // println!("{:?}", click_pos);
-    if let Some(camera_transform) = camera.iter().next() {
-        // camera scaling factor
-        let scaling = camera_transform.scale.x;
-        // get position of 0,0 of world coordinate system in screen coordinates
-        let midpoint_screenspace = (get_primary_window_size(&windows) / 2.0)
-            - (Vec2::new(
-                camera_transform.translation.x,
-                camera_transform.translation.y,
-            )) / scaling;
-        let shape_dists =
-            shapes
-                .iter()
-                .map(|(entity, transform, node_type, sim_id, node_builder_ref)| {
-                    // get shape position in scren coordinates
-                    let position = midpoint_screenspace
-                        + (Vec2::new(transform.translation.x, transform.translation.y)) / scaling;
-                    // calculate distance, squared to improve performance so does not need to be rooted
-                    let dist = (position - click_pos).length_squared();
-                    let shape_clicked = ShapeClicked {
-                        dist: Some(dist),
-                        entity,
-                        transform,
-                        node_type,
-                        sim_id,
-                        node_builder_ref,
-                    };
-                    // check if this entity is the one currently selected
-                    //  (we need to change the color later on when unselecting it)
-                    //if let Some(selected_nb) = &uistate.selected_node {
-                    //    if selected_nb.0 == shape_clicked.node_builder_ref.0 {
-                    //        prev_selection =
-                    //            Some(shape_clicked.clone());
-                    //    }
-                    //}
-                    shape_clicked
-                });
-        shape_dists.for_each(|shape_information| {
-            if let Some(old_nearest) = &closest_shape {
-                if shape_information.dist < old_nearest.dist {
-                    closest_shape = Some(shape_information);
-                }
-            } else {
-                closest_shape = Some(shape_information);
-            }
-        });
-    }
-    (closest_shape, prev_selection)
-}
-
-// used by the code that check if a shape was clicked
+// used by the code that checks if a shape was clicked
 #[derive(Clone)]
 pub struct ShapeClicked<'a> {
     pub dist: Option<f32>,

@@ -15,6 +15,7 @@ pub struct UITheme {
     pub highlight: Color,
     pub connector_in: Color,
     pub connector_out: Color,
+    pub placing_street: Color,
     pub egui_visuals: Visuals,
 }
 
@@ -34,6 +35,7 @@ impl UITheme {
             highlight: Color::rgb(255.0, 0.0, 0.0),
             connector_in: Color::rgb(0.0, 0.0, 255.0),
             connector_out: Color::rgb(255.0, 0.0, 0.0),
+            placing_street: Color::rgb(255.0, 0.0, 0.0),
             egui_visuals: Visuals::light(),
         }
     }
@@ -46,6 +48,7 @@ impl UITheme {
             highlight: Color::rgb(255.0, 0.0, 0.0),
             connector_in: Color::rgb(0.0, 0.0, 255.0),
             connector_out: Color::rgb(255.0, 0.0, 0.0),
+            placing_street: Color::rgb(255.0, 0.0, 0.0),
             egui_visuals: Visuals::dark(),
         }
     }

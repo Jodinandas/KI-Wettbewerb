@@ -13,9 +13,17 @@ pub enum ToolType {
 
 pub trait Tool: Send + Sync {
     fn name<'a>(&'a self) -> &'a str;
-    fn render(&self, ui: &mut Ui, selected_index: &mut Option<usize>, this_index: usize) {
+    fn render(
+        &self,
+        ui: &mut Ui,
+        selected_index: &mut Option<usize>,
+        this_index: usize,
+        locked: bool,
+    ) {
         if ui.button(self.name()).clicked() {
-            *selected_index = Some(this_index)
+            if !locked {
+                *selected_index = Some(this_index)
+            }
         }
     }
     fn get_type(&self) -> ToolType;
@@ -25,6 +33,8 @@ pub struct Toolbar {
     tools: Vec<Box<dyn Tool>>,
     // Can be none if there are no tools
     selected: Option<usize>,
+    // if it is locked, no tool can be selected
+    pub locked: bool,
 }
 
 impl Toolbar {
@@ -32,6 +42,7 @@ impl Toolbar {
         Toolbar {
             tools: vec![],
             selected: None,
+            locked: false,
         }
     }
 
@@ -50,7 +61,7 @@ impl Toolbar {
 
     pub fn render_tools(&mut self, ui: &mut Ui) {
         for (i, tool) in self.tools.iter().enumerate() {
-            tool.render(ui, &mut self.selected, i);
+            tool.render(ui, &mut self.selected, i, self.locked);
         }
     }
 }
@@ -69,6 +80,7 @@ impl Default for Toolbar {
         Toolbar {
             tools,
             selected: Some(0),
+            locked: false,
         }
     }
 }

@@ -550,7 +550,7 @@ impl CrossingBuilder {
         self.connections.add(dir, conn_type, other)?;
         Ok(self)
     }
-    /// returns true, if there a connection is present at the specified position 
+    /// returns true, if there a connection is present at the specified position
     pub fn has_connection(&self, conn_type: InOut, dir: Direction) -> bool {
         self.connections.has_connection(conn_type, dir)
     }

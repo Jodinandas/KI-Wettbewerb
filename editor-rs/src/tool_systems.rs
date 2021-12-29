@@ -3,18 +3,24 @@ use bevy::{
     input::Input,
     math::Vec2,
     prelude::{
-        BuildChildren, Children, Commands, DespawnRecursiveExt, Entity, MouseButton, Query,
-        QuerySet, Res, ResMut, Transform, With, Without,
+        BuildChildren, Children, Commands, DespawnRecursiveExt, Entity, GlobalTransform,
+        MouseButton, Parent, Query, QuerySet, Res, ResMut, Transform, With, Without,
     },
     window::Windows,
 };
 use bevy_prototype_lyon::entity::ShapeBundle;
-use simulator::nodes::{CrossingBuilder, IONodeBuilder, NodeBuilder, NodeBuilderTrait, Direction, InOut};
+use simulator::nodes::{
+    CrossingBuilder, Direction, IONodeBuilder, InOut, NodeBuilder, NodeBuilderTrait,
+};
 
 use crate::{
-    get_primary_window_size, input,
-    node_bundles::{ConnectorCircleOut, CrossingBundle, IONodeBundle, OutputCircle},
-    CONNECTOR_DISPLAY_RADIUS,
+    get_primary_window_size,
+    input::{self, handle_mouse_clicks},
+    node_bundles::{
+        ConnectorCircleIn, ConnectorCircleOut, CrossingBundle, IONodeBundle, InputCircle,
+        OutputCircle, StreetBundle,
+    },
+    AddStreetStage, StreetLinePosition, CONNECTOR_DISPLAY_RADIUS,
 };
 use crate::{
     node_bundles::node_render, sim_manager::SimManager, themes::UITheme, toolbar::ToolType, Camera,
@@ -74,14 +80,6 @@ pub fn run_if_add_ionode(ttype: Res<UIState>) -> ShouldRun {
     }
 }
 
-pub fn screen_to_world_space(cam: &Transform, windows: &Res<Windows>) -> Vec2 {
-    // camera scaling factor
-    let scaling = cam.scale.x;
-    let midpoint_screenspace = (get_primary_window_size(windows) / 2.0)
-        - (Vec2::new(cam.translation.x, cam.translation.y)) / scaling;
-    midpoint_screenspace
-}
-
 pub fn mouse_to_world_space(cam: &Transform, mouse_pos: Vec2, windows: &Res<Windows>) -> Vec2 {
     let midpoint_screenspace = (get_primary_window_size(windows) / 2.0)
         - Vec2::new(cam.translation.x, cam.translation.y) / cam.scale.x;
@@ -96,6 +94,7 @@ pub struct HasConnectors;
 pub fn generate_connectors(
     mut commands: Commands,
     theme: Res<UITheme>,
+    stage: Res<AddStreetStage>,
     node_under_cursor: Query<
         (Entity, &NodeBuilderRef, &NodeType),
         (With<UnderCursor>, Without<HasConnectors>),
@@ -111,24 +110,141 @@ pub fn generate_connectors(
             NodeBuilder::IONode(_) | NodeBuilder::Street(_) => return,
             NodeBuilder::Crossing(inner) => inner,
         };
-        let dirs = [
-            (OutputCircle::N, Direction::N),
-            (OutputCircle::S, Direction::S),
-            (OutputCircle::W, Direction::W),
-            (OutputCircle::E, Direction::E),
-        ];
-        for (cdir, ndir) in dirs.iter() { 
-            if !crossing_builder.has_connection(InOut::OUT, *ndir) {
-                let id = commands
-                    .spawn_bundle(ConnectorCircleOut::new(*cdir, theme.connector_out))
-                    .id();
-                connectors.push(id);
+        match *stage {
+            AddStreetStage::SelectingOutput => {
+                let dirs = [
+                    (OutputCircle::N, Direction::N),
+                    (OutputCircle::S, Direction::S),
+                    (OutputCircle::W, Direction::W),
+                    (OutputCircle::E, Direction::E),
+                ];
+                for (cdir, ndir) in dirs.iter() {
+                    if !crossing_builder.has_connection(InOut::OUT, *ndir) {
+                        let id = commands
+                            .spawn_bundle(ConnectorCircleOut::new(*cdir, theme.connector_out))
+                            .id();
+                        connectors.push(id);
+                    }
+                }
+            }
+            AddStreetStage::SelectingInput => {
+                let dirs = [
+                    (InputCircle::N, Direction::N),
+                    (InputCircle::S, Direction::S),
+                    (InputCircle::W, Direction::W),
+                    (InputCircle::E, Direction::E),
+                ];
+                for (cdir, ndir) in dirs.iter() {
+                    if !crossing_builder.has_connection(InOut::IN, *ndir) {
+                        let id = commands
+                            .spawn_bundle(ConnectorCircleIn::new(*cdir, theme.connector_in))
+                            .id();
+                        connectors.push(id);
+                    }
+                }
             }
         }
         commands
             .entity(entity)
             .push_children(&connectors)
             .insert(HasConnectors);
+    }
+}
+
+/// Stores info needed when constructing a new street
+pub struct NewStreetInfo {
+    pub start_id: SimulationID,
+    pub out_conn_type: OutputCircle,
+}
+
+/// is responsible for adding a new street if the out connector was clicked
+/// and for managing the stage of the tool
+pub fn connector_clicked(
+    mut stage: ResMut<AddStreetStage>,
+    out_circles: Query<(&Parent, &GlobalTransform, &OutputCircle), With<UnderCursor>>,
+    in_circles: Query<(&Parent, &GlobalTransform, &InputCircle), With<UnderCursor>>,
+    street: Query<(Entity, &NewStreetInfo, &StreetLinePosition), With<PlacingStreet>>,
+    parent_nodes: Query<&SimulationID>,
+    mut sim_manager: ResMut<SimManager>,
+    current_street: Query<Entity, With<PlacingStreet>>,
+    windows: Res<Windows>,
+    theme: Res<UITheme>,
+    mut ui_state: ResMut<UIState>,
+    mut commands: Commands,
+    mouse_input: Res<Input<MouseButton>>,
+    camera: Query<&Transform, With<Camera>>,
+) {
+    let mut mouse_pos = match handle_mouse_clicks(&mouse_input, &windows) {
+        Some(p) => p,
+        None => return,
+    };
+    println!("eslfkjelö");
+
+    if let Ok(cam) = camera.single() {
+        mouse_pos = mouse_to_world_space(&cam, mouse_pos, &windows);
+    }
+    match *stage {
+        AddStreetStage::SelectingOutput => {
+            if let Ok((parent_node, pos, ctype)) = out_circles.single() {
+                println!("Creating new Street");
+                let start = Vec2::new(pos.translation.x, pos.translation.y);
+                let new_street = node_render::street(start, mouse_pos, theme.placing_street);
+                let id = parent_nodes
+                    .get(parent_node.0)
+                    .expect("There is no parent for connector!");
+                commands
+                    .spawn()
+                    .insert_bundle(new_street)
+                    .insert(PlacingStreet)
+                    .insert(NewStreetInfo {
+                        start_id: id.clone(),
+                        out_conn_type: *ctype,
+                    })
+                    .insert(StreetLinePosition(start, mouse_pos));
+                *stage = AddStreetStage::SelectingInput;
+                // lock toolbar to prevent the user from switching to another tool while
+                // still connecting crossings
+                ui_state.toolbar.locked = true;
+            }
+        }
+        AddStreetStage::SelectingInput => {
+            if let Ok((parent, pos, ctype)) = in_circles.single() {
+                let (entity, street_info, street_pos) = street
+                    .single()
+                    .expect("Unable to get street even though input connector was clicked");
+                let end_id = parent_nodes
+                    .get(parent.0)
+                    .expect("There is no parent for connector!");
+                let builder = match sim_manager.modify_sim_builder() {
+                    Ok(b) => b,
+                    Err(_) => return,
+                };
+                let new_street = match builder.connect_with_street(
+                    (street_info.start_id.0, street_info.out_conn_type.as_dir()),
+                    (end_id.0, ctype.as_dir()),
+                    1,
+                ) {
+                    Ok(s) => s,
+                    Err(e) => panic!("{}", e),
+                };
+                let new_street_id = new_street.get().get_id();
+                let street_bundle = StreetBundle::new(
+                    new_street_id,
+                    new_street,
+                    street_pos.0,
+                    street_pos.1,
+                    theme.street,
+                );
+                commands
+                    .entity(entity)
+                    .remove::<PlacingStreet>()
+                    .remove::<NewStreetInfo>()
+                    .remove_bundle::<ShapeBundle>()
+                    .insert_bundle(street_bundle);
+                *stage = AddStreetStage::SelectingOutput;
+                ui_state.toolbar.locked = false;
+            }
+        }
     }
 }
 
@@ -162,6 +278,37 @@ pub fn remove_connectors_out_of_bounds(
                 commands.entity(entity).remove::<HasConnectors>();
             }
         });
+}
+
+/// marks a street that is currently being placed
+pub struct PlacingStreet;
+
+/// renders the street that is produced when an output connecter of a crossing is clicked
+pub fn render_new_street(
+    mut street_query: Query<(Entity, &mut StreetLinePosition), With<PlacingStreet>>,
+    mut commands: Commands,
+    windows: Res<Windows>,
+    camera: Query<&Transform, With<Camera>>,
+    theme: Res<UITheme>,
+) {
+    let window = windows.get_primary().unwrap();
+    let mut mouse_pos = match window.cursor_position() {
+        Some(p) => p,
+        None => return,
+    };
+
+    if let Ok(cam) = camera.single() {
+        mouse_pos = mouse_to_world_space(&cam, mouse_pos, &windows);
+    }
+    if let Ok((entity, mut line_position)) = street_query.single_mut() {
+        *line_position.1 = *mouse_pos;
+        let new_shape_bundle =
+            node_render::street(line_position.0, line_position.1, theme.placing_street);
+        commands
+            .entity(entity)
+            .remove_bundle::<ShapeBundle>()
+            .insert_bundle(new_shape_bundle);
+    }
 }
 
 pub fn add_street_system() {}

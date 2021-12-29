@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_prototype_lyon::entity::ShapeBundle;
+use simulator::nodes::Direction;
 use simulator::{
     datastructs::IntMut,
     nodes::{NodeBuilder, NodeBuilderTrait},
@@ -149,7 +150,7 @@ pub mod node_render {
             //    fill_options: FillOptions::default(),
             //    outline_options: StrokeOptions::default().with_line_width(10.0)
             //}
-            Transform::from_xyz(pos.x, pos.y, 0.),
+            Transform::from_xyz(pos.x, pos.y, 10.),
         )
     }
 
@@ -165,7 +166,7 @@ pub mod node_render {
             //    fill_options: FillOptions::default(),
             //    outline_options: StrokeOptions::default().with_line_width(10.0)
             //}
-            Transform::from_xyz(pos.x, pos.y, 0.),
+            Transform::from_xyz(pos.x, pos.y, 10.),
         )
     }
     pub fn street(p1: Vec2, p2: Vec2, color: Color) -> ShapeBundle {
@@ -207,6 +208,17 @@ pub enum OutputCircle {
     E,
 }
 
+impl OutputCircle {
+    pub fn as_dir(&self) -> Direction {
+        match self {
+            OutputCircle::N => Direction::N,
+            OutputCircle::S => Direction::S,
+            OutputCircle::W => Direction::W,
+            OutputCircle::E => Direction::E,
+        }
+    }
+}
+
 /// used to mark the circles used to connect the inputs of crossigns
 #[derive(Clone, Copy)]
 pub enum InputCircle {
@@ -214,6 +226,16 @@ pub enum InputCircle {
     S,
     W,
     E,
+}
+impl InputCircle {
+    pub fn as_dir(&self) -> Direction {
+        match self {
+            InputCircle::N => Direction::N,
+            InputCircle::S => Direction::S,
+            InputCircle::W => Direction::W,
+            InputCircle::E => Direction::E,
+        }
+    }
 }
 
 /// These circles are displayed when hovering over a crossing when
@@ -231,33 +253,12 @@ pub struct ConnectorCircleIn {
 
 impl ConnectorCircleIn {
     pub fn new(ctype: InputCircle, color: Color) -> ConnectorCircleIn {
-        let offset = 
-        // depending on the type, move the connector to a specific position on the crossing        
-        match ctype {
-            InputCircle::N => {
-                Vec2::new(
-                CROSSING_SIZE / 2.0,
-                -CROSSING_SIZE / 4.0
-                )
-            },
-            InputCircle::S => {
-                Vec2::new(
-                -CROSSING_SIZE / 2.0,
-                  CROSSING_SIZE / 4.0
-                )
-            },
-            InputCircle::W => {
-                Vec2::new(
-                -CROSSING_SIZE / 2.0,
-                -CROSSING_SIZE / 4.0
-                )
-            },
-            InputCircle::E => {
-                Vec2::new(
-                CROSSING_SIZE / 2.0,
-                CROSSING_SIZE / 4.0
-                )
-            }
+        // depending on the type, move the connector to a specific position on the crossing
+        let offset = match ctype {
+            InputCircle::N => Vec2::new(-CROSSING_SIZE / 4.0, CROSSING_SIZE / 2.0),
+            InputCircle::S => Vec2::new(CROSSING_SIZE / 4.0, -CROSSING_SIZE / 2.0),
+            InputCircle::W => Vec2::new(-CROSSING_SIZE / 2.0, -CROSSING_SIZE / 4.0),
+            InputCircle::E => Vec2::new(CROSSING_SIZE / 2.0, CROSSING_SIZE / 4.0),
         };
         let mut shape_bundle = node_render::connector(offset, color);
         // should always be in the foreground
@@ -290,33 +291,12 @@ pub struct ConnectorCircleOut {
 
 impl ConnectorCircleOut {
     pub fn new(ctype: OutputCircle, color: Color) -> ConnectorCircleOut {
-        let offset = 
-        // depending on the type, move the connector to a specific position on the crossing        
-        match ctype {
-            OutputCircle::N => {
-                Vec2::new(
-                CROSSING_SIZE / 4.0,
-                CROSSING_SIZE / 2.0
-                )
-            },
-            OutputCircle::S => {
-                Vec2::new(
-                -CROSSING_SIZE / 4.0,
-                -CROSSING_SIZE / 2.0
-                )
-            },
-            OutputCircle::W => {
-                Vec2::new(
-                -CROSSING_SIZE / 2.0,
-                CROSSING_SIZE / 4.0
-                )
-            },
-            OutputCircle::E => {
-                Vec2::new(
-                CROSSING_SIZE / 2.0,
-                -CROSSING_SIZE / 4.0
-                )
-            }
+        // depending on the type, move the connector to a specific position on the crossing
+        let offset = match ctype {
+            OutputCircle::N => Vec2::new(CROSSING_SIZE / 4.0, CROSSING_SIZE / 2.0),
+            OutputCircle::S => Vec2::new(-CROSSING_SIZE / 4.0, -CROSSING_SIZE / 2.0),
+            OutputCircle::W => Vec2::new(-CROSSING_SIZE / 2.0, CROSSING_SIZE / 4.0),
+            OutputCircle::E => Vec2::new(CROSSING_SIZE / 2.0, -CROSSING_SIZE / 4.0),
         };
         let mut shape_bundle = node_render::connector(offset, color);
         // should always be in the foreground
