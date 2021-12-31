@@ -242,6 +242,7 @@ pub fn connector_clicked(
                 out_circles.q1().iter().for_each(| c | {
                     commands.entity(c).despawn();
                 });
+                commands.entity(parent_node.0).remove::<HasConnectors>();
             }
         }
         AddStreetStage::SelectingInput => {
@@ -282,6 +283,7 @@ pub fn connector_clicked(
                     commands.entity(c).despawn();
                 });
                 ui_state.toolbar.locked = false;
+                commands.entity(parent.0).remove::<HasConnectors>();
             }
         }
     }
