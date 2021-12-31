@@ -192,11 +192,11 @@ pub fn connector_clicked(
     mut stage: ResMut<AddStreetStage>,
     out_circles: QuerySet<(
         Query<(&Parent, &GlobalTransform, &OutputCircle), With<UnderCursor>>,
-        Query<Entity, (With<UnderCursor>, With<OutputCircle>)>,
+        Query<Entity, With<OutputCircle>>,
     )>,
     in_circles: QuerySet<(
         Query<(&Parent, &GlobalTransform, &InputCircle), With<UnderCursor>>,
-        Query<Entity, (With<UnderCursor>, With<InputCircle>)>,
+        Query<Entity, With<InputCircle>>,
     )>,
     street: Query<(Entity, &NewStreetInfo, &StreetLinePosition), With<PlacingStreet>>,
     parent_nodes: Query<&SimulationID>,
