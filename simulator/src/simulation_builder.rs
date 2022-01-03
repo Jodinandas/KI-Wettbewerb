@@ -401,7 +401,7 @@ impl SimulatorBuilder {
             .nodes
             .iter()
             .enumerate()
-            .find(|(i, n)| n.get().get_id() == id)
+            .find(|(_i, n)| n.get().get_id() == id)
         {
             Some((i, _n)) => i,
             None => return Err("Specified node does not exist"),
@@ -444,7 +444,7 @@ impl SimulatorBuilder {
                     .nodes
                     .iter()
                     .enumerate()
-                    .filter(|(i, rnode)| {
+                    .filter(|(_i, rnode)| {
                         // only retain nodes that are not connected
                         let remove = connections.iter().any(|c| c == *rnode);
                         // before the node is removed, remove the references to it from all
@@ -462,13 +462,12 @@ impl SimulatorBuilder {
 
                         remove
                     })
-                    .map(|(i, n)| i)
+                    .map(|(i, _n)| i)
                     .collect();
             }
             NodeBuilder::Crossing(inner) => {
                 let connections = inner.get_all_connections();
 
-                for c in connections.iter() {}
                 // remove the connected streets as well
                 // in addition, the street references need to be removed from
                 // their connection as well
@@ -477,7 +476,7 @@ impl SimulatorBuilder {
                     .nodes
                     .iter()
                     .enumerate()
-                    .filter(|(i, rnode)| {
+                    .filter(|(_i, rnode)| {
                         // only retain nodes that are not connected
                         let remove = connections.iter().any(|c| c == *rnode);
                         // println!("removing {}", node.get().get_id());
@@ -497,7 +496,7 @@ impl SimulatorBuilder {
 
                         remove
                     })
-                    .map(|(i, n)| i)
+                    .map(|(i, _n)| i)
                     .collect();
             }
             NodeBuilder::Street(_) => {}

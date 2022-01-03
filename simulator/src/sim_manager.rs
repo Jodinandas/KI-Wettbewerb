@@ -1,5 +1,5 @@
 use crate::datastructs::{IntMut, MovableStatus};
-use crate::path::{MovableServer, PathAwareCar};
+use crate::path::{MovableServer};
 use crate::SimulatorBuilder;
 use std::collections::HashMap;
 use std::error::Error;

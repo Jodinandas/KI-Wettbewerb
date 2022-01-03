@@ -6,7 +6,7 @@ use bevy::{
     math::{Vec2, Vec3},
     prelude::{
         Commands, Entity, EventReader, GlobalTransform, KeyCode, MouseButton, Or, Query, QuerySet,
-        Res, ResMut, Transform, With, Without,
+        Res, Transform, With,
     },
     window::Windows,
 };
@@ -41,7 +41,7 @@ pub fn mark_connector_under_cursor(
             ),
         >,
         // candidates for selection
-        Query<(Entity, &GlobalTransform), (Or<(With<OutputCircle>, With<InputCircle>)>)>,
+        Query<(Entity, &GlobalTransform), Or<(With<OutputCircle>, With<InputCircle>)>>,
     )>,
     camera: Query<&Transform, With<Camera>>,
 ) {

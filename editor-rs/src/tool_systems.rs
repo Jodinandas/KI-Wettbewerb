@@ -3,14 +3,14 @@ use bevy::{
     input::Input,
     math::Vec2,
     prelude::{
-        BuildChildren, Children, Commands, DespawnRecursiveExt, Entity, GlobalTransform,
+        BuildChildren, Children, Commands, Entity, GlobalTransform,
         MouseButton, Parent, Query, QuerySet, Res, ResMut, Transform, With, Without,
     },
     window::Windows,
 };
 use bevy_prototype_lyon::entity::ShapeBundle;
 use simulator::{nodes::{
-    CrossingBuilder, Direction, IONodeBuilder, InOut, NodeBuilder, NodeBuilderTrait,
+    CrossingBuilder, IONodeBuilder, InOut, NodeBuilder, NodeBuilderTrait,
 }, SimManager};
 #[allow(unused_imports)]
 use log::{trace, debug, info, warn, error};

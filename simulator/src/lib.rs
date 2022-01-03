@@ -1,3 +1,5 @@
+//! The backend that does all the heavy lifing. 
+
 #![warn(missing_docs)]
 /// constructs a square of crossings. mostly for debugging purposes
 mod build_grid;
@@ -28,16 +30,19 @@ mod sim_manager;
 mod traversible;
 // reexport
 pub mod nodes {
+    //! importing the different node types
     pub use crate::node::*;
     pub use crate::node_builder::*;
 }
 pub mod path {
+    //! Crate for the Car and Movableserver
     pub use crate::pathfinding::{MovableServer, PathAwareCar};
 }
 
 pub use sim_manager::SimManager;
 
 pub mod datastructs {
+    //! The most important data saving structs needed
     pub use crate::int_mut::{IntMut, WeakIntMut};
     pub use crate::movable::MovableStatus;
 }
