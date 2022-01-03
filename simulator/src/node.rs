@@ -13,9 +13,6 @@ use std::error::Error;
 /// ## How to create a node
 /// Nodes are typically created by a [NodeBuilder](super::node_builder::NodeBuilder) objects using
 /// the build method.
-/// ```
-///
-/// ```
 #[derive(Debug, Clone)]
 pub enum Node<Car = RandCar>
 where

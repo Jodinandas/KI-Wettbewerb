@@ -13,7 +13,7 @@ Have dedicated "ports" for streets in each crossing per direction, like with ble
     - [x] add Nodes
         * TODO: Make sure, the street length ist set correctly
     - [x] delete nodes
-    - [ ] change nodes
+    - [x] change nodes
         * Streets: lanes, length (?) -> very careful (?)
         * IONodes: frequency
         * Crossing
@@ -27,7 +27,7 @@ Have dedicated "ports" for streets in each crossing per direction, like with ble
 
 ### Backend
 #### Must-Have
-* Ampelschaltung
+*[x] Ampelschaltung
 * GA, preferably multithread
 * Jede Straße 1 IONode (Auch in Editor angezeigt, würde ich sagen [Jonas])
 * Fußgänger
