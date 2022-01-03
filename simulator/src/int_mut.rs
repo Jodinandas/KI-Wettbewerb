@@ -6,7 +6,7 @@ use std::{
 /// This struct implements the interior mutability pattern and
 /// is basically only used to store data and make the access
 /// to it easier
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct IntMut<T> {
     /// data
     data: Arc<Mutex<T>>,
@@ -27,6 +27,20 @@ impl<T> IntMut<T> {
         WeakIntMut {
             data: Arc::downgrade(&self.data),
         }
+    }
+
+}
+impl<T: Clone> IntMut<T> {
+    /// deep copy of the IntMut
+    pub fn deep_copy(&self) -> IntMut<T> {
+        let new_data = (*self.get()).clone();
+        IntMut::new(new_data)
+    }
+}
+impl<T> Clone for IntMut<T> {
+    /// BE CAREFUL: SHALLOW COPY
+    fn clone(&self) -> Self {
+        Self { data: Arc::clone(&self.data) }
     }
 }
 

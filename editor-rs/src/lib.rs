@@ -15,6 +15,8 @@ mod themes;
 mod tool_systems;
 mod toolbar;
 mod user_interface;
+mod simulation_display;
+use node_bundles::node_render;
 #[allow(unused_imports)]
 use log::{trace, debug, info, warn, error};
 
@@ -181,6 +183,11 @@ pub fn run() {
                 .with_run_criteria(tool_systems::run_if_add_ionode.system())
                 .with_system(tool_systems::add_io_node_system.system()),
         )
+        .add_system_set(
+            SystemSet::new()
+                .with_run_criteria(simulation_display::run_if_simulating.system())
+                .with_system(simulation_display::display_cars.system()),
+        )
         .run();
 }
 
@@ -192,7 +199,7 @@ fn debug_status_updates(
         let update: String = r.values().map(| s | {
             s.iter().map( | s | s.position.to_string())
         }).flatten().collect();
-        info!("Car Status Update: {}", update);
+        info!("Car Status Update: {:?}", r);
     }
 }
 

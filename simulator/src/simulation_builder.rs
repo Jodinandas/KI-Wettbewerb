@@ -1,4 +1,6 @@
 use crate::node_builder::InOut;
+use crate::pathfinding::{MovableServer, PathAwareCar};
+use crate::traits::Movable;
 
 use super::int_mut::IntMut;
 use super::node::Node;
@@ -90,18 +92,19 @@ impl Error for IndexError {}
 /// let mut simulator = SimulatorBuilder::from_json(json);
 /// ```
 #[derive(Debug)]
-pub struct SimulatorBuilder {
+pub struct SimulatorBuilder<Car=PathAwareCar> 
+where Car: Movable {
     /// A list of all the nodes
     pub nodes: Vec<IntMut<NodeBuilder>>,
     max_iter: Option<usize>,
-    cache: Option<Vec<IntMut<Node>>>,
+    cache: Option<Vec<IntMut<Node<Car>>>>,
     delay: u64,
     /// The id of the next node. This is necessary, as the length of the nodes
     /// vector is not always the id. (because nodes can be deleted as well)
     next_id: usize,
 }
 
-impl SimulatorBuilder {
+impl<Car: Movable> SimulatorBuilder<Car> {
     /// Create new node
     pub fn new() -> SimulatorBuilder {
         SimulatorBuilder {
@@ -133,7 +136,7 @@ impl SimulatorBuilder {
             };
             crossings.push(IntMut::new(new_crossing));
         }
-        let mut builder = SimulatorBuilder::new();
+        let mut builder = SimulatorBuilder::<PathAwareCar>::new();
         builder.nodes = crossings;
         // save the number of inital nodes to later check if the json points
         // to existing nodes that are not streets
@@ -247,20 +250,25 @@ impl SimulatorBuilder {
     }
 
     /// Creates a new simulator from the templates
-    pub fn build(&mut self) -> Simulator {
+    pub fn build(&mut self, mv_server: &IntMut<MovableServer<Car>>) -> Simulator<Car> {
         if let Some(cache) = &self.cache {
             return Simulator {
-                nodes: cache.clone(),
+                nodes: cache.iter().map(|n| n.deep_copy() ).collect(),
                 max_iter: self.max_iter,
                 delay: self.delay,
             };
-        }
-        let mut sim_nodes: Vec<IntMut<Node>> = Vec::new();
-        sim_nodes.reserve(self.nodes.len());
+        }      
         // create the nodes
-        self.nodes
+        let mut sim_nodes: Vec<IntMut<Node<Car>>> = self.nodes
             .iter()
-            .for_each(|n| sim_nodes.push(IntMut::new(n.get().build())));
+            .map(|n| {
+                    let mut new_node = n.get().build();
+                    if let Node::IONode(node) = &mut new_node {
+                        node.register_movable_server(mv_server);
+                    }
+                    IntMut::new(new_node)
+                }
+            ).collect();
         // create the connections
         self.nodes.iter().enumerate().for_each(|(i, start_node_arc)| {
             let mut start_node = start_node_arc.get();
@@ -371,12 +379,12 @@ impl SimulatorBuilder {
         &self.nodes[new_node_index]
     }
     /// an optional delay between each iteration
-    pub fn with_delay(&mut self, value: u64) -> &mut SimulatorBuilder {
+    pub fn with_delay(&mut self, value: u64) -> &mut Self {
         self.delay = value;
         self
     }
     /// Makes the simulation stop after `value` iterations
-    pub fn with_max_iter(&mut self, value: Option<usize>) -> &mut SimulatorBuilder {
+    pub fn with_max_iter(&mut self, value: Option<usize>) -> &mut Self {
         self.max_iter = value;
         self
     }
@@ -516,19 +524,22 @@ impl SimulatorBuilder {
 
 mod tests {
 
+
     #[test]
     fn simulation_builder_from_json() {
+        use crate::pathfinding::PathAwareCar;
         let json: &str = r#"{"crossings": [{"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]}, {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
-        let data = super::SimulatorBuilder::from_json(json).unwrap();
+        let data = super::SimulatorBuilder::<PathAwareCar>::from_json(json).unwrap();
         println!("{:?}", &data);
     }
 
     #[test]
     fn connect_with_streets() {
         use crate::node_builder::Direction;
+        use crate::pathfinding::PathAwareCar;
         use crate::node_builder::{CrossingBuilder, IONodeBuilder, NodeBuilder};
         use crate::simulation_builder::SimulatorBuilder;
-        let mut simulator = SimulatorBuilder::new();
+        let mut simulator = SimulatorBuilder::<PathAwareCar>::new();
         simulator.add_node(NodeBuilder::IONode(IONodeBuilder::new()));
         simulator.add_node(NodeBuilder::Crossing(CrossingBuilder::new()));
         simulator

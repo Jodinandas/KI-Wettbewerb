@@ -1,5 +1,7 @@
 use crate::movable::MovableStatus;
 use crate::movable::RandCar;
+use crate::pathfinding::MovableServer;
+use crate::pathfinding::PathAwareCar;
 use crate::traits::Movable;
 use crate::traits::NodeTrait;
 use std::collections::HashMap;
@@ -21,9 +23,8 @@ use super::node::Node;
 /// are connected to each other. Cars are spawned and destroyed
 /// by so called IONodes
 #[derive(Debug)]
-pub struct Simulator<Car = RandCar>
-where
-    Car: Movable,
+pub struct Simulator<Car = PathAwareCar>
+where Car: Movable
 {
     /// A list of all the nodes.
     ///
@@ -128,7 +129,10 @@ impl<Car: Movable> Simulator<Car> {
         let mut mapped_node = HashMap::new();
         for n in self.nodes.iter() {
             let n = n.get();
-            mapped_node.insert(n.id(), n.get_car_status());
+            let car_status = n.get_car_status();
+            if car_status.len() != 0 {
+                mapped_node.insert(n.id(), car_status);
+            }
         }
         mapped_node
     }
@@ -175,14 +179,19 @@ impl Display for Simulator {
 }
 
 mod tests {
-
     #[test]
     fn test_simloop() {
+        use crate::pathfinding::PathAwareCar;
+        use crate::pathfinding::MovableServer;
+        use crate::datastructs::IntMut;
         use super::super::simulation_builder::SimulatorBuilder;
         let json: &str = r#"{"crossings": [{"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]}, {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
-        let mut sim_builder = SimulatorBuilder::from_json(&json).unwrap();
+        let mut sim_builder = SimulatorBuilder::<PathAwareCar>::from_json(&json).unwrap();
+        let mut mv_server = MovableServer::<PathAwareCar>::new();
+        mv_server.register_simulator_builder(&sim_builder);
+        let mv_server = IntMut::new(mv_server);
         sim_builder.with_delay(1).with_max_iter(Some(1000));
-        let mut sim = sim_builder.build();
+        let mut sim = sim_builder.build(&mv_server);
         sim.simulation_loop().unwrap();
     }
 }

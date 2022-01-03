@@ -13,12 +13,15 @@ use super::int_mut::{IntMut, WeakIntMut};
 use super::node::Node;
 use super::node_builder::NodeBuilder;
 use super::simulation::NodeDoesntExistError;
+#[allow(unused_imports)]
+use log::{trace, debug, info, warn, error};
 
 /// A car with a predefined path.
 #[derive(Debug, Clone)]
 pub struct PathAwareCar {
     speed: f32,
     path: Vec<usize>,
+    id: u32
 }
 
 #[derive(Debug)]
@@ -126,6 +129,25 @@ impl Movable for PathAwareCar {
             },
         }
     }
+
+    fn get_id(&self) -> u32 {
+        self.id
+    }
+
+    fn set_id(&mut self, id: u32) {
+        self.id = id
+    }
+
+    fn new() -> Self {
+        PathAwareCar {
+            speed: 0.0,
+            path: Vec::new(),
+            id: 0,
+        }
+    }
+    fn set_path(&mut self, p: Vec<usize>) {
+        self.path = p;
+    }
 }
 
 fn overnext_node_id(path: &Vec<usize>) -> usize{
@@ -138,6 +160,7 @@ fn overnext_node_id(path: &Vec<usize>) -> usize{
 
 /// A Data Structure representing the connections with indices to make
 /// using path finding algorithms easier
+#[derive(Debug)]
 struct IndexedNodeNetwork {
     /// connections acvvvvvvvvvvvvvvvn bbbbbbbbbbbbbbbbbbbbbbbbbbbb (my cat)
     ///
@@ -151,7 +174,7 @@ struct IndexedNodeNetwork {
 
 impl IndexedNodeNetwork {
     /// generates a new [IndexedNodeNetwork] from a list of [NodeBuilders](NodeBuilder)
-    fn index_builder(&mut self, sbuilder: &SimulatorBuilder) -> IndexedNodeNetwork {
+    fn index_builder<Car: Movable>(&mut self, sbuilder: &SimulatorBuilder<Car>) {
         let nodes = &sbuilder.nodes;
         let mut connections: Vec<Vec<(usize, usize)>> = Vec::with_capacity(nodes.len());
         let mut io_nodes: Vec<usize> = Vec::new();
@@ -178,16 +201,17 @@ impl IndexedNodeNetwork {
             match *inner_data {
                 NodeBuilder::IONode(_) => {
                     io_nodes.push(inner_data.get_id());
-                    io_node_weights.push(inner_data.get_weight())
+                    io_node_weights.push(inner_data.get_weight());
+                    // trace!("doing magic node weight thingy");
                 }
                 _ => {}
             }
         });
-        IndexedNodeNetwork {
+        *self = IndexedNodeNetwork {
             connections,
             io_nodes,
             io_node_weights,
-        }
+        };
     }
     pub fn new() -> IndexedNodeNetwork {
         IndexedNodeNetwork {
@@ -204,18 +228,39 @@ impl IndexedNodeNetwork {
     }
 }
 
+/// Is raised when it is not possible to compute a path
+#[derive(Debug)]
+pub struct NoPathError {
+    pub start: usize,
+    pub end: usize
+}
+
+impl Display for NoPathError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Unable to compute path between IONodes: {} and {}", self.start, self.end)
+    }
+}
+
+impl Error for NoPathError {}
+
+
 /// generates new movables with a given path
 ///
 /// It provides a way for multiple Simulations to request new cars
 /// without paths having to generate a new path each time. It caches
 /// paths.
-pub struct MovableServer {
+#[derive(Debug)]
+pub struct MovableServer<Car=PathAwareCar> 
+where Car: Movable
+{
     // nodes: Vec<IntMut<NodeBuilder>>,
     indexed: IndexedNodeNetwork,
-    cache: HashMap<(usize, usize), PathAwareCar>,
+    cache: HashMap<(usize, usize), Car>,
+    /// used to assign each car a unique number
+    car_count: u32
 }
 
-impl MovableServer {
+impl<Car: Movable> MovableServer<Car> {
     /// indexes and copies the given nodes and returns a new [MovableServer]
     ///
     /// it is important to note that this
@@ -223,54 +268,70 @@ impl MovableServer {
         MovableServer {
             indexed: IndexedNodeNetwork::new(),
             cache: HashMap::new(),
+            car_count: 0
         }
     }
+    /// index a simulation builder in the movable server so we can access it lateron
+    pub fn register_simulator_builder(&mut self, nbuilder: &SimulatorBuilder) {
+        self.indexed.index_builder(nbuilder);
+    }
     /// generates a new movable for node with index `index`
-    pub fn generate_movable(&mut self, index: usize) -> PathAwareCar {
+    pub fn generate_movable(&mut self, index: usize) -> Result<Car, NoPathError> {
         // choose random IoNode to drive to
         // prevent start node from being the end node at the same time
+        // trace!("IONode Weights (indexed) : {:?}", self.indexed.io_node_weights);
         let dist = WeightedIndex::new(self.indexed.io_node_weights.clone()).unwrap();
         let mut rng = thread_rng();
         // you are the chosen one!
-        let start_node = self.indexed.io_nodes[index];
+        let start_node = index; // self.indexed.io_nodes[index];
         let end_node = dist.sample(&mut rng);
-        println!("{}, {}", start_node, end_node);
+        // println!("{}, {}", start_node, end_node);
         let cache_entry = self.cache.entry((start_node, end_node));
         if let Entry::Occupied(entry) = cache_entry {
-            return entry.get().clone();
+            return Ok(entry.get().clone());
         } else {
             // weight needs to be 1/weights, because dijkstra takes cost and not weight of nodes
-            let mut path = dijkstra(
+            let mut path = match dijkstra(
                 &start_node,
                 |p| self.indexed.connections[*p].clone(),
                 |i| *i == end_node,
-            )
-            .expect("Unable to compute path")
-            .0;
+            ) {
+                Some((p, _)) => p,
+                None => {
+                    let perror = NoPathError {
+                        start: start_node,
+                        end: end_node
+                    };
+                    trace!("{:?}", perror);
+                    return Err(perror)
+                },
+            };
             // Reverse list of nodes to be able to pop off the last element
             path.reverse();
             // IONode is the first element
             path.pop();
-            let car = PathAwareCar { speed: 1.0, path };
+            let mut car = Car::new(); // PathAwareCar { speed: 1.0, path, id: self.car_count };
+            car.set_speed(1.0);
+            car.set_path(path);
+            car.set_id(self.car_count);
             self.cache.insert((start_node, end_node), car.clone());
-            return car;
+            return Ok(car);
         }
-    }
-    /// index a simulation builder in the movable server so we can access it lateron
-    pub fn register_simulation_buider(&mut self, nbuilder: &SimulatorBuilder) {
-        self.indexed.index_builder(nbuilder);
     }
 }
 
+
 mod tests {
+
     #[test]
     #[should_panic]
     fn generate_movable_test() {
+        use crate::pathfinding::PathAwareCar;
         use crate::debug::build_grid_sim;
         use crate::pathfinding::MovableServer;
         let simbuilder = build_grid_sim(4);
-        let mut test = MovableServer::new();
-        test.register_simulation_buider(&simbuilder);
+        let mut test = MovableServer::<PathAwareCar>::new();
+        test.register_simulator_builder(&simbuilder);
         println!("{:?}", test.generate_movable(4));
         println!("{:?}", test.generate_movable(4));
         println!("{:?}", test.generate_movable(4));
