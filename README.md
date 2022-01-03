@@ -28,9 +28,9 @@ Have dedicated "ports" for streets in each crossing per direction, like with ble
 ### Backend
 #### Must-Have
 - [x] Ampelschaltung
-- [x] GA, preferably multithread
-- [x] Jede Straße 1 IONode (Auch in Editor angezeigt, würde ich sagen [Jonas])
-- [x] Fußgänger
+- [ ] GA, preferably multithread
+- [ ] Jede Straße 1 IONode (Auch in Editor angezeigt, würde ich sagen [Jonas])
+- [ ] Fußgänger
 
 #### Optional
 * Do not use optimal path for cars each time, because more realistic 
