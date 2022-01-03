@@ -3,8 +3,11 @@ use super::movable::RandCar;
 use super::node_builder::{CrossingConnections, Direction, InOut};
 use super::traversible::Traversible;
 use crate::movable::MovableStatus;
+use crate::pathfinding::MovableServer;
 use crate::traits::{Movable, NodeTrait};
 use std::error::Error;
+#[allow(unused_imports)]
+use log::{trace, debug, info, warn, error};
 
 /// A node is any kind of logical object in the Simulation
 ///  ([Streets](Street), [IONodes](IONode), [Crossings](Crossing))
@@ -36,29 +39,39 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
             .find(|n| *n == other)
             .is_some()
     }
-    fn get_out_connections(&self) -> Vec<WeakIntMut<Node<Car>>> {
-        match self {
-            Node::Street(street) => street.get_out_connections(),
-            Node::IONode(io_node) => io_node.connections.clone(),
-            Node::Crossing(crossing) => crossing.get_out_connections(),
-        }
-    }
-
     fn update_cars(&mut self, t: f64) -> Vec<Car> {
         match self {
             Node::Street(street) => street.update_movables(t),
             Node::IONode(io_node) => {
                 // create new car
                 io_node.time_since_last_spawn += t;
-                let new_cars = Vec::<Car>::new();
+                let mut new_cars = Vec::<Car>::new();
+                // TODO: rework spawn rate
                 if io_node.time_since_last_spawn >= io_node.spawn_rate {
                     // TODO: Remove and replace with proper request to
                     //  the movable server
                     // new_cars.push(Car::new())
+                    match &mut io_node.movable_server {
+                        Some(server) => {
+                            let car_result = server.get().generate_movable(io_node.id);
+                            if let Ok(car) = car_result {
+                                new_cars.push(car);
+                            }
+                        },
+                        None => warn!("Trying to simulate Node with uninitialised MovableServer"),
+                    }
                 }
                 new_cars
             }
             Node::Crossing(crossing) => crossing.car_lane.update_movables(t),
+        }
+    }
+
+    fn get_out_connections(&self) -> Vec<WeakIntMut<Node<Car>>> {
+        match self {
+            Node::Street(street) => street.get_out_connections(),
+            Node::IONode(io_node) => io_node.connections.clone(),
+            Node::Crossing(crossing) => crossing.get_out_connections(),
         }
     }
 
@@ -190,6 +203,8 @@ where
     /// To differentiate different nodes. Should be set to the positions in the
     /// list of all nodes in the simulation
     pub id: usize,
+    /// The movable server used to spawn new cars
+    pub movable_server: Option<IntMut<MovableServer<Car>>>
 }
 impl<Car> IONode<Car>
 where
@@ -203,8 +218,18 @@ where
             time_since_last_spawn: 0.0,
             absorbed_cars: 0,
             id: 0,
+            movable_server: None
         }
     }
+    /// Used when constructing a node from a [NodeBuilder](crate::nodes::NodeBuilder)
+    ///  The Movable server is added so that the node can spawn new cars
+    ///
+    ///  This functionality is not in the `new` function to keep the function signature
+    ///  the same across all node types
+    pub fn register_movable_server(&mut self, mv_server: &IntMut<MovableServer<Car>>) {
+        self.movable_server = Some(mv_server.clone())
+    }
+
     /// adds a connections
     pub fn connect(&mut self, n: &IntMut<Node<Car>>) {
         self.connections.push(n.downgrade())

@@ -1,6 +1,7 @@
 use std::{collections::HashMap, error::Error, fmt::Debug, hash::Hash};
 
 use crate::node::TrafficLightState;
+use crate::traits::Movable;
 
 use super::int_mut::{IntMut, WeakIntMut};
 use super::{
@@ -24,7 +25,7 @@ pub enum NodeBuilder {
 /// A Trait defining the behaviour of the subvariants of [NodeBuilder]
 pub trait NodeBuilderTrait: Debug + DynClone + Sync + Send {
     /// constructs a node with the same settings
-    fn build(&self) -> Node;
+    fn build<Car: Movable>(&self) -> Node<Car>;
     /// returns a list of all connected output nodes
     fn get_out_connections(&self) -> Vec<WeakIntMut<NodeBuilder>>;
     /// returns a list of all connected nodes
@@ -64,7 +65,7 @@ fn has_connection(node_a: &NodeBuilder, node_b: &IntMut<NodeBuilder>) -> bool {
 }
 
 impl NodeBuilderTrait for NodeBuilder {
-    fn build(&self) -> Node {
+    fn build<Car: Movable>(&self) -> Node<Car> {
         match self {
             NodeBuilder::IONode(inner) => inner.build(),
             NodeBuilder::Crossing(inner) => inner.build(),
@@ -124,8 +125,6 @@ impl NodeBuilderTrait for NodeBuilder {
     }
 }
 
-dyn_clone::clone_trait_object!(NodeBuilderTrait);
-
 /// Builder for [Street]
 #[derive(Debug, Clone)]
 pub struct StreetBuilder {
@@ -141,7 +140,7 @@ pub struct StreetBuilder {
     pub id: usize,
 }
 impl NodeBuilderTrait for StreetBuilder {
-    fn build(&self) -> Node {
+    fn build<Car: Movable>(&self) -> Node<Car> {
         Node::Street(Street {
             lanes: vec![Traversible::<RandCar>::new(self.lane_length)],
             conn_in: None,
@@ -254,13 +253,14 @@ pub struct IONodeBuilder {
     pub id: usize,
 }
 impl NodeBuilderTrait for IONodeBuilder {
-    fn build(&self) -> Node {
+    fn build<Car: Movable>(&self) -> Node<Car> {
         Node::IONode(IONode {
             connections: Vec::new(),
             spawn_rate: self.spawn_rate,
             time_since_last_spawn: 0.0,
             absorbed_cars: 0,
             id: self.id,
+            movable_server: None
         })
     }
     fn get_out_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
@@ -489,7 +489,7 @@ pub struct CrossingBuilder {
     pub id: usize,
 }
 impl NodeBuilderTrait for CrossingBuilder {
-    fn build(&self) -> Node {
+    fn build<Car: Movable>(&self) -> Node<Car> {
         Node::Crossing(Crossing {
             connections: CrossingConnections::new(),
             car_lane: Traversible::<RandCar>::new(self.length),

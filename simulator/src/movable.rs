@@ -32,6 +32,13 @@ impl Movable for RandPerson {
     fn set_id(&mut self, id: u32) {
         self.id = id
     }
+
+    fn new() -> Self {
+        RandPerson {
+            speed: 0.0,
+            id: 0,
+        }
+    }
 }
 
 /// A car that takes turn at random
@@ -70,6 +77,13 @@ impl Movable for RandCar {
 
     fn set_id(&mut self, id: u32) {
         self.id = id
+    }
+
+    fn new() -> Self {
+        RandCar {
+            speed: 0.0,
+            id: 0,
+        }
     }
 }
 

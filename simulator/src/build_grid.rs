@@ -1,6 +1,7 @@
 use super::node_builder::{CrossingBuilder, IONodeBuilder};
 use super::simulation_builder::SimulatorBuilder;
 use crate::node_builder::{Direction, NodeBuilder};
+use crate::pathfinding::PathAwareCar;
 
 /// Builds a grid with side length `grid_side_len`
 /// The edges are IONodes, the crossings and IONodes
@@ -16,7 +17,7 @@ pub fn build_grid_sim(grid_side_len: u32) -> SimulatorBuilder {
     // 5 IO C  C  C  C  C  C  IO
     // 6 IO C  C  C  C  C  C  IO
     // 7    IO IO IO IO IO IO
-    let mut sim = SimulatorBuilder::new();
+    let mut sim = SimulatorBuilder::<PathAwareCar>::new();
     sim.with_delay(0).with_max_iter(Some(10000));
     for i in 0..grid_side_len {
         for j in 0..grid_side_len {

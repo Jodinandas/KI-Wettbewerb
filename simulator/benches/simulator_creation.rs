@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use simulator::debug::build_grid_sim;
+use simulator::{debug::build_grid_sim, path::{MovableServer, PathAwareCar}, datastructs::IntMut};
 
 fn performance_simulation_creation(c: &mut Criterion) {
     let mut group = c.benchmark_group("performance_simulation_creation");
@@ -7,11 +7,14 @@ fn performance_simulation_creation(c: &mut Criterion) {
     for _i in 1..4 {
         size *= 2;
         let mut sim_builder = build_grid_sim(size);
+        let mut mv_server = MovableServer::<PathAwareCar>::new();
+        mv_server.register_simulator_builder(&sim_builder);
+        let mv_server = IntMut::new(mv_server);
         // build once to populate the cache
-        let build = sim_builder.build();
+        let build = sim_builder.build(&mv_server);
         println!("Build finished with {} nodes", build.nodes.len());
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &_size| {
-            b.iter(|| sim_builder.build())
+            b.iter(|| sim_builder.build(&mv_server))
         });
     }
     group.finish()

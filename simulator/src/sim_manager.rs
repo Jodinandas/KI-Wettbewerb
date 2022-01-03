@@ -32,9 +32,9 @@ struct Simulating {
 
 impl Simulating {
     /// starts a new simulation
-    pub fn new(sim_builder: &mut SimulatorBuilder, time_steps: f32) -> Simulating {
+    pub fn new(sim_builder: &mut SimulatorBuilder, mv_server: &IntMut<MovableServer>, time_steps: f32) -> Simulating {
         debug!("creating new Simulating");
-        let mut new_sim = sim_builder.build();
+        let mut new_sim = sim_builder.build(mv_server);
         // the channel that information about the car updates will be passed through
         let (tx, rx) = mpsc::channel();
         let terminate = IntMut::new(false);
@@ -120,9 +120,10 @@ impl Display for SimulationDoesNotExistError {
 impl SimManager {
     /// creates a new SimManager with an empty SimulationBuilder
     pub fn new() -> SimManager {
-        let sim_builder = SimulatorBuilder::new();
+        let sim_builder = SimulatorBuilder::<PathAwareCar>::new();
+        let movable_server = MovableServer::<PathAwareCar>::new();
         SimManager {
-            movable_server: IntMut::new(MovableServer::new()),
+            movable_server: IntMut::new(movable_server),
             sim_builder: sim_builder,
             simulations: Vec::new(),
             tracking_index: None,
@@ -149,9 +150,11 @@ impl SimManager {
                 msg: "Can not start new simulations while old ones are still running.",
             }));
         }
+        // index nodes
+        self.movable_server.get().register_simulator_builder(&self.sim_builder);
         self.simulations.clear();
         for _i in 0..num_sims {
-            self.simulations.push(Simulating::new(&mut self.sim_builder, 0.2));
+            self.simulations.push(Simulating::new(&mut self.sim_builder, &self.movable_server, 0.2));
         }
         Ok(())
     }

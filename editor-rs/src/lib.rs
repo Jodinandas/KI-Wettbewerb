@@ -202,7 +202,7 @@ fn debug_status_updates(
         let update: String = r.values().map(| s | {
             s.iter().map( | s | s.position.to_string())
         }).flatten().collect();
-        info!("Car Status Update: {}", update);
+        info!("Car Status Update: {:?}", r);
     }
 }
 

@@ -48,8 +48,12 @@ pub trait Movable: Debug + Clone + Send + Sync + DynClone {
     fn get_speed(&self) -> f32;
     /// unused
     fn set_speed(&mut self, s: f32);
+    /// returns new Movable
+    fn new() -> Self;
     /// advances the time
     fn update(&mut self, t: f64);
+    /// sets the path. (Only used in PathAwareCar)
+    fn set_path(&mut self, P: Vec<usize>) {}
     /// Decides the next node for the movable to move to
     ///
     /// It can very well happen that the next node can't be determined
