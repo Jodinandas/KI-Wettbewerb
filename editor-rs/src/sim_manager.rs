@@ -4,8 +4,11 @@ use simulator::SimulatorBuilder;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::Display;
+use std::panic;
 use std::sync::{mpsc, Mutex};
 use std::thread::{self, JoinHandle};
+#[allow(unused_imports)]
+use log::{trace, debug, info, warn, error};
 
 /// saves a handle to the thread performing the simulation
 /// and provides ways of communication
@@ -30,6 +33,7 @@ struct Simulating {
 impl Simulating {
     /// starts a new simulation
     pub fn new(sim_builder: &mut SimulatorBuilder, time_steps: f32) -> Simulating {
+        debug!("creating new Simulating");
         let mut new_sim = sim_builder.build();
         // the channel that information about the car updates will be passed through
         let (tx, rx) = mpsc::channel();
@@ -41,6 +45,10 @@ impl Simulating {
         let terminated_moved = terminated.clone();
         // -------------------------- this is where the magic happens --------------
         let handle = thread::spawn(move || {
+            info!("starting Simulation thread");
+            panic::set_hook(Box::new( |e| {
+                error!("Simulation panicked! Backtrace: {}", e);
+            }));
             while !*terminate_moved.get() {
                 new_sim.sim_iter(time_steps.into());
                 // report car position updates
@@ -132,7 +140,7 @@ impl SimManager {
         }
         return Ok(&mut self.sim_builder);
     }
-    ///
+    /// Starts simulating the specified number of simulation
     pub fn simulate(&mut self, num_sims: usize) -> Result<(), Box<dyn Error>> {
         // are any simulations still running?
         let any_sims = self.simulations.iter().any(|s| !s.has_terminated());
@@ -141,7 +149,10 @@ impl SimManager {
                 msg: "Can not start new simulations while old ones are still running.",
             }));
         }
-        for _i in 0..num_sims {}
+        self.simulations.clear();
+        for _i in 0..num_sims {
+            self.simulations.push(Simulating::new(&mut self.sim_builder, 0.2));
+        }
         Ok(())
     }
 
@@ -153,14 +164,16 @@ impl SimManager {
     ///  Receiver to fill up.)
     pub fn get_status_updates(&self) -> Option<HashMap<usize, Vec<MovableStatus>>> {
         match self.tracking_index {
-            Some(i) => Some(
-                self.simulations[i]
+            Some(i) => {
+                match self.simulations[i]
                     .car_updates
                     .lock()
                     .unwrap()
-                    .try_recv()
-                    .expect("Unable to get car updates!"),
-            ),
+                    .try_recv() {
+                        Ok(value) => Some(value),
+                        Err(_) => None,
+                    }
+            },
             None => return None,
         }
     }

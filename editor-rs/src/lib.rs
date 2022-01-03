@@ -150,6 +150,7 @@ pub fn run() {
         .add_system(input::keyboard_movement.system())
         .add_system(input::mouse_panning.system())
         .add_system(recolor_nodes.system())
+        .add_system(debug_status_updates.system())
         // .add_system(toolbarsystem.system())
         .add_system_set_to_stage(
             CoreStage::PostUpdate,
@@ -187,6 +188,18 @@ pub fn run() {
                 .with_system(tool_systems::add_io_node_system.system()),
         )
         .run();
+}
+
+fn debug_status_updates(
+    sim_manager: Res<SimManager>
+) {
+    let report = sim_manager.get_status_updates();
+    if let Some(r) = report {
+        let update: String = r.values().map(| s | {
+            s.iter().map( | s | s.position.to_string())
+        }).flatten().collect();
+        info!("Car Status Update: {}", update);
+    }
 }
 
 pub struct Camera;

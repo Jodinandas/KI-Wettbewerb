@@ -263,8 +263,8 @@ impl SimulatorBuilder {
             .for_each(|n| sim_nodes.push(IntMut::new(n.get().build())));
         // create the connections
         self.nodes.iter().enumerate().for_each(|(i, start_node_arc)| {
-            start_node_arc
-                .get()
+            let mut start_node = start_node_arc.get();
+            start_node
                 .get_out_connections()
                 .iter()
                 .for_each(|c| {
@@ -276,7 +276,7 @@ impl SimulatorBuilder {
                     let starting_node_unwrapped = &mut *starting_node.get();
                     // we will connect using the out connections and set the in connections
                     // at the same time
-                    match &mut *start_node_arc.get() {
+                    match &mut *start_node {
                         NodeBuilder::Street(_street_builder) => {
                             let street = match starting_node_unwrapped{
                                 Node::Street(s) => s,
