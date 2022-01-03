@@ -19,9 +19,9 @@ impl Movable for RandPerson {
     fn decide_next(
         &mut self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
-    ) -> Result<WeakIntMut<Node<Self>>, Box<dyn Error>> {
+    ) -> Result<Option<WeakIntMut<Node<Self>>>, Box<dyn Error>> {
         let i = rand::thread_rng().gen_range(0..connections.len());
-        Ok(connections[i].clone())
+        Ok(Some(connections[i].clone()))
     }
 }
 
@@ -49,9 +49,9 @@ impl Movable for RandCar {
     fn decide_next(
         &mut self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
-    ) -> Result<WeakIntMut<Node>, Box<dyn Error>> {
+    ) -> Result<Option<WeakIntMut<Node>>, Box<dyn Error>> {
         let i = rand::thread_rng().gen_range(0..connections.len());
-        Ok(connections[i].clone())
+        Ok(Some(connections[i].clone()))
     }
 }
 

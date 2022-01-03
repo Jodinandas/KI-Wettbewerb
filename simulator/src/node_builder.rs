@@ -1,5 +1,7 @@
 use std::{collections::HashMap, error::Error, fmt::Debug, hash::Hash};
 
+use crate::node::TrafficLightState;
+
 use super::int_mut::{IntMut, WeakIntMut};
 use super::{
     movable::RandCar,
@@ -131,8 +133,11 @@ pub struct StreetBuilder {
     pub conn_out: Option<WeakIntMut<NodeBuilder>>,
     /// the node the street starts at
     pub conn_in: Option<WeakIntMut<NodeBuilder>>,
+    /// the number of lanes of a Street
     pub lanes: u8,
+    /// the lenght of a street
     pub lane_length: f32,
+    /// the unique id of a street
     pub id: usize,
 }
 impl NodeBuilderTrait for StreetBuilder {
@@ -239,9 +244,13 @@ impl StreetBuilder {
 /// ## Creating IONodes
 #[derive(Debug, Clone)]
 pub struct IONodeBuilder {
+    /// the output connections of an IONode
     pub connections_out: Vec<WeakIntMut<NodeBuilder>>,
+    /// the input connections of a IONode
     pub connections_in: Vec<WeakIntMut<NodeBuilder>>,
+    /// The spawn rate (probability per timestep)
     pub spawn_rate: f64,
+    /// the unique id of a IONode
     pub id: usize,
 }
 impl NodeBuilderTrait for IONodeBuilder {
@@ -477,6 +486,7 @@ pub struct CrossingBuilder {
     /// The length a car has to traverse when traversing
     /// the crossing
     length: f32,
+    /// the id of a crossing builder in the simulation
     pub id: usize,
 }
 impl NodeBuilderTrait for CrossingBuilder {
@@ -485,6 +495,7 @@ impl NodeBuilderTrait for CrossingBuilder {
             connections: CrossingConnections::new(),
             car_lane: Traversible::<RandCar>::new(self.length),
             id: self.id,
+            traffic_light_state: TrafficLightState::S0
         })
     }
     fn get_out_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {

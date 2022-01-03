@@ -58,7 +58,7 @@ impl<Car: Movable> Simulator<Car> {
             // TODO: Use something more efficient than cloning the whole Vec here
             let options = node.get_out_connections();
             for j in cars_at_end.len()..0 {
-                let next: Result<WeakIntMut<Node<Car>>, Box<dyn Error>> =
+                let next: Result<Option<WeakIntMut<Node<Car>>>, Box<dyn Error>> =
                     cars_at_end[j].decide_next(&options);
                 match next {
                     Err(_) => {
@@ -67,11 +67,20 @@ impl<Car: Movable> Simulator<Car> {
                             j, i
                         );
                     }
-                    Ok(next_node) => (next_node
-                        .try_upgrade()
-                        .expect("Referenced connection does not exist"))
-                    .get()
-                    .add_car(cars_at_end.pop().unwrap()),
+                    Ok(next_node) => {
+                        match next_node{
+                            Some(nn) => {(nn
+                                .try_upgrade()
+                                .expect("Referenced connection does not exist"))
+                                .get()
+                                .add_car(cars_at_end.pop().unwrap())
+                                },
+                            None => {
+                                // Nothing to do here. If car can not be moved, we will not move it
+                            },
+                        }
+                    }     
+                        
                 }
             }
         }

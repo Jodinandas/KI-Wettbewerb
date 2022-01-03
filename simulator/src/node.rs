@@ -86,6 +86,19 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
     }
 }
 
+/// The state of a traffic light (ampelstatus)
+#[derive(Debug, Clone)]
+pub enum TrafficLightState {
+    /// State 0
+    S0,
+    /// State 1
+    S1,
+    /// State 2
+    S2,
+    /// State 3
+    S3
+}
+
 /// A simple crossing
 #[derive(Debug, Clone)]
 pub struct Crossing<Car = RandCar>
@@ -101,6 +114,8 @@ where
     pub car_lane: Traversible<Car>,
     /// a number to differentiate different nodes
     pub id: usize,
+    /// the state of the traffic light (ampelphase)
+    pub traffic_light_state: TrafficLightState,
 }
 impl<Car: Movable> Crossing<Car> {
     /// Returns a new Crossing with no connections and id=0
@@ -109,6 +124,7 @@ impl<Car: Movable> Crossing<Car> {
             connections: CrossingConnections::new(),
             car_lane: Traversible::<Car>::new(1.0),
             id: 0,
+            traffic_light_state: TrafficLightState::S0,
         }
     }
     /// Returns a list of only OUTPUT connecitons
@@ -132,8 +148,27 @@ impl<Car: Movable> Crossing<Car> {
         self.connections.add(dir, conn_type, other)?;
         Ok(self)
     }
+    /// gets movable status
     pub fn get_car_status(&self) -> Vec<MovableStatus> {
         self.car_lane.get_movable_status()
+    }
+    /// determines whether out node on crossing can be reached by current state of the traffic light
+    pub fn can_out_node_be_reached(&self, node: &Node<Car>) -> bool{
+        // funky stuff here
+        match self.traffic_light_state{
+            TrafficLightState::S0 => {
+                todo!();
+            },
+            TrafficLightState::S1 => {
+                todo!();
+            },
+            TrafficLightState::S2 => {
+                todo!();
+            },
+            TrafficLightState::S3 => {
+                todo!();
+            },
+        }
     }
 }
 /// A Node that represents either the start of the simulation or the end of it
@@ -174,7 +209,7 @@ where
     pub fn connect(&mut self, n: &IntMut<Node<Car>>) {
         self.connections.push(n.downgrade())
     }
-
+    /// get car status (position and lane index)
     pub fn get_car_status(&self) -> Vec<MovableStatus> {
         Vec::new()
     }
@@ -255,7 +290,7 @@ impl<Car: Movable> Street<Car> {
         };
         self.lanes[i].add(movable)
     }
-
+    /// gets car status 
     pub fn get_car_status(&self) -> Vec<MovableStatus> {
         let mut car_status = Vec::new();
         for (i, s) in self.lanes.iter().enumerate() {
