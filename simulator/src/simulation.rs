@@ -54,13 +54,13 @@ impl<Car: Movable> Simulator<Car> {
     /// nodes
     pub fn update_all_nodes(&mut self, dt: f64) {
         for i in 0..self.nodes.len() {
-            let node = &mut self.nodes[i].get();
-            let mut cars_at_end = node.update_cars(dt);
+            let node = &mut self.nodes[i];
+            let mut cars_at_end = node.get().update_cars(dt);
             // TODO: Use something more efficient than cloning the whole Vec here
-            let options = node.get_out_connections();
+            let options = node.get().get_out_connections();
             for j in cars_at_end.len()..0 {
                 let next: Result<Option<WeakIntMut<Node<Car>>>, Box<dyn Error>> =
-                    cars_at_end[j].decide_next(&options);
+                    cars_at_end[j].decide_next(&options, node);
                 match next {
                     Err(_) => {
                         println!(

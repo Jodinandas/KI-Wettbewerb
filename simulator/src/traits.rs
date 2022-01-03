@@ -61,6 +61,7 @@ pub trait Movable: Debug + Clone + Send + Sync + DynClone {
     fn decide_next(
         &mut self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
+        current_node: &IntMut<Node<Self>>,
     ) -> Result<Option<WeakIntMut<Node<Self>>>, Box<dyn Error>>;
     /// Returns a unique indentifier
     fn get_id(&self) -> u32;

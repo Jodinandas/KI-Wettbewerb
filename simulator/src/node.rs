@@ -16,9 +16,6 @@ use log::{trace, debug, info, warn, error};
 /// ## How to create a node
 /// Nodes are typically created by a [NodeBuilder](super::node_builder::NodeBuilder) objects using
 /// the build method.
-/// ```
-///
-/// ```
 #[derive(Debug, Clone)]
 pub enum Node<Car = RandCar>
 where
@@ -166,20 +163,120 @@ impl<Car: Movable> Crossing<Car> {
         self.car_lane.get_movable_status()
     }
     /// determines whether out node on crossing can be reached by current state of the traffic light
-    pub fn can_out_node_be_reached(&self, node: &Node<Car>) -> bool{
+    ///# State 0
+    ///```text
+    ///       N
+    ///     /| ^
+    ///    / | |
+    ///W <-  | |  -> E
+    ///      | | /
+    ///      v |/
+    ///       S
+    ///```
+    ///
+    ///# State 1
+    ///```text
+    ///       N
+    ///       ^       
+    ///        \
+    ///  <–––––––––––
+    ///W –––––––––––> E
+    ///       \
+    ///       v     
+    ///       S
+    ///```
+    ///
+    ///# State 2
+    ///```text
+    ///       N       
+    ///        \
+    ///W <–––   –––> E
+    ///      \
+    ///       S
+    ///```
+    ///       
+    ///# State 3
+    ///```text
+    ///       N
+    ///       ^
+    ///      /
+    ///W ––––   –––– E
+    ///        /
+    ///       v
+    ///       S
+    /// ```
+    pub fn can_out_node_be_reached(&self, in_node: &IntMut<Node<Car>>, out_node: &IntMut<Node<Car>>) -> bool{
+        let input_node_dir = self.connections.get_direction_for_item(InOut::IN, in_node).expect("Crossing seems not to be connected with street (input)");
+        let output_node_dir = self.connections.get_direction_for_item(InOut::OUT, out_node).expect("Crossing seems not to be connected with street (output)");
         // funky stuff here
         match self.traffic_light_state{
             TrafficLightState::S0 => {
-                todo!();
+                if input_node_dir == Direction::N {
+                    if output_node_dir == Direction::S || output_node_dir == Direction::W{
+                        return true
+                    } else {
+                        return false
+                    }
+                } else if input_node_dir == Direction::S {
+                    if output_node_dir == Direction::N || output_node_dir == Direction::E{
+                        return true
+                    } else {
+                        return false
+                    }
+                } else {
+                    return false
+                }
             },
             TrafficLightState::S1 => {
-                todo!();
+                if input_node_dir == Direction::W {
+                    if output_node_dir == Direction::S || output_node_dir == Direction::E { 
+                        return true
+                    } else {
+                        return false
+                    }
+                } else if input_node_dir == Direction::E {
+                    if output_node_dir == Direction::W || output_node_dir == Direction::N {
+                        return true
+                    } else {
+                        return false
+                    }
+                } else {
+                    return false
+                }
             },
             TrafficLightState::S2 => {
-                todo!();
+                if input_node_dir == Direction::N {
+                    if output_node_dir == Direction::E {
+                        return true
+                    } else {
+                        return false
+                    }
+                } else if input_node_dir == Direction::S {
+                    if output_node_dir == Direction::W {
+                        return true
+                    } else {
+                        return false
+                    }
+                } else {
+                    return false
+                }
             },
             TrafficLightState::S3 => {
-                todo!();
+                if input_node_dir == Direction::W {
+                    if output_node_dir == Direction::N {
+                        return true
+                    } else {
+                        return false
+                    }
+                } else if input_node_dir == Direction::E {
+                    if output_node_dir == Direction::S {
+                        return true
+                    } else {
+                        return false
+                    }
+                } else {
+                    return false
+                }
             },
         }
     }

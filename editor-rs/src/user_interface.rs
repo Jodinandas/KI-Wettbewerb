@@ -1,23 +1,22 @@
 use std::collections::HashMap;
 
-use bevy::{prelude::*, render::mesh::VertexAttributeValues};
+use bevy::{prelude::*};
 use bevy_egui::{
     egui::{self, CollapsingHeader, CtxRef, Ui},
     EguiContext,
 };
-use bevy_prototype_lyon::entity::ShapeBundle;
 use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder, SimManager};
 
 use crate::{
-    node_render, repaint_node, tool_systems::SelectedNode, CurrentTheme, NeedsRecolor,
-    NodeBuilderRef, NodeType, StreetLinePosition, UIMode, UIState, UITheme, 
+    tool_systems::SelectedNode, CurrentTheme, NeedsRecolor,
+    NodeBuilderRef, NodeType, UIMode, UIState, UITheme, 
 };
 
 /// Draws the ui
 ///
 /// Nice reference: [Examples](https://github.com/mvlabat/bevy_egui/blob/main/examples/ui.rs)
 pub fn ui_example(
-    mut commands: Commands,
+    commands: Commands,
     egui_context: ResMut<EguiContext>,
     mut ui_state: ResMut<UIState>,
     mut sim_manager: ResMut<SimManager>,
@@ -60,7 +59,7 @@ pub fn ui_example(
                     //  (each node type has different fields and possibilites
                     //   for modification by the user. Therefor, different ui
                     //   are needed)
-                    if let Ok((entity, selected_node_ref)) = nodes.q1().single() {
+                    if let Ok((_entity, selected_node_ref)) = nodes.q1().single() {
                         let selected_node = &selected_node_ref.0;
                         let display_conns = |ui: &mut Ui,
                                              conns: &mut HashMap<

@@ -1,3 +1,5 @@
+use crate::datastructs::IntMut;
+
 use super::{int_mut::WeakIntMut, node::Node, traits::Movable};
 use rand::Rng;
 use std::error::Error;
@@ -20,6 +22,7 @@ impl Movable for RandPerson {
     fn decide_next(
         &mut self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
+        _current_node: &IntMut<Node<Self>>,
     ) -> Result<Option<WeakIntMut<Node<Self>>>, Box<dyn Error>> {
         let i = rand::thread_rng().gen_range(0..connections.len());
         Ok(Some(connections[i].clone()))
@@ -66,6 +69,7 @@ impl Movable for RandCar {
     fn decide_next(
         &mut self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
+        _current_node: &IntMut<Node<Self>>,
     ) -> Result<Option<WeakIntMut<Node>>, Box<dyn Error>> {
         let i = rand::thread_rng().gen_range(0..connections.len());
         Ok(Some(connections[i].clone()))

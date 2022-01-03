@@ -3,8 +3,9 @@ use bevy_prototype_lyon::entity::ShapeBundle;
 use simulator::nodes::Direction;
 use simulator::{
     datastructs::IntMut,
-    nodes::{NodeBuilder, NodeBuilderTrait},
+    nodes::{NodeBuilder},
 };
+
 
 use crate::{NodeBuilderRef, NodeType, SimulationID, StreetLinePosition, CROSSING_SIZE};
 

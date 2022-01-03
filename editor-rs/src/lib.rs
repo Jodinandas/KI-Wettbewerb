@@ -1,8 +1,6 @@
-use bevy::ecs::schedule::ShouldRun;
 use bevy::prelude::*;
 use bevy::render::mesh::VertexAttributeValues;
 use bevy_egui::EguiPlugin;
-use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::prelude::*;
 use simulator::{self, SimManager};
 use simulator::datastructs::IntMut;
@@ -10,7 +8,6 @@ use simulator::debug::build_grid_sim;
 use simulator::nodes::{NodeBuilder, NodeBuilderTrait};
 use themes::*;
 use tool_systems::SelectedNode;
-use toolbar::ToolType;
 use wasm_bindgen::prelude::*;
 mod input;
 mod node_bundles;
@@ -256,8 +253,6 @@ fn mark_under_cursor(
         // the camera
         Query<&Transform, With<Camera>>,
     )>,
-    mut uistate: ResMut<UIState>,
-    theme: Res<UITheme>,
 ) {
     // unselect previously selected
     queries.q0().for_each(|entity| {
