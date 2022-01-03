@@ -58,6 +58,10 @@ pub trait Movable: Debug + Clone + Send + Sync + DynClone {
         &mut self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
     ) -> Result<Option<WeakIntMut<Node<Self>>>, Box<dyn Error>>;
+    /// Returns a unique indentifier
+    fn get_id(&self) -> u32;
+    // sets the internal id
+    fn set_id(&mut self, id: u32);
 }
 
 // make it possible to derive Clone for structs with Box<dyn Movable>

@@ -6,6 +6,7 @@ use std::error::Error;
 #[derive(Debug, Clone)]
 pub struct RandPerson {
     speed: f32,
+    id: u32
 }
 
 impl Movable for RandPerson {
@@ -23,18 +24,27 @@ impl Movable for RandPerson {
         let i = rand::thread_rng().gen_range(0..connections.len());
         Ok(Some(connections[i].clone()))
     }
+
+    fn get_id(&self) -> u32 {
+        self.id
+    }
+
+    fn set_id(&mut self, id: u32) {
+        self.id = id
+    }
 }
 
 /// A car that takes turn at random
 #[derive(Debug, Clone)]
 pub struct RandCar {
     speed: f32,
+    id: u32
 }
 
 impl RandCar {
     /// returns a car with default speed
     pub fn new() -> RandCar {
-        RandCar { speed: 2.0 }
+        RandCar { id: 0, speed: 2.0 }
     }
 }
 
@@ -53,6 +63,14 @@ impl Movable for RandCar {
         let i = rand::thread_rng().gen_range(0..connections.len());
         Ok(Some(connections[i].clone()))
     }
+
+    fn get_id(&self) -> u32 {
+        self.id
+    }
+
+    fn set_id(&mut self, id: u32) {
+        self.id = id
+    }
 }
 
 /// This struct encapsulates data for a [Movable] (to render it later)
@@ -62,4 +80,6 @@ pub struct MovableStatus {
     pub position: f32,
     /// random index that is used differently by different nodes
     pub lane_index: u8,
+    /// each movable has a unique id
+    pub movable_id: u32,
 }

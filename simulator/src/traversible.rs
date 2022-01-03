@@ -52,9 +52,10 @@ impl<T: Movable> Traversible<T> {
     pub fn get_movable_status(&self) -> Vec<MovableStatus> {
         self.movables
             .iter()
-            .map(|(_m, t)| MovableStatus {
+            .map(|(m, t)| MovableStatus {
                 position: *t,
                 lane_index: 0,
+                movable_id: m.get_id()
             })
             .collect()
     }

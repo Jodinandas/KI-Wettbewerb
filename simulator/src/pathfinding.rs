@@ -19,6 +19,7 @@ use super::simulation::NodeDoesntExistError;
 pub struct PathAwareCar {
     speed: f32,
     path: Vec<usize>,
+    id: u32
 }
 
 #[derive(Debug)]
@@ -125,6 +126,14 @@ impl Movable for PathAwareCar {
             },
         }
     }
+
+    fn get_id(&self) -> u32 {
+        self.id
+    }
+
+    fn set_id(&mut self, id: u32) {
+        self.id = id
+    }
 }
 
 fn overnext_node_id(path: &Vec<usize>) -> usize{
@@ -212,6 +221,8 @@ pub struct MovableServer {
     // nodes: Vec<IntMut<NodeBuilder>>,
     indexed: IndexedNodeNetwork,
     cache: HashMap<(usize, usize), PathAwareCar>,
+    /// used to assign each car a unique number
+    car_count: u32
 }
 
 impl MovableServer {
@@ -222,6 +233,7 @@ impl MovableServer {
         MovableServer {
             indexed: IndexedNodeNetwork::new(),
             cache: HashMap::new(),
+            car_count: 0
         }
     }
     /// generates a new movable for node with index `index`
@@ -250,7 +262,7 @@ impl MovableServer {
             path.reverse();
             // IONode is the first element
             path.pop();
-            let car = PathAwareCar { speed: 1.0, path };
+            let car = PathAwareCar { speed: 1.0, path, id: self.car_count };
             self.cache.insert((start_node, end_node), car.clone());
             return car;
         }

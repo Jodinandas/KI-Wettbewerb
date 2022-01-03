@@ -18,6 +18,7 @@ mod themes;
 mod tool_systems;
 mod toolbar;
 mod user_interface;
+mod simulation_display;
 use node_bundles::node_render;
 #[allow(unused_imports)]
 use log::{trace, debug, info, warn, error};
