@@ -1,6 +1,6 @@
-use simulator::datastructs::{IntMut, MovableStatus};
-use simulator::path::{MovableServer, PathAwareCar};
-use simulator::SimulatorBuilder;
+use crate::datastructs::{IntMut, MovableStatus};
+use crate::path::{MovableServer, PathAwareCar};
+use crate::SimulatorBuilder;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::Display;

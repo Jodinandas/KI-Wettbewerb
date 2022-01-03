@@ -6,11 +6,11 @@ use bevy_egui::{
     EguiContext,
 };
 use bevy_prototype_lyon::entity::ShapeBundle;
-use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder};
+use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder, SimManager};
 
 use crate::{
     node_render, repaint_node, tool_systems::SelectedNode, CurrentTheme, NeedsRecolor,
-    NodeBuilderRef, NodeType, StreetLinePosition, UIMode, UIState, UITheme, sim_manager::SimManager,
+    NodeBuilderRef, NodeType, StreetLinePosition, UIMode, UIState, UITheme, 
 };
 
 /// Draws the ui

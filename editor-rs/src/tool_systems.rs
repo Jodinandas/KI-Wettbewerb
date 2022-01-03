@@ -9,9 +9,9 @@ use bevy::{
     window::Windows,
 };
 use bevy_prototype_lyon::entity::ShapeBundle;
-use simulator::nodes::{
+use simulator::{nodes::{
     CrossingBuilder, Direction, IONodeBuilder, InOut, NodeBuilder, NodeBuilderTrait,
-};
+}, SimManager};
 #[allow(unused_imports)]
 use log::{trace, debug, info, warn, error};
 
@@ -25,7 +25,7 @@ use crate::{
     AddStreetStage, StreetLinePosition, CONNECTOR_DISPLAY_RADIUS,
 };
 use crate::{
-    node_bundles::node_render, sim_manager::SimManager, themes::UITheme, toolbar::ToolType, Camera,
+    node_bundles::node_render, themes::UITheme, toolbar::ToolType, Camera,
     NeedsRecolor, NodeBuilderRef, NodeType, SimulationID, UIState, UnderCursor,
 };
 
