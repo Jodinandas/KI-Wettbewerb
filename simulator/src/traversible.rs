@@ -24,10 +24,10 @@ impl<T: Movable> Traversible<T> {
             length,
         }
     }
-    /// update all the movables by timestep `t` and return all that have reached the end
+    /// update all the movables by timestep `t` and return the index of all that have reached the end
     ///
     /// TODO
-    pub fn update_movables<'a>(&'a mut self, t: f64) -> Vec<&'a T> {
+    pub fn update_movables(&mut self, t: f64) -> Vec<usize> {
         // let mut out = Vec::<&mut T>::new();
         // for i in 0..self.movables.len() {
         let mut out = Vec::new();

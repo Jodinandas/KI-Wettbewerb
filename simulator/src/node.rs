@@ -9,7 +9,6 @@ use crate::traits::{Movable, NodeTrait};
 use log::{debug, error, info, trace, warn};
 use std::error::Error;
 use std::ptr;
-use std::sync::MutexGuard;
 
 /// A node is any kind of logical object in the Simulation
 ///  ([Streets](Street), [IONodes](IONode), [Crossings](Crossing))
@@ -234,7 +233,7 @@ impl<Car: Movable> Crossing<Car> {
     /// ```
     pub fn can_out_node_be_reached(
         &self,
-        in_node: &MutexGuard<'_, Node<Car>>,
+        in_node: &IntMut<Node<Car>>,
         out_node: &IntMut<Node<Car>>,
     ) -> bool {
         let input_node_dir = self
@@ -428,7 +427,7 @@ impl<Car: Movable> Street<Car> {
         out
     }
     /// Advances the movables on all lanes
-    pub fn update_movables(&mut self, t: f64) -> Vec<&Car> {
+    pub fn update_movables(&mut self, t: f64) -> Vec<usize> {
         self.lanes
             .iter_mut()
             .flat_map(|traversible| (*traversible).update_movables(t))
