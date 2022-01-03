@@ -10,7 +10,7 @@ use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder};
 
 use crate::{
     node_render, repaint_node, tool_systems::SelectedNode, CurrentTheme, NeedsRecolor,
-    NodeBuilderRef, NodeType, StreetLinePosition, UIMode, UIState, UITheme,
+    NodeBuilderRef, NodeType, StreetLinePosition, UIMode, UIState, UITheme, sim_manager::SimManager,
 };
 
 /// Draws the ui
@@ -20,6 +20,7 @@ pub fn ui_example(
     mut commands: Commands,
     egui_context: ResMut<EguiContext>,
     mut ui_state: ResMut<UIState>,
+    mut sim_manager: ResMut<SimManager>,
     meshes: ResMut<Assets<Mesh>>,
     mut background: ResMut<ClearColor>,
     mut theme: ResMut<UITheme>,
@@ -188,6 +189,11 @@ pub fn ui_example(
                     ui.separator();
                     if ui.button("Start Simulation").clicked() {
                         ui_state.mode = UIMode::Simulator;
+                        let num_sims = 10;
+                        match sim_manager.simulate(num_sims) {
+                            Ok(_) => info!("Starting with {} concurrent Simulations", num_sims),
+                            Err(e) => error!("Unable to start Simulations. Error: {}", e),
+                        }
                     }
                 });
         }
