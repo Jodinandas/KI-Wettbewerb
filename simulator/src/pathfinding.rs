@@ -52,6 +52,7 @@ impl Movable for PathAwareCar {
     fn decide_next(
         &mut self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
+        current_node: &IntMut<Node<Self>>,
     ) -> Result<Option<WeakIntMut<Node<Self>>>, Box<dyn Error>> {
         // upgrade references to be able to access the id field
         let mut connections_upgraded = Vec::with_capacity(connections.len());
@@ -116,7 +117,7 @@ impl Movable for PathAwareCar {
                         }
                     });
                 // if we can reach the "overnext" node (street), we can return it, else the car will not move
-                if crossing.can_out_node_be_reached(&*desired_overnext_node.expect("for some reason the overnext node does not exist despite existing").upgrade().get()){
+                if crossing.can_out_node_be_reached(current_node, &desired_overnext_node.expect("for some reason the overnext node does not exist despite existing").upgrade()){
                     self.path.pop().expect("This should really not have happened because overnext_node_id worked");
                     return Ok(Some(next_node.clone()))
                 } else {

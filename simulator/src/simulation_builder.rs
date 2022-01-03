@@ -536,7 +536,7 @@ mod tests {
             .connect_with_street((0, Direction::E), (1, Direction::W), 2)
             .unwrap();
         simulator
-            .connect_with_street((1, Direction::S), (2, Direction::N), 3)
+            .connect_with_street((1, Direction::S), (0, Direction::N), 3)
             .unwrap();
     }
 }
