@@ -76,7 +76,8 @@ impl Movable for RandCar {
 /// This struct encapsulates data for a [Movable] (to render it later)
 #[derive(Debug)]
 pub struct MovableStatus {
-    /// the Movable's position on the street (crossings and ionodes are not supported yet)
+    /// the Movable's position on the street (crossings and ionodes are not supported yet) as float
+    /// between 0 and 1
     pub position: f32,
     /// random index that is used differently by different nodes
     pub lane_index: u8,

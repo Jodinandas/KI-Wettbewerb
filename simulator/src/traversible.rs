@@ -53,7 +53,7 @@ impl<T: Movable> Traversible<T> {
         self.movables
             .iter()
             .map(|(m, t)| MovableStatus {
-                position: *t,
+                position: *t/self.length,
                 lane_index: 0,
                 movable_id: m.get_id()
             })
