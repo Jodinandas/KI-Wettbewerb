@@ -52,7 +52,7 @@ impl Movable for PathAwareCar {
     fn decide_next(
         &mut self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
-    ) -> Result<WeakIntMut<Node<Self>>, Box<dyn Error>> {
+    ) -> Result<Option<WeakIntMut<Node<Self>>>, Box<dyn Error>> {
         // upgrade references to be able to access the id field
         let mut connections_upgraded = Vec::with_capacity(connections.len());
         for c in connections.iter() {
@@ -64,7 +64,7 @@ impl Movable for PathAwareCar {
         let connection_ids = connections_upgraded.iter().map(|n| n.get().id()).collect();
 
         // epische logik hier
-        let to_return = match self.path.pop() {
+        let to_return = match self.path.last() {
             Some(value) => value,
             None => {
                 return Err(Box::new(PathError {
@@ -78,7 +78,7 @@ impl Movable for PathAwareCar {
         if !connection_ids.contains(&to_return) {
             return Err(Box::new(PathError {
                 msg: "Requested connection not present in current available in node",
-                expected_node: Some(to_return),
+                expected_node: Some(*to_return),
                 available_nodes: connection_ids.clone(),
             }));
         }
@@ -86,10 +86,52 @@ impl Movable for PathAwareCar {
         let (index, _) = connection_ids
             .iter()
             .enumerate()
-            .find(|(_, i)| **i == to_return)
+            .find(|(_, i)| **i == *to_return)
             .unwrap();
 
-        Ok(connections[index].clone())
+        // the next node onto which a car wants to progress
+        let next_node = &connections[index];
+        match &*next_node.upgrade().get(){
+            Node::Street(_) => {
+                // if the next node is a street, we can simply return it
+                self.path.pop().expect("Could not remove last element while trying to get onto Street");
+                return Ok(Some(next_node.clone()))
+            },
+            Node::IONode(_) => {
+                // if the next node is a IONode, we can simply return it
+                self.path.pop().expect("Could not remove last element while trying to get onto IONode");
+                return Ok(Some(next_node.clone()))
+            },
+            Node::Crossing(crossing) => {
+                // if the next node is a crossing, we need to check wether the traffic light is configured in
+                // such a way that we can drive onto the next street
+                let dn = crossing.get_out_connections();
+                // the "overnext" node onto which the car wants to drive
+                let desired_overnext_node = dn.iter().find(
+                    | out_node | {
+                        if out_node.upgrade().get().id() == overnext_node_id(&self.path){
+                            true
+                        } else {
+                            false
+                        }
+                    });
+                // if we can reach the "overnext" node (street), we can return it, else the car will not move
+                if crossing.can_out_node_be_reached(&*desired_overnext_node.expect("for some reason the overnext node does not exist despite existing").upgrade().get()){
+                    self.path.pop().expect("This should really not have happened because overnext_node_id worked");
+                    return Ok(Some(next_node.clone()))
+                } else {
+                    return Ok(None)
+                }
+            },
+        }
+    }
+}
+
+fn overnext_node_id(path: &Vec<usize>) -> usize{
+    if path.len() >= 2{
+        return path[path.len()-2]
+    } else {
+        panic!("tried to get ;overnext; node, but it does not exist for this path")
     }
 }
 
@@ -213,6 +255,7 @@ impl MovableServer {
             return car;
         }
     }
+    /// index a simulation builder in the movable server so we can access it lateron
     pub fn register_simulation_buider(&mut self, nbuilder: &SimulatorBuilder) {
         self.indexed.index_builder(nbuilder);
     }

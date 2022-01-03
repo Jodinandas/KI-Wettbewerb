@@ -57,7 +57,7 @@ pub trait Movable: Debug + Clone + Send + Sync + DynClone {
     fn decide_next(
         &mut self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
-    ) -> Result<WeakIntMut<Node<Self>>, Box<dyn Error>>;
+    ) -> Result<Option<WeakIntMut<Node<Self>>>, Box<dyn Error>>;
 }
 
 // make it possible to derive Clone for structs with Box<dyn Movable>
