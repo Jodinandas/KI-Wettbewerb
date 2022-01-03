@@ -1,11 +1,7 @@
 use bevy::prelude::*;
 use bevy_prototype_lyon::entity::ShapeBundle;
 use simulator::nodes::Direction;
-use simulator::{
-    datastructs::IntMut,
-    nodes::{NodeBuilder},
-};
-
+use simulator::{datastructs::IntMut, nodes::NodeBuilder};
 
 use crate::{NodeBuilderRef, NodeType, SimulationID, StreetLinePosition, CROSSING_SIZE};
 
@@ -207,7 +203,7 @@ pub enum OutputCircle {
     S,
     W,
     E,
-    Middle
+    Middle,
 }
 
 impl OutputCircle {
@@ -229,7 +225,7 @@ pub enum InputCircle {
     S,
     W,
     E,
-    Middle
+    Middle,
 }
 impl InputCircle {
     pub fn as_dir(&self) -> Direction {

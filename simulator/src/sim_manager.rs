@@ -1,14 +1,15 @@
 use crate::datastructs::{IntMut, MovableStatus};
-use crate::path::{MovableServer};
+use crate::path::MovableServer;
+use crate::pathfinding::PathAwareCar;
 use crate::SimulatorBuilder;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::Display;
 use std::panic;
 use std::sync::{mpsc, Mutex};
 use std::thread::{self, JoinHandle};
-#[allow(unused_imports)]
-use log::{trace, debug, info, warn, error};
 
 /// saves a handle to the thread performing the simulation
 /// and provides ways of communication
@@ -32,9 +33,15 @@ struct Simulating {
 
 impl Simulating {
     /// starts a new simulation
-    pub fn new(sim_builder: &mut SimulatorBuilder, mv_server: &IntMut<MovableServer>, time_steps: f32) -> Simulating {
+    pub fn new(
+        sim_builder: &mut SimulatorBuilder,
+        mv_server: &IntMut<MovableServer>,
+        time_steps: f32,
+    ) -> Simulating {
         debug!("creating new Simulating");
+        sim_builder.with_delay(1000).with_dt(0.1);
         let mut new_sim = sim_builder.build(mv_server);
+        println!("{}", new_sim.delay);
         // the channel that information about the car updates will be passed through
         let (tx, rx) = mpsc::channel();
         let terminate = IntMut::new(false);
@@ -46,7 +53,7 @@ impl Simulating {
         // -------------------------- this is where the magic happens --------------
         let handle = thread::spawn(move || {
             info!("starting Simulation thread");
-            panic::set_hook(Box::new( |e| {
+            panic::set_hook(Box::new(|e| {
                 error!("Simulation panicked! Backtrace: {}", e);
             }));
             while !*terminate_moved.get() {
@@ -120,7 +127,7 @@ impl Display for SimulationDoesNotExistError {
 impl SimManager {
     /// creates a new SimManager with an empty SimulationBuilder
     pub fn new() -> SimManager {
-        let sim_builder = SimulatorBuilder::<PathAwareCar>::new();
+        let mut sim_builder = SimulatorBuilder::<PathAwareCar>::new();
         let movable_server = MovableServer::<PathAwareCar>::new();
         SimManager {
             movable_server: IntMut::new(movable_server),
@@ -151,10 +158,16 @@ impl SimManager {
             }));
         }
         // index nodes
-        self.movable_server.get().register_simulator_builder(&self.sim_builder);
+        self.movable_server
+            .get()
+            .register_simulator_builder(&self.sim_builder);
         self.simulations.clear();
         for _i in 0..num_sims {
-            self.simulations.push(Simulating::new(&mut self.sim_builder, &self.movable_server, 0.2));
+            self.simulations.push(Simulating::new(
+                &mut self.sim_builder,
+                &self.movable_server,
+                0.2,
+            ));
         }
         Ok(())
     }
@@ -167,15 +180,9 @@ impl SimManager {
     ///  Receiver to fill up.)
     pub fn get_status_updates(&self) -> Option<HashMap<usize, Vec<MovableStatus>>> {
         match self.tracking_index {
-            Some(i) => {
-                match self.simulations[i]
-                    .car_updates
-                    .lock()
-                    .unwrap()
-                    .try_recv() {
-                        Ok(value) => Some(value),
-                        Err(_) => None,
-                    }
+            Some(i) => match self.simulations[i].car_updates.lock().unwrap().try_recv() {
+                Ok(value) => Some(value),
+                Err(_) => None,
             },
             None => return None,
         }

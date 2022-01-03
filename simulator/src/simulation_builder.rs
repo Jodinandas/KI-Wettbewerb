@@ -92,8 +92,10 @@ impl Error for IndexError {}
 /// let mut simulator = SimulatorBuilder::from_json(json);
 /// ```
 #[derive(Debug)]
-pub struct SimulatorBuilder<Car=PathAwareCar> 
-where Car: Movable {
+pub struct SimulatorBuilder<Car = PathAwareCar>
+where
+    Car: Movable,
+{
     /// A list of all the nodes
     pub nodes: Vec<IntMut<NodeBuilder>>,
     max_iter: Option<usize>,
@@ -102,6 +104,8 @@ where Car: Movable {
     /// The id of the next node. This is necessary, as the length of the nodes
     /// vector is not always the id. (because nodes can be deleted as well)
     next_id: usize,
+    /// how much a simulation is advanced each step
+    dt: f32
 }
 
 impl<Car: Movable> SimulatorBuilder<Car> {
@@ -113,6 +117,7 @@ impl<Car: Movable> SimulatorBuilder<Car> {
             delay: 0,
             cache: None,
             next_id: 0,
+            dt: 0.1,
         }
     }
     /// creates a `Simulator` object from a `&str` formatted in a json-like way
@@ -253,22 +258,24 @@ impl<Car: Movable> SimulatorBuilder<Car> {
     pub fn build(&mut self, mv_server: &IntMut<MovableServer<Car>>) -> Simulator<Car> {
         if let Some(cache) = &self.cache {
             return Simulator {
-                nodes: cache.iter().map(|n| n.deep_copy() ).collect(),
+                nodes: cache.iter().map(|n| n.deep_copy()).collect(),
                 max_iter: self.max_iter,
                 delay: self.delay,
+                dt: self.dt
             };
-        }      
+        }
         // create the nodes
-        let mut sim_nodes: Vec<IntMut<Node<Car>>> = self.nodes
+        let mut sim_nodes: Vec<IntMut<Node<Car>>> = self
+            .nodes
             .iter()
             .map(|n| {
-                    let mut new_node = n.get().build();
-                    if let Node::IONode(node) = &mut new_node {
-                        node.register_movable_server(mv_server);
-                    }
-                    IntMut::new(new_node)
+                let mut new_node = n.get().build();
+                if let Node::IONode(node) = &mut new_node {
+                    node.register_movable_server(mv_server);
                 }
-            ).collect();
+                IntMut::new(new_node)
+            })
+            .collect();
         // create the connections
         self.nodes.iter().enumerate().for_each(|(i, start_node_arc)| {
             let mut start_node = start_node_arc.get();
@@ -359,6 +366,7 @@ impl<Car: Movable> SimulatorBuilder<Car> {
             nodes: sim_nodes,
             max_iter: self.max_iter,
             delay: self.delay,
+            dt: self.dt
         }
     }
     /// Drops the internal node cache
@@ -381,6 +389,11 @@ impl<Car: Movable> SimulatorBuilder<Car> {
     /// an optional delay between each iteration
     pub fn with_delay(&mut self, value: u64) -> &mut Self {
         self.delay = value;
+        self
+    }
+    /// sets the time step
+    pub fn with_dt(&mut self, value: f32) -> &mut Self {
+        self.dt = value;
         self
     }
     /// Makes the simulation stop after `value` iterations
@@ -524,7 +537,6 @@ impl<Car: Movable> SimulatorBuilder<Car> {
 
 mod tests {
 
-
     #[test]
     fn simulation_builder_from_json() {
         use crate::pathfinding::PathAwareCar;
@@ -536,8 +548,8 @@ mod tests {
     #[test]
     fn connect_with_streets() {
         use crate::node_builder::Direction;
-        use crate::pathfinding::PathAwareCar;
         use crate::node_builder::{CrossingBuilder, IONodeBuilder, NodeBuilder};
+        use crate::pathfinding::PathAwareCar;
         use crate::simulation_builder::SimulatorBuilder;
         let mut simulator = SimulatorBuilder::<PathAwareCar>::new();
         simulator.add_node(NodeBuilder::IONode(IONodeBuilder::new()));

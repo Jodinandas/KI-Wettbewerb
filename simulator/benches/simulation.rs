@@ -1,5 +1,9 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use simulator::{debug::build_grid_sim, path::{MovableServer, PathAwareCar}, datastructs::IntMut};
+use simulator::{
+    datastructs::IntMut,
+    debug::build_grid_sim,
+    path::{MovableServer, PathAwareCar},
+};
 
 fn simulation_performance_bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("simulation_performance_bench");

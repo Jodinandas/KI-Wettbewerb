@@ -5,9 +5,11 @@ use super::traversible::Traversible;
 use crate::movable::MovableStatus;
 use crate::pathfinding::MovableServer;
 use crate::traits::{Movable, NodeTrait};
-use std::error::Error;
 #[allow(unused_imports)]
-use log::{trace, debug, info, warn, error};
+use log::{debug, error, info, trace, warn};
+use std::error::Error;
+use std::ptr;
+use std::sync::MutexGuard;
 
 /// A node is any kind of logical object in the Simulation
 ///  ([Streets](Street), [IONodes](IONode), [Crossings](Crossing))
@@ -36,13 +38,13 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
             .find(|n| *n == other)
             .is_some()
     }
-    fn update_cars(&mut self, t: f64) -> Vec<Car> {
+    fn update_cars(&mut self, t: f64) -> Vec<&Car> {
         match self {
             Node::Street(street) => street.update_movables(t),
             Node::IONode(io_node) => {
                 // create new car
                 io_node.time_since_last_spawn += t;
-                let mut new_cars = Vec::<Car>::new();
+                let mut new_cars = Vec::<&Car>::new();
                 // TODO: rework spawn rate
                 if io_node.time_since_last_spawn >= io_node.spawn_rate {
                     // TODO: Remove and replace with proper request to
@@ -51,10 +53,11 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
                     match &mut io_node.movable_server {
                         Some(server) => {
                             let car_result = server.get().generate_movable(io_node.id);
-                            if let Ok(car) = car_result {
-                                new_cars.push(car);
+                            if let Ok(mut car) = car_result {
+                                io_node.cached.push(car);
+                                new_cars.push(io_node.cached.last_mut().unwrap());
                             }
-                        },
+                        }
                         None => warn!("Trying to simulate Node with uninitialised MovableServer"),
                     }
                 }
@@ -94,6 +97,30 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
             Node::Crossing(inner) => inner.get_car_status(),
         }
     }
+
+    fn rm_car_by_ref(&mut self, car: &Car) -> Car {
+        match self {
+            Node::Street(inner) => {
+                for l in inner.lanes.iter_mut() {
+                    if let Ok(car) = l.rm_movable_by_ref(car) {
+                        return car;
+                    }
+                }
+                panic!("trying to remove car by reference that does not exist")
+            },
+            Node::IONode(inner) => {
+                let index = match inner.cached.iter().enumerate().find(
+                    | (i, cached_car) | ptr::eq(*cached_car, car)
+                ) {
+                    Some((i, _)) => i,
+                    None => panic!("Invalid reference passed to rm_movable_by_ref")
+                };
+                inner.cached.remove(index)
+            },
+            Node::Crossing(inner) => inner.car_lane.rm_movable_by_ref(car).unwrap(),
+        }
+        
+    }
 }
 
 /// The state of a traffic light (ampelstatus)
@@ -106,7 +133,7 @@ pub enum TrafficLightState {
     /// State 2
     S2,
     /// State 3
-    S3
+    S3,
 }
 
 /// A simple crossing
@@ -205,79 +232,89 @@ impl<Car: Movable> Crossing<Car> {
     ///       v
     ///       S
     /// ```
-    pub fn can_out_node_be_reached(&self, in_node: &IntMut<Node<Car>>, out_node: &IntMut<Node<Car>>) -> bool{
-        let input_node_dir = self.connections.get_direction_for_item(InOut::IN, in_node).expect("Crossing seems not to be connected with street (input)");
-        let output_node_dir = self.connections.get_direction_for_item(InOut::OUT, out_node).expect("Crossing seems not to be connected with street (output)");
+    pub fn can_out_node_be_reached(
+        &self,
+        in_node: &MutexGuard<'_, Node<Car>>,
+        out_node: &IntMut<Node<Car>>,
+    ) -> bool {
+        let input_node_dir = self
+            .connections
+            .get_direction_for_item(InOut::IN, in_node)
+            .expect("Crossing seems not to be connected with street (input)");
+        let output_node_dir = self
+            .connections
+            .get_direction_for_item(InOut::OUT, out_node)
+            .expect("Crossing seems not to be connected with street (output)");
         // funky stuff here
-        match self.traffic_light_state{
+        match self.traffic_light_state {
             TrafficLightState::S0 => {
                 if input_node_dir == Direction::N {
-                    if output_node_dir == Direction::S || output_node_dir == Direction::W{
-                        return true
+                    if output_node_dir == Direction::S || output_node_dir == Direction::W {
+                        return true;
                     } else {
-                        return false
+                        return false;
                     }
                 } else if input_node_dir == Direction::S {
-                    if output_node_dir == Direction::N || output_node_dir == Direction::E{
-                        return true
+                    if output_node_dir == Direction::N || output_node_dir == Direction::E {
+                        return true;
                     } else {
-                        return false
+                        return false;
                     }
                 } else {
-                    return false
+                    return false;
                 }
-            },
+            }
             TrafficLightState::S1 => {
                 if input_node_dir == Direction::W {
-                    if output_node_dir == Direction::S || output_node_dir == Direction::E { 
-                        return true
+                    if output_node_dir == Direction::S || output_node_dir == Direction::E {
+                        return true;
                     } else {
-                        return false
+                        return false;
                     }
                 } else if input_node_dir == Direction::E {
                     if output_node_dir == Direction::W || output_node_dir == Direction::N {
-                        return true
+                        return true;
                     } else {
-                        return false
+                        return false;
                     }
                 } else {
-                    return false
+                    return false;
                 }
-            },
+            }
             TrafficLightState::S2 => {
                 if input_node_dir == Direction::N {
                     if output_node_dir == Direction::E {
-                        return true
+                        return true;
                     } else {
-                        return false
+                        return false;
                     }
                 } else if input_node_dir == Direction::S {
                     if output_node_dir == Direction::W {
-                        return true
+                        return true;
                     } else {
-                        return false
+                        return false;
                     }
                 } else {
-                    return false
+                    return false;
                 }
-            },
+            }
             TrafficLightState::S3 => {
                 if input_node_dir == Direction::W {
                     if output_node_dir == Direction::N {
-                        return true
+                        return true;
                     } else {
-                        return false
+                        return false;
                     }
                 } else if input_node_dir == Direction::E {
                     if output_node_dir == Direction::S {
-                        return true
+                        return true;
                     } else {
-                        return false
+                        return false;
                     }
                 } else {
-                    return false
+                    return false;
                 }
-            },
+            }
         }
     }
 }
@@ -300,8 +337,10 @@ where
     /// To differentiate different nodes. Should be set to the positions in the
     /// list of all nodes in the simulation
     pub id: usize,
+    /// car cache to be able to return references in the update_cars function
+    pub cached: Vec<Car>,
     /// The movable server used to spawn new cars
-    pub movable_server: Option<IntMut<MovableServer<Car>>>
+    pub movable_server: Option<IntMut<MovableServer<Car>>>,
 }
 impl<Car> IONode<Car>
 where
@@ -315,7 +354,8 @@ where
             time_since_last_spawn: 0.0,
             absorbed_cars: 0,
             id: 0,
-            movable_server: None
+            cached: Vec::new(),
+            movable_server: None,
         }
     }
     /// Used when constructing a node from a [NodeBuilder](crate::nodes::NodeBuilder)
@@ -388,7 +428,7 @@ impl<Car: Movable> Street<Car> {
         out
     }
     /// Advances the movables on all lanes
-    pub fn update_movables(&mut self, t: f64) -> Vec<Car> {
+    pub fn update_movables(&mut self, t: f64) -> Vec<&Car> {
         self.lanes
             .iter_mut()
             .flat_map(|traversible| (*traversible).update_movables(t))
@@ -412,7 +452,7 @@ impl<Car: Movable> Street<Car> {
         };
         self.lanes[i].add(movable)
     }
-    /// gets car status 
+    /// gets car status
     pub fn get_car_status(&self) -> Vec<MovableStatus> {
         let mut car_status = Vec::new();
         for (i, s) in self.lanes.iter().enumerate() {

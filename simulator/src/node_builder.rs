@@ -260,7 +260,8 @@ impl NodeBuilderTrait for IONodeBuilder {
             time_since_last_spawn: 0.0,
             absorbed_cars: 0,
             id: self.id,
-            movable_server: None
+            cached: Vec::new(),
+            movable_server: None,
         })
     }
     fn get_out_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
@@ -494,7 +495,7 @@ impl NodeBuilderTrait for CrossingBuilder {
             connections: CrossingConnections::new(),
             car_lane: Traversible::<RandCar>::new(self.length),
             id: self.id,
-            traffic_light_state: TrafficLightState::S0
+            traffic_light_state: TrafficLightState::S0,
         })
     }
     fn get_out_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {

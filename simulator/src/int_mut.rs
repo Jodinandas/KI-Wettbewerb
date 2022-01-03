@@ -28,7 +28,6 @@ impl<T> IntMut<T> {
             data: Arc::downgrade(&self.data),
         }
     }
-
 }
 impl<T: Clone> IntMut<T> {
     /// deep copy of the IntMut
@@ -40,7 +39,9 @@ impl<T: Clone> IntMut<T> {
 impl<T> Clone for IntMut<T> {
     /// BE CAREFUL: SHALLOW COPY
     fn clone(&self) -> Self {
-        Self { data: Arc::clone(&self.data) }
+        Self {
+            data: Arc::clone(&self.data),
+        }
     }
 }
 

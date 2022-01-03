@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use bevy::{prelude::*};
+use bevy::prelude::*;
 use bevy_egui::{
     egui::{self, CollapsingHeader, CtxRef, Ui},
     EguiContext,
@@ -8,8 +8,8 @@ use bevy_egui::{
 use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder, SimManager};
 
 use crate::{
-    tool_systems::SelectedNode, CurrentTheme, NeedsRecolor,
-    NodeBuilderRef, NodeType, UIMode, UIState, UITheme, 
+    tool_systems::SelectedNode, CurrentTheme, NeedsRecolor, NodeBuilderRef, NodeType, UIMode,
+    UIState, UITheme,
 };
 
 /// Draws the ui
