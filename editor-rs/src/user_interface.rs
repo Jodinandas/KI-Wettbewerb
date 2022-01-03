@@ -186,6 +186,9 @@ pub fn ui_example(
                 .show(egui_context.ctx(), |ui| {
                     ui.vertical_centered(|ui| ui_state.toolbar.render_tools(ui));
                     ui.separator();
+                    if ui.button("Start Simulation").clicked() {
+                        ui_state.mode = UIMode::Simulator;
+                    }
                 });
         }
         UIMode::Simulator => {}

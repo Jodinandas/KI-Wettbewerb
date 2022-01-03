@@ -190,8 +190,14 @@ pub struct NewStreetInfo {
 /// and for managing the stage of the tool
 pub fn connector_clicked(
     mut stage: ResMut<AddStreetStage>,
-    out_circles: Query<(&Parent, &GlobalTransform, &OutputCircle), With<UnderCursor>>,
-    in_circles: Query<(&Parent, &GlobalTransform, &InputCircle), With<UnderCursor>>,
+    out_circles: QuerySet<(
+        Query<(&Parent, &GlobalTransform, &OutputCircle), With<UnderCursor>>,
+        Query<Entity, With<OutputCircle>>,
+    )>,
+    in_circles: QuerySet<(
+        Query<(&Parent, &GlobalTransform, &InputCircle), With<UnderCursor>>,
+        Query<Entity, With<InputCircle>>,
+    )>,
     street: Query<(Entity, &NewStreetInfo, &StreetLinePosition), With<PlacingStreet>>,
     parent_nodes: Query<&SimulationID>,
     mut sim_manager: ResMut<SimManager>,
@@ -212,7 +218,7 @@ pub fn connector_clicked(
     }
     match *stage {
         AddStreetStage::SelectingOutput => {
-            if let Ok((parent_node, pos, ctype)) = out_circles.single() {
+            if let Ok((parent_node, pos, ctype)) = out_circles.q0().single() {
                 println!("Creating new Street");
                 let start = Vec2::new(pos.translation.x, pos.translation.y);
                 let new_street = node_render::street(start, mouse_pos, theme.placing_street);
@@ -232,10 +238,15 @@ pub fn connector_clicked(
                 // lock toolbar to prevent the user from switching to another tool while
                 // still connecting crossings
                 ui_state.toolbar.locked = true;
+                // delete the connectors
+                out_circles.q1().iter().for_each(| c | {
+                    commands.entity(c).despawn();
+                });
+                commands.entity(parent_node.0).remove::<HasConnectors>();
             }
         }
         AddStreetStage::SelectingInput => {
-            if let Ok((parent, pos, ctype)) = in_circles.single() {
+            if let Ok((parent, pos, ctype)) = in_circles.q0().single() {
                 let (entity, street_info, street_pos) = street
                     .single()
                     .expect("Unable to get street even though input connector was clicked");
@@ -267,7 +278,12 @@ pub fn connector_clicked(
                     .entity(entity).despawn();
                 commands.spawn_bundle(street_bundle);
                 *stage = AddStreetStage::SelectingOutput;
+                // delete the connectors
+                in_circles.q1().iter().for_each(| c | {
+                    commands.entity(c).despawn();
+                });
                 ui_state.toolbar.locked = false;
+                commands.entity(parent.0).remove::<HasConnectors>();
             }
         }
     }
