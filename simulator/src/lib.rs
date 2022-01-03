@@ -22,6 +22,8 @@ mod pathfinding;
 mod simulation;
 /// constructs simulations
 mod simulation_builder;
+/// top level struct used for managing Simulation, SimulationManager, MovableServer
+mod sim_manager;
 /// provides logic to move cars and pedestrians
 mod traversible;
 // reexport
@@ -32,6 +34,9 @@ pub mod nodes {
 pub mod path {
     pub use crate::pathfinding::{MovableServer, PathAwareCar};
 }
+
+pub use sim_manager::SimManager;
+
 pub mod datastructs {
     pub use crate::int_mut::{IntMut, WeakIntMut};
     pub use crate::movable::MovableStatus;

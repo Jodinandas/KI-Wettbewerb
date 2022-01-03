@@ -60,6 +60,7 @@ impl Movable for RandCar {
 }
 
 /// This struct encapsulates data for a [Movable] (to render it later)
+#[derive(Debug)]
 pub struct MovableStatus {
     /// the Movable's position on the street (crossings and ionodes are not supported yet)
     pub position: f32,

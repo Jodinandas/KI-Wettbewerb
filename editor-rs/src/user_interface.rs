@@ -6,11 +6,11 @@ use bevy_egui::{
     EguiContext,
 };
 use bevy_prototype_lyon::entity::ShapeBundle;
-use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder};
+use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder, SimManager};
 
 use crate::{
     node_render, repaint_node, tool_systems::SelectedNode, CurrentTheme, NeedsRecolor,
-    NodeBuilderRef, NodeType, StreetLinePosition, UIMode, UIState, UITheme,
+    NodeBuilderRef, NodeType, StreetLinePosition, UIMode, UIState, UITheme, 
 };
 
 /// Draws the ui
@@ -20,6 +20,7 @@ pub fn ui_example(
     mut commands: Commands,
     egui_context: ResMut<EguiContext>,
     mut ui_state: ResMut<UIState>,
+    mut sim_manager: ResMut<SimManager>,
     meshes: ResMut<Assets<Mesh>>,
     mut background: ResMut<ClearColor>,
     mut theme: ResMut<UITheme>,
@@ -188,6 +189,15 @@ pub fn ui_example(
                     ui.separator();
                     if ui.button("Start Simulation").clicked() {
                         ui_state.mode = UIMode::Simulator;
+                        let num_sims = 1;
+                        match sim_manager.simulate(num_sims) {
+                            Ok(_) => info!("Starting with {} concurrent Simulations", num_sims),
+                            Err(e) => error!("Unable to start Simulations. Error: {}", e),
+                        }
+                        match sim_manager.track_simulation(0) {
+                            Ok(_) => info!("Set to track simulation with index 0"),
+                            Err(_) => warn!("Can not track simulation with index 0"),
+                        }
                     }
                 });
         }
