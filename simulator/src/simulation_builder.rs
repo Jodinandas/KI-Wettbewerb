@@ -241,7 +241,7 @@ impl SimulatorBuilder {
             }
             NodeBuilder::Street(_) => panic!("Can't connect street with street"),
         }
-        println!("Connecting: {}->{}", inode1, inode2);
+        // println!("Connecting: {}->{}", inode1, inode2);
         self.nodes.push(new_street);
         Ok(self.nodes.last().unwrap())
     }
@@ -484,7 +484,7 @@ impl SimulatorBuilder {
                         // before the node is removed, remove the references to it from all
                         // the nodes that are connected to it, to avoid having dead references
                         if remove {
-                            println!("{}", rnode.get().get_id());
+                            // println!("{}", rnode.get().get_id());
                             for connection in rnode.get().get_all_connections() {
                                 if connection != node {
                                     connection

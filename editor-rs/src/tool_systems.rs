@@ -12,6 +12,8 @@ use bevy_prototype_lyon::entity::ShapeBundle;
 use simulator::nodes::{
     CrossingBuilder, Direction, IONodeBuilder, InOut, NodeBuilder, NodeBuilderTrait,
 };
+#[allow(unused_imports)]
+use log::{trace, debug, info, warn, error};
 
 use crate::{
     get_primary_window_size,
@@ -219,12 +221,12 @@ pub fn connector_clicked(
     match *stage {
         AddStreetStage::SelectingOutput => {
             if let Ok((parent_node, pos, ctype)) = out_circles.q0().single() {
-                println!("Creating new Street");
                 let start = Vec2::new(pos.translation.x, pos.translation.y);
                 let new_street = node_render::street(start, mouse_pos, theme.placing_street);
                 let id = parent_nodes
                     .get(parent_node.0)
                     .expect("There is no parent for connector!");
+                info!("Starting to create new Street at position {:?}", start);
                 commands
                     .spawn()
                     .insert_bundle(new_street)
@@ -246,7 +248,7 @@ pub fn connector_clicked(
             }
         }
         AddStreetStage::SelectingInput => {
-            if let Ok((parent, pos, ctype)) = in_circles.q0().single() {
+            if let Ok((parent, _pos, ctype)) = in_circles.q0().single() {
                 let (entity, street_info, street_pos) = street
                     .single()
                     .expect("Unable to get street even though input connector was clicked");
@@ -273,7 +275,7 @@ pub fn connector_clicked(
                     street_pos.1,
                     theme.street,
                 );
-                println!("new_street bundle ==================================================>");
+                info!("new Street with position {} {}", street_pos.0, street_pos.1);
                 commands
                     .entity(entity).despawn();
                 commands.spawn_bundle(street_bundle);
@@ -377,7 +379,7 @@ pub fn add_crossing_system(
     };
     let nbr = simulation_builder.add_node(NodeBuilder::Crossing(CrossingBuilder::new()));
     let id = nbr.get().get_id();
-    println!("Added Crossing wit id= {}", id);
+    info!("Added Crossing wit id= {}", id);
     commands.spawn_bundle(CrossingBundle::new(id, nbr, mouse_click, theme.crossing));
 }
 
@@ -407,7 +409,7 @@ pub fn add_io_node_system(
     };
     let nbr = simulation_builder.add_node(NodeBuilder::IONode(IONodeBuilder::new()));
     let id = nbr.get().get_id();
-    println!("Added IONode with id= {}", id);
+    info!("Added IONode with id= {}", id);
     commands.spawn_bundle(IONodeBundle::new(id, nbr, mouse_click, theme.io_node));
 }
 
@@ -441,74 +443,17 @@ pub fn delete_node_system_simple(
                 .collect();
             for (entity, sim_index) in nodes.q1().iter() {
                 if indices_to_remove.contains(&sim_index.0) {
-                    println!(
+                    info!(
                         "Deleting Node wit id= {} (Entity: {:?})",
                         sim_index.0, entity
                     );
                     commands.entity(entity).despawn();
-                    println!("Deleted Node");
                 }
             }
         }
     }
 }
 
-/// This systems deletes a node if the cursor is over it and the mouse is clicked
-///
-/// currently, this system has a weird bug, which causes the system to crash
-///
-/// to reduce developement time, [delete_node_system_simple] is used instead
-pub fn delete_node_system(
-    mut sim_manager: ResMut<SimManager>,
-    mouse_input: Res<Input<MouseButton>>,
-    windows: Res<Windows>,
-    shape_query: QuerySet<(
-        Query<(Entity, &Transform, &NodeType, &SimulationID), With<NodeType>>,
-        Query<&Transform, With<Camera>>,
-    )>,
-    mut commands: Commands,
-) {
-    let mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
-        Some(click) => click,
-        None => return,
-    };
-
-    let clicked_object = input::get_shape_under_mouse(
-        mouse_click,
-        windows,
-        shape_query.q0().iter().map(|(e, t, n, _id)| (e, t, n)),
-        &shape_query.q1(),
-    );
-
-    // select nearest object
-    // get position of mouse click on screen
-    if let Some((entity, transform, node_type)) = clicked_object {
-        let sim_id = match shape_query.q0().get(entity) {
-            Ok((_e, _t, _n, id)) => id,
-            Err(_) => return,
-        };
-
-        if let Ok(sim_builder) = sim_manager.modify_sim_builder() {
-            let removed_nodes = sim_builder
-                .remove_node_and_connected_by_id(sim_id.0)
-                .expect("Unable to remove node");
-            let indices_to_remove: Vec<usize> = removed_nodes
-                .iter()
-                .map(|node| node.get().get_id())
-                .collect();
-            for (entity, _, _, sim_index) in shape_query.q0().iter() {
-                if indices_to_remove.contains(&sim_index.0) {
-                    println!(
-                        "Deleting Node wit id= {} (Entity: {:?})",
-                        sim_index.0, entity
-                    );
-                    commands.entity(entity).despawn();
-                    println!("Deleted Node");
-                }
-            }
-        }
-    }
-}
 
 pub fn select_node(
     mut commands: Commands,
@@ -530,17 +475,15 @@ pub fn select_node(
             None => return,
         };
     if let Ok(prev_selected) = shapes.q1().single() {
-        println!("Getting prev selected");
+        info!("Unselected previouse node (entity={:?})", prev_selected);
         commands
             .entity(prev_selected)
             .remove::<SelectedNode>()
             .insert(NeedsRecolor);
-        println!("Got prev selected");
     }
-    println!("Getting new selected");
+    info!("Selecting node (entity={:?})", entity);
     commands
         .entity(entity)
         .insert(SelectedNode)
         .insert(NeedsRecolor);
-    println!("Got new selected");
 }

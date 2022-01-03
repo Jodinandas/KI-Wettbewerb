@@ -21,7 +21,9 @@ mod tool_systems;
 mod toolbar;
 mod user_interface;
 use node_bundles::node_render;
-use std::time;
+#[allow(unused_imports)]
+use log::{trace, debug, info, warn, error};
+
 
 use crate::node_bundles::{CrossingBundle, IONodeBundle, StreetBundle};
 
@@ -261,12 +263,11 @@ pub fn color_under_cursor(
     query: Query<Entity, (With<UnderCursor>, With<NodeType>)>,
 ) {
     query.for_each(|entity| {
-        println!("Coloring under cursor");
         commands
             .entity(entity)
             .insert(NeedsRecolor)
             .insert(SelectedNode);
-        println!("Colored under cursor");
+        info!("coloring all nodes under cursor");
     });
 }
 
@@ -308,7 +309,7 @@ fn spawn_node_grid(
         .modify_sim_builder()
         .expect("Simulation is running while trying to construct grid");
     *new_builder = build_grid_sim(side_len as u32);
-    println!("Build Grid");
+    info!("spawning node grid");
 
     let calc_y = |ie| ((side_len - ie / side_len) * spacing) as f32;
     let calc_x = |ie| (ie % side_len * spacing) as f32; // - 4. * (spacing as f32);
@@ -342,7 +343,6 @@ fn spawn_node_grid(
                     ));
                 }
                 NodeBuilder::Street(street) => {
-                    // println!("   type=Street");
                     if let Some(conn_in) = &street.conn_in {
                         if let Some(conn_out) = &street.conn_out {
                             let index_in = conn_in.upgrade().get().get_id();
@@ -362,7 +362,6 @@ fn spawn_node_grid(
                 }
             }
         });
-    println!("built Grid");
 }
 
 fn get_primary_window_size(windows: &Res<Windows>) -> Vec2 {

@@ -77,7 +77,6 @@ pub fn get_shape_under_mouse<'a, T: Iterator<Item = (Entity, &'a Transform, &'a 
     shapes: T, // &Query<(Entity, &Transform, &NodeType)>,
     camera: &Query<&Transform, With<Camera>>,
 ) -> Option<(Entity, Transform, NodeType)> {
-    // println!("{:?}", click_pos);
     if let Ok(camera_transform) = camera.single() {
         // camera scaling factor
         // let scaling = camera_transform.scale.x;
