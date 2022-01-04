@@ -30,7 +30,7 @@ impl UITheme {
         UITheme {
             background: Color::rgb(220.0/255.0, 220.0/255.0, 220.0/255.0),
             io_node: Color::rgb(40.0/255.0, 40.0/255.0, 50.0/255.0),
-            street: Color::rgb(120.0/255.0, 120.0/255.0, 130.0/255.0),
+            street: Color::rgb(80.0/255.0, 80.0/255.0, 90.0/255.0),
             crossing: Color::rgb(40.0/255.0, 40.0/255.0, 50.0/255.0),
             highlight: Color::rgb(160.0/255.0, 100.0/255.0, 100.0/255.0),
             connector_in: Color::rgb(240.0/255.0, 100.0/255.0, 0.0/255.0),
