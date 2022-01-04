@@ -215,7 +215,7 @@ pub fn ui_example(
                 ui.vertical(|ui| {
                     let mut new_theme = (*current_theme).clone();
                     ui.radio_value(&mut new_theme, CurrentTheme::LIGHT, "Light");
-                    ui.radio_value(&mut new_theme, CurrentTheme::DARK, "Dark");
+                    ui.radio_value(&mut new_theme, CurrentTheme::DRACULA, "Dracula");
                     if new_theme != *current_theme {
                         *current_theme = new_theme;
                         *theme = UITheme::from_enum(&new_theme);
