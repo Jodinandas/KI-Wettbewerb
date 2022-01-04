@@ -17,7 +17,7 @@ use log::{debug, error, info, trace, warn};
 pub struct CarID(u32);
 
 const CAR_Z: f32 = 20.0;
-const CAR_SIZE: f32 = 30.0;
+const CAR_SIZE: f32 = 1.0;
 
 pub fn run_if_simulating(ui_state: Res<UIState>) -> ShouldRun {
     match ui_state.mode {
@@ -54,6 +54,7 @@ pub fn display_cars(
             let id = sim_id.0;
             let start = line.0;
             let end = line.1;
+            // println!("start: {}, end: {}", start, end);
             match updates.get(&id) {
                 Some(stati) => {
                     stati.iter().for_each(|status| {
@@ -78,5 +79,7 @@ pub fn display_cars(
                 }
             }
         });
+    } else {
+        // println!("No Updates");
     }
 }

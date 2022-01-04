@@ -116,7 +116,7 @@ impl<Car: Movable> Simulator<Car> {
             // last iteration took if the iteration took longer than the
             // specified delay or update using the delay
             // let dt = cmp::max(self.delay as u128, iteration_compute_time) as f64 / 1000.0;
-            self.sim_iter(self.dt.into());
+            self.sim_iter();
 
             counter += 1;
             // TODO: Could case the system to wait an unnecessary millisecond
@@ -130,10 +130,10 @@ impl<Car: Movable> Simulator<Car> {
     }
 
     /// a single iteration
-    pub fn sim_iter(&mut self, dt: f64) {
+    pub fn sim_iter(&mut self) {
         // At the moment all nodes are updated
         // error!("{}", self.delay);
-        self.update_all_nodes(dt);
+        self.update_all_nodes(self.dt.into());
         thread::sleep(Duration::from_millis(self.delay));
     }
 

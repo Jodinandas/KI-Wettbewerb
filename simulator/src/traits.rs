@@ -72,7 +72,7 @@ pub trait Movable: Debug + Clone + Send + Sync + DynClone {
     ) -> Result<Option<WeakIntMut<Node<Self>>>, Box<dyn Error>>;
     /// Returns a unique indentifier
     fn get_id(&self) -> u32;
-    // sets the internal id
+    /// sets the internal id
     fn set_id(&mut self, id: u32);
     /// is called when the movable advances to the next node
     fn advance(&mut self) {}

@@ -3,6 +3,8 @@ use std::ptr;
 use crate::movable::MovableStatus;
 
 use super::{movable::RandCar, traits::Movable};
+#[allow(unused_imports)]
+use log::{trace, debug, info, warn, error};
 
 /// This structs represents a sidewalk, a street or something else that can be walked on
 #[derive(Debug, Clone)]
@@ -67,7 +69,7 @@ impl<T: Movable> Traversible<T> {
         self.movables
             .iter()
             .map(|(m, t)| MovableStatus {
-                position: t.max(self.length) / self.length,
+                position: t.min(self.length) / self.length,
                 lane_index: 0,
                 movable_id: m.get_id(),
             })
