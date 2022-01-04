@@ -6,7 +6,6 @@ use bevy_egui::egui::Visuals;
 /// the colors of the simulator can be defined with fields like background
 ///
 /// to change the visuals of the rest of the frontend, use the `egui_visuals` field
-#[derive(Default)]
 pub struct UITheme {
     pub background: Color,
     pub io_node: Color,
@@ -60,5 +59,10 @@ impl UITheme {
             CurrentTheme::LIGHT => UITheme::light(),
             CurrentTheme::DRACULA => UITheme::dracula(),
         }
+    }
+}
+impl Default for UITheme{
+    fn default() -> Self {
+        UITheme::dracula()
     }
 }
