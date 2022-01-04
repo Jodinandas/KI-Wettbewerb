@@ -43,15 +43,15 @@ impl UITheme {
     }
     pub fn dark() -> UITheme {
         UITheme {
-            background: Color::rgb(0.0, 0.0, 0.0),
-            io_node: Color::rgb(200.0, 200.0, 0.0),
-            street: Color::rgb(255., 255., 255.),
-            crossing: Color::rgb(200.0, 200.0, 0.0),
-            highlight: Color::rgb(255.0, 0.0, 0.0),
-            connector_in: Color::rgb(0.0, 0.0, 255.0),
-            connector_out: Color::rgb(255.0, 0.0, 0.0),
-            placing_street: Color::rgb(255.0, 0.0, 0.0),
-            car_color: Color::rgb(255.0, 0.0, 0.0),
+            background: Color::rgb(40., 42., 54.),
+            io_node: Color::rgb(255., 184., 108.),
+            street: Color::rgb(248., 248., 242.),
+            crossing: Color::rgb(255., 184., 108.),
+            highlight: Color::rgb(255., 85., 85.),
+            connector_in: Color::rgb(139., 233., 253.)
+            connector_out: Color::rgb(255., 121., 198.),
+            placing_street: Color::rgb(189., 147., 249.),
+            car_color: Color::rgb(80., 250., 123.),
             egui_visuals: Visuals::dark(),
         }
     }
