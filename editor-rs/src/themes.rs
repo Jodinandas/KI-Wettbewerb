@@ -28,14 +28,14 @@ pub enum CurrentTheme {
 impl UITheme {
     pub fn light() -> UITheme {
         UITheme {
-            background: Color::rgb(200.0/255.0, 200.0/255.0, 200.0/255.0),
+            background: Color::rgb(220.0/255.0, 220.0/255.0, 220.0/255.0),
             io_node: Color::rgb(40.0/255.0, 40.0/255.0, 50.0/255.0),
             street: Color::rgb(120.0/255.0, 120.0/255.0, 130.0/255.0),
             crossing: Color::rgb(40.0/255.0, 40.0/255.0, 50.0/255.0),
-            highlight: Color::rgb(160.0/255.0, 140.0/255.0, 140.0/255.0),
+            highlight: Color::rgb(160.0/255.0, 100.0/255.0, 100.0/255.0),
             connector_in: Color::rgb(240.0/255.0, 100.0/255.0, 0.0/255.0),
             connector_out: Color::rgb(240.0/255.0, 100.0/255.0, 0.0/255.0),
-            placing_street: Color::rgb(140.0/255.0, 100.0/255.0, 100.0/255.0),
+            placing_street: Color::rgb(160.0/255.0, 100.0/255.0, 100.0/255.0),
             car_color: Color::rgb(100.0/255.0, 240.0/255.0, 100.0/255.0),
             egui_visuals: Visuals::light(),
         }

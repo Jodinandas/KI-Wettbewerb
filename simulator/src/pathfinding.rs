@@ -344,7 +344,6 @@ impl<Car: Movable> MovableServer<Car> {
             car.set_path(path);
             car.set_id(self.car_count);
             self.car_count += 1;
-            println!("Car Count: {}", self.car_count);
             self.cache.insert((start_node, end_node), car.clone());
             return Ok(car);
         }
