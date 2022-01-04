@@ -79,11 +79,14 @@ impl<Car: Movable> Simulator<Car> {
                     }
                     Ok(next_node) => {
                         match next_node{
-                            Some(nn) => {(nn
-                                .try_upgrade()
-                                .expect("Referenced connection does not exist"))
-                                .get()
-                                .add_car(node.get().remove_car(j));
+                            Some(nn) => {
+                                let mut car = node.get().remove_car(j);
+                                car.advance();
+                                nn
+                                    .try_upgrade()
+                                    .expect("Referenced connection does not exist")
+                                    .get()
+                                    .add_car(car);
                                 // println!("{:?}", nn.try_upgrade().expect("asdof").get())
                                 },
                             None => {
