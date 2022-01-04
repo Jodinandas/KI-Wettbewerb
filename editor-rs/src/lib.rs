@@ -182,7 +182,7 @@ pub fn run() {
                 .with_run_criteria(tool_systems::run_if_add_ionode.system())
                 .with_system(tool_systems::add_io_node_system.system()),
         )
-        .add_system(simulation_display::display_cars.system())
+        .add_system_to_stage(CoreStage::PostUpdate, simulation_display::display_cars.system())
         // .add_system_set(
         //     SystemSet::new()
         //         .with_run_criteria(simulation_display::run_if_simulating.system())
@@ -196,7 +196,7 @@ fn debug_status_updates(sim_manager: Res<SimManager>) {
     if let Some(r) = report {
         let update: String = r
             .values()
-            .map(|s| s.iter().map(|s| s.position.to_string()))
+            .map(|s| s.iter().map(|s| s.position.to_string() + ", "))
             .flatten()
             .collect();
         debug!("Car Status Update: {}", update);

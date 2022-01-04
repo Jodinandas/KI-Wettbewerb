@@ -10,6 +10,7 @@ use std::fmt::Display;
 use std::panic;
 use std::sync::{mpsc, Mutex};
 use std::thread::{self, JoinHandle};
+use std::time::Duration;
 
 /// saves a handle to the thread performing the simulation
 /// and provides ways of communication
@@ -41,7 +42,6 @@ impl Simulating {
         debug!("creating new Simulating");
         sim_builder.with_delay(100).with_dt(0.01);
         let mut new_sim = sim_builder.build(mv_server);
-        println!("{}", new_sim.delay);
         // the channel that information about the car updates will be passed through
         let (tx, rx) = mpsc::channel();
         let terminate = IntMut::new(false);
@@ -57,11 +57,14 @@ impl Simulating {
             panic::set_hook(Box::new(|e| {
                 error!("Simulation panicked! Backtrace: {}", e);
             }));
+            let mut i = 0;
             while !*terminate_moved.get() {
+                i += 1;
                 new_sim.sim_iter(time_steps.into());
                 // report car position updates
                 if *report_updates_moved.get() {
-                    tx.send(new_sim.get_car_status()).expect("Unable to send car status updates, even though report_updates is set to true");
+                    let updates = new_sim.get_car_status();
+                    tx.send(updates).expect("Unable to send car status updates, even though report_updates is set to true");
                 }
             }
             *terminated_moved.get() = true;
@@ -182,7 +185,7 @@ impl SimManager {
     pub fn get_status_updates(&self) -> Option<HashMap<usize, Vec<MovableStatus>>> {
         trace!("Tried to get status updates");
         match self.tracking_index {
-            Some(i) => match self.simulations[i].car_updates.lock().unwrap().try_recv() {
+            Some(i) => match self.simulations[i].car_updates.lock().unwrap().recv_timeout(Duration::from_millis(10)) {
                 Ok(value) => Some(value),
                 Err(_) => None,
             },
