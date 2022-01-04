@@ -182,12 +182,11 @@ pub fn run() {
                 .with_run_criteria(tool_systems::run_if_add_ionode.system())
                 .with_system(tool_systems::add_io_node_system.system()),
         )
-        .add_system_to_stage(CoreStage::PostUpdate, simulation_display::display_cars.system())
-        // .add_system_set(
-        //     SystemSet::new()
-        //         .with_run_criteria(simulation_display::run_if_simulating.system())
-        //         .with_system(simulation_display::display_cars.system()),
-        // )
+        .add_system_set(
+            SystemSet::new()
+                .with_run_criteria(simulation_display::run_if_simulating.system())
+                .with_system(simulation_display::display_cars.system()),
+        )
         .run();
 }
 
