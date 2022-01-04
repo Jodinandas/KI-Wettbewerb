@@ -209,7 +209,7 @@ pub fn connector_clicked(
         Query<Entity, With<InputCircle>>,
     )>,
     street: Query<(Entity, &NewStreetInfo, &StreetLinePosition), With<PlacingStreet>>,
-    parent_nodes: Query<&SimulationID>,
+    parent_nodes: Query<(&SimulationID, &NodeBuilderRef)>,
     mut sim_manager: ResMut<SimManager>,
     windows: Res<Windows>,
     theme: Res<UITheme>,
@@ -231,7 +231,7 @@ pub fn connector_clicked(
             if let Ok((parent_node, pos, ctype)) = out_circles.q0().single() {
                 let start = Vec2::new(pos.translation.x, pos.translation.y);
                 let new_street = node_render::street(start, mouse_pos, theme.placing_street);
-                let id = parent_nodes
+                let (id, nbr) = parent_nodes
                     .get(parent_node.0)
                     .expect("There is no parent for connector!");
                 info!("Starting to create new Street at position {:?}", start);
@@ -260,7 +260,7 @@ pub fn connector_clicked(
                 let (entity, street_info, street_pos) = street
                     .single()
                     .expect("Unable to get street even though input connector was clicked");
-                let end_id = parent_nodes
+                let (end_id, nbr) = parent_nodes
                     .get(parent.0)
                     .expect("There is no parent for connector!");
                 let builder = match sim_manager.modify_sim_builder() {

@@ -1,10 +1,12 @@
+use std::sync::MutexGuard;
+
 use bevy::prelude::*;
 use bevy::render::mesh::VertexAttributeValues;
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::prelude::*;
 use simulator::datastructs::IntMut;
 use simulator::debug::build_grid_sim;
-use simulator::nodes::{NodeBuilder, NodeBuilderTrait};
+use simulator::nodes::{NodeBuilder, NodeBuilderTrait, InOut};
 use simulator::{self, SimManager};
 use themes::*;
 use tool_systems::SelectedNode;
@@ -117,7 +119,9 @@ const CROSSING_SIZE: f32 = 20.0;
 const IONODE_SIZE: f32 = 20.0;
 const CONNECTION_CIRCLE_RADIUS: f32 = 5.0;
 const CONNECTOR_DISPLAY_RADIUS: f32 = 30.0;
-const CONNECTION_CIRCLE_DIST_FROM_MIDDLE: f32 = 10.0;
+const CONNECTION_CIRCLE_DIST_FROM_MIDDLE: f32 = CROSSING_SIZE/2.0;
+const CAR_Z: f32 = 20.0;
+const CAR_SIZE: f32 = 1.5;
 
 #[wasm_bindgen]
 pub fn run() {
@@ -304,6 +308,60 @@ pub fn repaint_node(mesh_handle: &Handle<Mesh>, color: Color, meshes: &mut ResMu
     mesh.set_attribute(Mesh::ATTRIBUTE_COLOR, values);
 }
 
+pub fn calculate_offset_from_crossing_in(street: &IntMut<NodeBuilder>, c_in: &MutexGuard<NodeBuilder>, c_out: &MutexGuard<NodeBuilder>) -> Vec2 {
+    let mut offset = Vec2::ZERO;
+    match &**c_in{
+        NodeBuilder::IONode(io_node) => {
+            // The offset can not be determined from an IONode, as the direction is unclear.
+            //  Therefor, use the output as reference
+            if let NodeBuilder::Crossing(crossing) = &**c_out{
+                let dir = crossing.get_direction_for_item(InOut::IN, street).expect("Crossing that is set as output doesn't have street as input");
+                match dir {
+                    simulator::nodes::Direction::N => {
+                        offset.x -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
+                        offset.y += CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
+                    },
+                    simulator::nodes::Direction::S => {
+                        offset.x += CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
+                        offset.y -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
+                    },
+                    simulator::nodes::Direction::E => {
+                        offset.x += CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
+                        offset.y += CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
+                    },
+                    simulator::nodes::Direction::W => {
+                        offset.x -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
+                        offset.y -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
+                    },
+                }
+            }
+        },
+        NodeBuilder::Crossing(crossing) => {
+            let dir = crossing.get_direction_for_item(InOut::OUT, street).expect("Crossing that is set as input doesn't have street as output");
+            match dir {
+                simulator::nodes::Direction::N => {
+                    offset.x += CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
+                    offset.y += CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
+                },
+                simulator::nodes::Direction::S => {
+                    offset.x -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
+                    offset.y -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
+                },
+                simulator::nodes::Direction::E => {
+                    offset.x += CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
+                    offset.y -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
+                },
+                simulator::nodes::Direction::W => {
+                    offset.x -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
+                    offset.y += CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
+                },
+            }
+        },
+        NodeBuilder::Street(_) => panic!("Street connected to street!"),
+    }
+    offset
+}
+
 /// This function is for debugging purposes
 /// It spawns a grid of nodes
 ///
@@ -357,10 +415,16 @@ fn spawn_node_grid(
                 NodeBuilder::Street(street) => {
                     if let Some(conn_in) = &street.conn_in {
                         if let Some(conn_out) = &street.conn_out {
-                            let index_in = conn_in.upgrade().get().get_id();
-                            let index_out = conn_out.upgrade().get().get_id();
-                            let pos_j = Vec2::new(calc_x(index_in), calc_y(index_in));
-                            let pos_i = Vec2::new(calc_x(index_out), calc_y(index_out));
+                            let guarded_conn_in = conn_in.upgrade();
+                            let guarded_conn_in = guarded_conn_in.get();
+                            let guarded_conn_out = conn_out.upgrade();
+                            let guarded_conn_out = guarded_conn_out.get();
+                            let index_in = guarded_conn_in.get_id();
+                            let index_out = guarded_conn_out.get_id();
+                            let offset = calculate_offset_from_crossing_in(n_builder, &guarded_conn_in, &guarded_conn_out);
+                            
+                            let pos_j = Vec2::new(calc_x(index_in), calc_y(index_in)) + offset;
+                            let pos_i = Vec2::new(calc_x(index_out), calc_y(index_out)) + offset;
                             commands.spawn_bundle(StreetBundle::new(
                                 i,
                                 n_builder,
