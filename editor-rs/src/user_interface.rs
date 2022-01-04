@@ -20,7 +20,6 @@ pub fn ui_example(
     egui_context: ResMut<EguiContext>,
     mut ui_state: ResMut<UIState>,
     mut sim_manager: ResMut<SimManager>,
-    meshes: ResMut<Assets<Mesh>>,
     mut background: ResMut<ClearColor>,
     mut theme: ResMut<UITheme>,
     mut current_theme: ResMut<CurrentTheme>,

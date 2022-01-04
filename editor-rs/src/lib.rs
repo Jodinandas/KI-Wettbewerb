@@ -119,7 +119,10 @@ const CROSSING_SIZE: f32 = 20.0;
 const IONODE_SIZE: f32 = 20.0;
 const CONNECTION_CIRCLE_RADIUS: f32 = 5.0;
 const CONNECTOR_DISPLAY_RADIUS: f32 = 30.0;
-const CONNECTION_CIRCLE_DIST_FROM_MIDDLE: f32 = CROSSING_SIZE/2.0;
+const CONNECTION_CIRCLE_DIST_FROM_MIDDLE: f32 = CROSSING_SIZE/2.0 + 10.0;
+/// the first value is where the street is placed in the direction of the connection
+/// the second value is how much the street is shifted to the side
+const STREET_OFFSET: [f32; 2] = [CROSSING_SIZE/2.0, CROSSING_SIZE/4.0];
 const CAR_Z: f32 = 20.0;
 const CAR_SIZE: f32 = 1.5;
 
@@ -318,20 +321,20 @@ pub fn calculate_offset_from_crossing_in(street: &IntMut<NodeBuilder>, c_in: &Mu
                 let dir = crossing.get_direction_for_item(InOut::IN, street).expect("Crossing that is set as output doesn't have street as input");
                 match dir {
                     simulator::nodes::Direction::N => {
-                        offset.x -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
-                        offset.y += CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
+                        offset.x -= STREET_OFFSET[1];
+                        offset.y += STREET_OFFSET[0];
                     },
                     simulator::nodes::Direction::S => {
-                        offset.x += CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
-                        offset.y -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
+                        offset.x += STREET_OFFSET[1];
+                        offset.y -= STREET_OFFSET[0];
                     },
                     simulator::nodes::Direction::E => {
-                        offset.x += CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
-                        offset.y += CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
+                        offset.x += STREET_OFFSET[0];
+                        offset.y += STREET_OFFSET[1];
                     },
                     simulator::nodes::Direction::W => {
-                        offset.x -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
-                        offset.y -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
+                        offset.x -= STREET_OFFSET[0];
+                        offset.y -= STREET_OFFSET[1];
                     },
                 }
             }
@@ -340,20 +343,20 @@ pub fn calculate_offset_from_crossing_in(street: &IntMut<NodeBuilder>, c_in: &Mu
             let dir = crossing.get_direction_for_item(InOut::OUT, street).expect("Crossing that is set as input doesn't have street as output");
             match dir {
                 simulator::nodes::Direction::N => {
-                    offset.x += CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
-                    offset.y += CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
+                    offset.x += STREET_OFFSET[1];
+                    offset.y += STREET_OFFSET[0];
                 },
                 simulator::nodes::Direction::S => {
-                    offset.x -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
-                    offset.y -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
+                    offset.x -= STREET_OFFSET[1];
+                    offset.y -= STREET_OFFSET[0];
                 },
                 simulator::nodes::Direction::E => {
-                    offset.x += CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
-                    offset.y -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
+                    offset.x += STREET_OFFSET[0];
+                    offset.y -= STREET_OFFSET[1];
                 },
                 simulator::nodes::Direction::W => {
-                    offset.x -= CONNECTION_CIRCLE_DIST_FROM_MIDDLE;
-                    offset.y += CONNECTION_CIRCLE_DIST_FROM_MIDDLE/2.0;
+                    offset.x -= STREET_OFFSET[0];
+                    offset.y += STREET_OFFSET[1];
                 },
             }
         },
