@@ -7,7 +7,7 @@ use simulator::debug::build_grid_sim;
 use simulator::nodes::{NodeBuilder, NodeBuilderTrait};
 use simulator::{self, SimManager};
 use themes::*;
-use tool_systems::SelectedNode;
+use tool_systems::{SelectedNode, move_node_system};
 use wasm_bindgen::prelude::*;
 mod input;
 mod node_bundles;
@@ -139,6 +139,7 @@ pub fn run() {
         .insert_resource(ClearColor(UITheme::dracula().background))
         .insert_resource(bevy::input::InputSystem)
         .add_system(user_interface::ui_example.system())
+        .add_system(move_node_system.system())
         .add_system_to_stage(CoreStage::PreUpdate, mark_under_cursor.system())
         // .add_system(color_under_cursor.system())
         //.add_system(rotation_test.system())
