@@ -52,10 +52,12 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
                     match &mut io_node.movable_server {
                         Some(server) => {
                             let car_result = server.get().generate_movable(io_node.id);
+                            info!("Spawned new movable");
                             if let Ok(mut car) = car_result {
                                 io_node.cached.push(car);
                                 new_cars.push(io_node.cached.len()-1);
                             }
+                            io_node.time_since_last_spawn = 0.0;
                         }
                         None => warn!("Trying to simulate Node with uninitialised MovableServer"),
                     }
@@ -504,6 +506,7 @@ impl<Car: Movable> Street<Car> {
     /// This should pretty closely resemble how people drive in real life
     /// as you won't drive to the lane that has the most cars in it
     pub fn add_movable(&mut self, movable: Car) {
+        info!("Adding movable to dstreet");
         // get the index of the lane with the least movables on it
         let trav_most_movables = self
             .lanes
@@ -512,7 +515,7 @@ impl<Car: Movable> Street<Car> {
             .min_by_key(|(_i, traversible)| traversible.num_movables());
         let i = match trav_most_movables {
             Some((i, _)) => i,
-            None => return,
+            None => {warn!("Can not determine lane with minimum number of cars."); return},
         };
         self.lanes[i].add(movable)
     }

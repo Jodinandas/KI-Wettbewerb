@@ -25,8 +25,6 @@ impl<T: Movable> Traversible<T> {
         }
     }
     /// update all the movables by timestep `t` and return the index of all that have reached the end
-    ///
-    /// TODO
     pub fn update_movables(&mut self, t: f64) -> Vec<usize> {
         // let mut out = Vec::<&mut T>::new();
         // for i in 0..self.movables.len() {
@@ -69,7 +67,7 @@ impl<T: Movable> Traversible<T> {
         self.movables
             .iter()
             .map(|(m, t)| MovableStatus {
-                position: *t / self.length,
+                position: t.max(self.length) / self.length,
                 lane_index: 0,
                 movable_id: m.get_id(),
             })

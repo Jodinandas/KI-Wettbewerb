@@ -96,7 +96,6 @@ impl<Car: Movable> Simulator<Car> {
                 }
             }
 
-            error!("Got here2");
         }
     }
 
@@ -133,7 +132,7 @@ impl<Car: Movable> Simulator<Car> {
     /// a single iteration
     pub fn sim_iter(&mut self, dt: f64) {
         // At the moment all nodes are updated
-        error!("{}", self.delay);
+        // error!("{}", self.delay);
         self.update_all_nodes(dt);
         thread::sleep(Duration::from_millis(self.delay));
     }

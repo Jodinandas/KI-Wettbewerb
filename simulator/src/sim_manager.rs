@@ -39,7 +39,7 @@ impl Simulating {
         time_steps: f32,
     ) -> Simulating {
         debug!("creating new Simulating");
-        sim_builder.with_delay(100).with_dt(0.1);
+        sim_builder.with_delay(100).with_dt(0.01);
         let mut new_sim = sim_builder.build(mv_server);
         println!("{}", new_sim.delay);
         // the channel that information about the car updates will be passed through
@@ -53,6 +53,7 @@ impl Simulating {
         // -------------------------- this is where the magic happens --------------
         let handle = thread::spawn(move || {
             info!("starting Simulation thread");
+            println!("Starting sim thread");
             panic::set_hook(Box::new(|e| {
                 error!("Simulation panicked! Backtrace: {}", e);
             }));
@@ -179,6 +180,7 @@ impl SimManager {
     ///  status updates faster than the UI can display it (This could cause the
     ///  Receiver to fill up.)
     pub fn get_status_updates(&self) -> Option<HashMap<usize, Vec<MovableStatus>>> {
+        trace!("Tried to get status updates");
         match self.tracking_index {
             Some(i) => match self.simulations[i].car_updates.lock().unwrap().try_recv() {
                 Ok(value) => Some(value),
