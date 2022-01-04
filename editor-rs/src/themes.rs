@@ -36,7 +36,7 @@ impl UITheme {
             connector_in: Color::rgb(240.0/255.0, 100.0/255.0, 0.0/255.0),
             connector_out: Color::rgb(240.0/255.0, 100.0/255.0, 0.0/255.0),
             placing_street: Color::rgb(160.0/255.0, 100.0/255.0, 100.0/255.0),
-            car_color: Color::rgb(100.0/255.0, 240.0/255.0, 100.0/255.0),
+            car_color: Color::rgb(80.0/255.0, 180.0/255.0, 80.0/255.0),
             egui_visuals: Visuals::light(),
         }
     }
@@ -50,7 +50,7 @@ impl UITheme {
             connector_in: Color::rgb(80.0/255.0, 250.0/255.0, 123.0/255.0),
             connector_out: Color::rgb(80.0/255.0, 250.0/255.0, 123.0/255.0),
             placing_street: Color::rgb(255.0/255.0, 85.0/255.0, 85.0/255.0),
-            car_color: Color::rgb(80.0/255.0, 250.0/255.0, 123.0/255.0),
+            car_color: Color::rgb(80.0/255.0, 180.0/255.0, 100.0/255.0),
             egui_visuals: Visuals::dark(),
         }
     }
