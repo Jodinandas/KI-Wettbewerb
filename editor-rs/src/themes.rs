@@ -42,15 +42,15 @@ impl UITheme {
     }
     pub fn dracula() -> UITheme {
         UITheme {
-            background: Color::rgb(200.0/255.0, 42.0/255.0, 54.0/255.0),
+            background: Color::rgb(40.0/255.0, 42.0/255.0, 54.0/255.0),
             io_node: Color::rgb(255.0/255.0, 184.0/255.0, 108.0/255.0),
-            street: Color::rgb(248.0, 248.0, 242.0),
-            crossing: Color::rgb(255.0, 184.0, 108.0),
-            highlight: Color::rgb(255.0, 85.0, 85.0),
-            connector_in: Color::rgb(139.0, 233.0, 253.0),
-            connector_out: Color::rgb(255.0, 121.0, 198.0),
-            placing_street: Color::rgb(189.0, 147.0, 249.0),
-            car_color: Color::rgb(80.0, 250.0, 123.0),
+            street: Color::rgb(248.0/255.0, 248.0/255.0, 242.0/255.0),
+            crossing: Color::rgb(255.0/255.0, 184.0/255.0, 108.0/255.0),
+            highlight: Color::rgb(255.0/255.0, 85.0/255.0, 85.0/255.0),
+            connector_in: Color::rgb(139.0/255.0, 233.0/255.0, 253.0/255.0),
+            connector_out: Color::rgb(255.0/255.0, 121.0/255.0, 198.0/255.0),
+            placing_street: Color::rgb(189.0/255.0, 147.0/255.0, 249.0/255.0),
+            car_color: Color::rgb(80.0/255.0, 250.0/255.0, 123.0/255.0),
             egui_visuals: Visuals::dark(),
         }
     }
