@@ -298,7 +298,7 @@ impl IONodeBuilder {
         IONodeBuilder {
             connections_out: Vec::new(),
             connections_in: Vec::new(),
-            spawn_rate: 1.0,
+            spawn_rate: 0.05,
             id: 0,
         }
     }
@@ -449,34 +449,6 @@ impl<T> CrossingConnections<T> {
         connection.contains_key(&dir)
     }
 }
-// impl Debug for CrossingConnections {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         let mut reformatted_in = HashMap::<Direction, usize>::new();
-//         let mut reformatted_out = HashMap::<Direction, usize>::new();
-//         for (k, v) in self.input.iter() {
-//             let next_node = v.upgrade().unwrap().lock().unwrap().get_out_connections()[0].upgrade().unwrap();
-//             let next_node = next_node.try_lock();
-//             println!("Beföre Löck");
-//             if let Ok(index) = next_node{
-//                 println!("Äftör Löck");
-//                 reformatted_in.insert(k.clone(), index.get_id());
-//             }
-//         }
-//         for (k, v) in self.output.iter() {
-//             let next_node = v.upgrade().unwrap().lock().unwrap().get_out_connections()[0].upgrade().unwrap();
-//             let next_node = next_node.try_lock();
-//             println!("Beföre Löck");
-//             if let Ok(index) = next_node{
-//                 println!("Äftör Löck");
-//                 reformatted_in.insert(k.clone(), index.get_id());
-//             }
-//         }
-//         f.debug_struct("CrossingConnections")
-//             .field("input", &reformatted_in)
-//             .field("output", &reformatted_out)
-//             .finish()
-//     }
-// }
 
 /// Defines the settings for a Crossing to later on construct it with the build method
 #[derive(Debug, Clone)]
@@ -564,5 +536,9 @@ impl CrossingBuilder {
     /// returns true, if there a connection is present at the specified position
     pub fn has_connection(&self, conn_type: InOut, dir: Direction) -> bool {
         self.connections.has_connection(conn_type, dir)
+    }
+    /// returns the direction of the item
+    pub fn get_direction_for_item(&self, conn_type: InOut, item: &IntMut<NodeBuilder>) -> Option<Direction> {
+        self.connections.get_direction_for_item(conn_type, item)
     }
 }

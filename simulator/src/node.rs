@@ -45,7 +45,7 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
                 io_node.time_since_last_spawn += t;
                 let mut new_cars = Vec::<usize>::new();
                 // TODO: rework spawn rate
-                if io_node.time_since_last_spawn >= io_node.spawn_rate {
+                if io_node.time_since_last_spawn >= 1.0/io_node.spawn_rate {
                     // TODO: Remove and replace with proper request to
                     //  the movable server
                     // new_cars.push(Car::new())

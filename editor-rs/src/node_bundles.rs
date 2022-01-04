@@ -256,10 +256,10 @@ impl ConnectorCircleIn {
     pub fn new(ctype: InputCircle, color: Color) -> ConnectorCircleIn {
         // depending on the type, move the connector to a specific position on the crossing
         let offset = match ctype {
-            InputCircle::N => Vec2::new(-CROSSING_SIZE / CONNECTION_CIRCLE_DIST_FROM_MIDDLE, CROSSING_SIZE / 2.0),
-            InputCircle::S => Vec2::new(CROSSING_SIZE / CONNECTION_CIRCLE_DIST_FROM_MIDDLE, -CROSSING_SIZE / 2.0),
-            InputCircle::W => Vec2::new(-CROSSING_SIZE / 2.0, -CROSSING_SIZE / CONNECTION_CIRCLE_DIST_FROM_MIDDLE),
-            InputCircle::E => Vec2::new(CROSSING_SIZE / 2.0, CROSSING_SIZE / CONNECTION_CIRCLE_DIST_FROM_MIDDLE),
+            InputCircle::N => Vec2::new(-CONNECTION_CIRCLE_DIST_FROM_MIDDLE/ 2.0, CONNECTION_CIRCLE_DIST_FROM_MIDDLE),
+            InputCircle::S => Vec2::new(CONNECTION_CIRCLE_DIST_FROM_MIDDLE/ 2.0, -CONNECTION_CIRCLE_DIST_FROM_MIDDLE),
+            InputCircle::W => Vec2::new(-CONNECTION_CIRCLE_DIST_FROM_MIDDLE, -CONNECTION_CIRCLE_DIST_FROM_MIDDLE/ 2.0),
+            InputCircle::E => Vec2::new(CONNECTION_CIRCLE_DIST_FROM_MIDDLE, CONNECTION_CIRCLE_DIST_FROM_MIDDLE/ 2.0),
             InputCircle::Middle => Vec2::ZERO,
         };
         let mut shape_bundle = node_render::connector(offset, color);
@@ -295,10 +295,10 @@ impl ConnectorCircleOut {
     pub fn new(ctype: OutputCircle, color: Color) -> ConnectorCircleOut {
         // depending on the type, move the connector to a specific position on the crossing
         let offset = match ctype {
-            OutputCircle::N => Vec2::new(CROSSING_SIZE / CONNECTION_CIRCLE_DIST_FROM_MIDDLE, CROSSING_SIZE / 2.0),
-            OutputCircle::S => Vec2::new(-CROSSING_SIZE / CONNECTION_CIRCLE_DIST_FROM_MIDDLE, -CROSSING_SIZE / 2.0),
-            OutputCircle::W => Vec2::new(-CROSSING_SIZE / 2.0, CROSSING_SIZE / CONNECTION_CIRCLE_DIST_FROM_MIDDLE),
-            OutputCircle::E => Vec2::new(CROSSING_SIZE / 2.0, -CROSSING_SIZE / CONNECTION_CIRCLE_DIST_FROM_MIDDLE),
+            OutputCircle::N => Vec2::new(CONNECTION_CIRCLE_DIST_FROM_MIDDLE/ 2.0, CONNECTION_CIRCLE_DIST_FROM_MIDDLE),
+            OutputCircle::S => Vec2::new(-CONNECTION_CIRCLE_DIST_FROM_MIDDLE/ 2.0, -CONNECTION_CIRCLE_DIST_FROM_MIDDLE),
+            OutputCircle::W => Vec2::new(-CONNECTION_CIRCLE_DIST_FROM_MIDDLE, CONNECTION_CIRCLE_DIST_FROM_MIDDLE/ 2.0),
+            OutputCircle::E => Vec2::new(CONNECTION_CIRCLE_DIST_FROM_MIDDLE, -CONNECTION_CIRCLE_DIST_FROM_MIDDLE/ 2.0),
             OutputCircle::Middle => Vec2::ZERO,
         };
         let mut shape_bundle = node_render::connector(offset, color);

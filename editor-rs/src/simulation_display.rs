@@ -10,14 +10,12 @@ use bevy_prototype_lyon::{
 };
 use simulator::SimManager;
 
-use crate::{themes::UITheme, SimulationID, StreetLinePosition, UIState};
+use crate::{themes::UITheme, SimulationID, StreetLinePosition, UIState, CAR_SIZE, CAR_Z};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
 pub struct CarID(u32);
 
-const CAR_Z: f32 = 20.0;
-const CAR_SIZE: f32 = 1.0;
 
 pub fn run_if_simulating(ui_state: Res<UIState>) -> ShouldRun {
     match ui_state.mode {
