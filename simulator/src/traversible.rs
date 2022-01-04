@@ -33,10 +33,10 @@ impl<T: Movable> Traversible<T> {
         let mut out = Vec::new();
         let l = self.length;
         for i in 0..self.movables.len() {
-            let (m, mut dist) = &self.movables[i];
-            dist += t as f32 * m.get_speed();
-            if dist >= l {
-                out.push(m);   
+            let (m, dist) = &mut self.movables[i];
+            *dist += t as f32 * m.get_speed();
+            if *dist >= l {
+                out.push(i);   
             }
         }
         out
@@ -74,5 +74,13 @@ impl<T: Movable> Traversible<T> {
                 movable_id: m.get_id(),
             })
             .collect()
+    }
+
+    pub fn remove_movable(&mut self, i: usize) -> T {
+        self.movables.remove(i).0
+    }
+    
+    pub fn get_movable_by_index<'a>(&'a self, i: usize) -> &'a T {
+        &self.movables[i].0
     }
 }

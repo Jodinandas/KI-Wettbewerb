@@ -39,7 +39,7 @@ impl Simulating {
         time_steps: f32,
     ) -> Simulating {
         debug!("creating new Simulating");
-        sim_builder.with_delay(1000).with_dt(0.1);
+        sim_builder.with_delay(100).with_dt(0.1);
         let mut new_sim = sim_builder.build(mv_server);
         println!("{}", new_sim.delay);
         // the channel that information about the car updates will be passed through

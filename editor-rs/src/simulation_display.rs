@@ -17,7 +17,7 @@ use log::{debug, error, info, trace, warn};
 pub struct CarID(u32);
 
 const CAR_Z: f32 = 20.0;
-const CAR_SIZE: f32 = 20.0;
+const CAR_SIZE: f32 = 30.0;
 
 pub fn run_if_simulating(ui_state: Res<UIState>) -> ShouldRun {
     match ui_state.mode {
@@ -58,6 +58,7 @@ pub fn display_cars(
                 Some(stati) => {
                     stati.iter().for_each(|status| {
                         let new_car_position = start + (end - start) * status.position;
+                        info!("Placing car to {}", new_car_position);
                         match cars.iter_mut().find(|(id, _)| id.0 == status.movable_id) {
                             Some((_, mut transform)) => {
                                 *transform.translation =

@@ -8,7 +8,6 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use std::sync::MutexGuard;
 
 use super::int_mut::{IntMut, WeakIntMut};
 use super::node::Node;
@@ -67,7 +66,7 @@ impl Movable for PathAwareCar {
     fn decide_next(
         &self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
-        current_node: &MutexGuard<'_, Node<PathAwareCar>>,
+        current_node: &IntMut<Node<Self>>,
     ) -> Result<Option<WeakIntMut<Node<Self>>>, Box<dyn Error>> {
         // upgrade references to be able to access the id field
         let mut connections_upgraded = Vec::with_capacity(connections.len());

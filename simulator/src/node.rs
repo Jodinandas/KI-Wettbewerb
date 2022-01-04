@@ -37,13 +37,13 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
             .find(|n| *n == other)
             .is_some()
     }
-    fn update_cars(&mut self, t: f64) -> Vec<&Car> {
+    fn update_cars(&mut self, t: f64) -> Vec<usize> {
         match self {
             Node::Street(street) => street.update_movables(t),
             Node::IONode(io_node) => {
                 // create new car
                 io_node.time_since_last_spawn += t;
-                let mut new_cars = Vec::<&Car>::new();
+                let mut new_cars = Vec::<usize>::new();
                 // TODO: rework spawn rate
                 if io_node.time_since_last_spawn >= io_node.spawn_rate {
                     // TODO: Remove and replace with proper request to
@@ -54,7 +54,7 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
                             let car_result = server.get().generate_movable(io_node.id);
                             if let Ok(mut car) = car_result {
                                 io_node.cached.push(car);
-                                new_cars.push(io_node.cached.last_mut().unwrap());
+                                new_cars.push(io_node.cached.len()-1);
                             }
                         }
                         None => warn!("Trying to simulate Node with uninitialised MovableServer"),
@@ -119,6 +119,22 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
             Node::Crossing(inner) => inner.car_lane.rm_movable_by_ref(car).unwrap(),
         }
         
+    }
+
+    fn remove_car(&mut self, i: usize) -> Car {
+        match self {
+            Node::Street(street) => street.remove_car(i),
+            Node::IONode(io_node) => io_node.cached.remove(i),
+            Node::Crossing(crossing) => crossing.car_lane.remove_movable(i),
+        }
+    }
+
+    fn get_car_by_index(&mut self, i: usize) -> &Car {
+        match self {
+            Node::Street(street) => street.get_car_by_index(i),
+            Node::IONode(ionode) => &ionode.cached[i],
+            Node::Crossing(crossing) => crossing.car_lane.get_movable_by_index(i),
+        }
     }
 }
 
@@ -427,12 +443,61 @@ impl<Car: Movable> Street<Car> {
         out
     }
     /// Advances the movables on all lanes
+    /// 
+    /// # How is the index calculated? 
+    /// Imagine this set of lanes
+    /// ```text
+    /// Lane 0: 0  1  2  3  4  5    | num of mov. : 5
+    /// Lane 1: 6  7  8             | num of mov. : 3
+    /// Lane 2: 9  10 11 12         | num of mov. : 4
+    /// ```
+    /// Let's say movable `10` has reached the end
+    ///
+    /// How can we calculate the lane and the index on that lane
+    /// from just this number?
+    /// 
+    /// * Step 1: 10 - 5 = 5
+    /// * Step 2: 5 - 3 = 2
+    /// * Step 3: 2 - 4 < 0, so the offset is the number of movables on the previous two lanes
+    ///  and the movable is on this lane (lane 2). The index in the lane is 2
     pub fn update_movables(&mut self, t: f64) -> Vec<usize> {
-        self.lanes
-            .iter_mut()
-            .flat_map(|traversible| (*traversible).update_movables(t))
-            .collect()
+        let mut offset = 0;
+        let mut movables = Vec::new();
+        for traversible in self.lanes.iter_mut() {
+            for m in traversible.update_movables(t) {
+                movables.push(m + offset)
+            }
+            offset += traversible.num_movables();
+        }
+        movables
     }
+    /// removes a movable using the index.
+    /// 
+    /// to see how the index is calculated, go to the documentation of `update_movable`
+    pub fn remove_car(&mut self, index: usize) -> Car {
+        let mut element_index = index;
+        for lane in self.lanes.iter_mut() {
+            let num_m = lane.num_movables();
+            if (element_index as isize - num_m as isize) < 0 {
+                return lane.remove_movable(element_index);
+            }
+            element_index -= num_m;
+        }
+        panic!("Invalid Index!")
+    }
+    /// returns a reference to the Car with index i
+    fn get_car_by_index(&mut self, i: usize) -> &Car {
+        let mut element_index = i;
+        for lane in self.lanes.iter() {
+            let num_m = lane.num_movables();
+            if element_index - num_m < 0 {
+                return lane.get_movable_by_index(i) 
+            }
+            element_index -= num_m;
+        }
+        panic!("Invalid Index!")
+    }
+
     /// Adds a movable to the street
     ///
     /// The movable is put on the lane with the leas amount of cars

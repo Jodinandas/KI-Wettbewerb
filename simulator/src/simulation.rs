@@ -60,13 +60,16 @@ impl<Car: Movable> Simulator<Car> {
         for i in 0..self.nodes.len() {
             let node = &self.nodes[i];
 
-            let mut inner_node = node.get();
-            let options = inner_node.get_out_connections();
-            let cars_at_end = inner_node.update_cars(dt);
+            let options = node.get().get_out_connections();
+            let mut cars_at_end = node.get().update_cars(dt);
+            // make sure that the rightmost elements get removed first to avoid
+            // the indices becoming invalid
+            cars_at_end.sort();
+            // cars_at_end.reverse();
             // TODO: Use something more efficient than cloning the whole Vec here
             for j in (0..cars_at_end.len()).rev() {
                 let next: Result<Option<WeakIntMut<Node<Car>>>, Box<dyn Error>> =
-                    cars_at_end[j].decide_next(&options, node);
+                    node.get().get_car_by_index(cars_at_end[j]).decide_next(&options, node);
                 match next {
                     Err(_) => {
                         warn!(
@@ -80,8 +83,8 @@ impl<Car: Movable> Simulator<Car> {
                                 .try_upgrade()
                                 .expect("Referenced connection does not exist"))
                                 .get()
-                                .add_car(node.get().rm_car_by_ref(cars_at_end[j]));
-                                println!("{:?}", nn.try_upgrade().expect("asdof").get())
+                                .add_car(node.get().remove_car(j));
+                                // println!("{:?}", nn.try_upgrade().expect("asdof").get())
                                 },
                             None => {
                                 // Nothing to do here. If car can not be moved, we will not move it
