@@ -25,11 +25,11 @@ use crate::node_bundles::{CrossingBundle, IONodeBundle, StreetBundle};
 #[derive(PartialEq)]
 pub enum Theme {
     Light,
-    Dark,
+    Dracula,
 }
 impl Default for Theme {
     fn default() -> Self {
-        Theme::Light
+        Theme::Dracula
     }
 }
 
@@ -135,8 +135,8 @@ pub fn run() {
         .add_startup_system(spawn_node_grid.system())
         .add_startup_system(spawn_camera.system())
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
-        .insert_resource(UITheme::dark()) // Theme
-        .insert_resource(CurrentTheme::DARK) // Theme
+        .insert_resource(UITheme::dracula()) // Theme
+        .insert_resource(CurrentTheme::DRACULA) // Theme
         .insert_resource(bevy::input::InputSystem)
         .add_system(user_interface::ui_example.system())
         .add_system_to_stage(CoreStage::PreUpdate, mark_under_cursor.system())
