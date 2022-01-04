@@ -172,9 +172,9 @@ struct IndexedNodeNetwork {
     /// connections acvvvvvvvvvvvvvvvn bbbbbbbbbbbbbbbbbbbbbbbbbbbb (my cat)
     ///
     /// contains a list of connections for each given index, with the first element
-    /// of the contained tuple being the index of the connection, and the second one
+    /// of the contained tuple being the id of the connection, and the second one
     /// being the cost of moving to the specified connection
-    pub connections: Vec<Vec<(usize, usize)>>,
+    pub connections: HashMap<usize, Vec<(usize, usize)>>,
     pub io_nodes: Vec<usize>,
     pub io_node_weights: Vec<f32>,
 }
@@ -183,14 +183,16 @@ impl IndexedNodeNetwork {
     /// generates a new [IndexedNodeNetwork] from a list of [NodeBuilders](NodeBuilder)
     fn index_builder<Car: Movable>(&mut self, sbuilder: &SimulatorBuilder<Car>) {
         let nodes = &sbuilder.nodes;
-        let mut connections: Vec<Vec<(usize, usize)>> = Vec::with_capacity(nodes.len());
+        let mut connections: HashMap<usize, Vec<(usize, usize)>> = HashMap::with_capacity(nodes.len());
         let mut io_nodes: Vec<usize> = Vec::new();
         let mut io_node_weights: Vec<f32> = Vec::new();
+        println!("Started to index");
         nodes.iter().for_each(|node| {
-            connections.push({
+            // TODO: Find a way to avoid using .get() 2 times
+            let id = node.get().get_id();
+            connections.insert(id, {
                 // get the indices and weights of all connections
-                node.get()
-                    .get_out_connections()
+                    node.get().get_out_connections()
                     .iter()
                     .map(|n| {
                         let node_upgraded = n.upgrade();
@@ -214,6 +216,7 @@ impl IndexedNodeNetwork {
                 _ => {}
             }
         });
+        println!("Indexed");
         *self = IndexedNodeNetwork {
             connections,
             io_nodes,
@@ -222,7 +225,7 @@ impl IndexedNodeNetwork {
     }
     pub fn new() -> IndexedNodeNetwork {
         IndexedNodeNetwork {
-            connections: Vec::new(),
+            connections: HashMap::new(),
             io_nodes: Vec::new(),
             io_node_weights: Vec::new(),
         }
@@ -286,25 +289,36 @@ impl<Car: Movable> MovableServer<Car> {
     pub fn register_simulator_builder(&mut self, nbuilder: &SimulatorBuilder) {
         self.indexed.index_builder(nbuilder);
     }
-    /// generates a new movable for node with index `index`
-    pub fn generate_movable(&mut self, index: usize) -> Result<Car, NoPathError> {
+    /// generates a new movable for node with id `id`
+    pub fn generate_movable(&mut self, id: usize) -> Result<Car, NoPathError> {
         // choose random IoNode to drive to
         // prevent start node from being the end node at the same time
         // trace!("IONode Weights (indexed) : {:?}", self.indexed.io_node_weights);
-        let dist = WeightedIndex::new(self.indexed.io_node_weights.clone()).unwrap();
+        let mut weights = self.indexed.io_node_weights.clone();
+        let mut ids = self.indexed.io_nodes.clone();
+        let self_index = ids.iter().enumerate().find( | (_i, nid ) | id == **nid).expect("Input id does not exist").0;
+        weights.remove(self_index);
+        ids.remove(self_index);
+        let dist = WeightedIndex::new(weights).unwrap();
         let mut rng = thread_rng();
         // you are the chosen one!
-        let start_node = index; // self.indexed.io_nodes[index];
-        let end_node = dist.sample(&mut rng);
+        let start_node = id; // self.indexed.io_nodes[index];
+        let end_node = ids[dist.sample(&mut rng)];
         // println!("{}, {}", start_node, end_node);
         let cache_entry = self.cache.entry((start_node, end_node));
         if let Entry::Occupied(entry) = cache_entry {
-            return Ok(entry.get().clone());
+            // even though the car is cached, it is still a new car
+            //  therefor, the count has to be incremented to ensure the new car won't conflict
+            //  with the car that was originally cached
+            let mut car = entry.get().clone();
+            car.set_id(self.car_count);
+            self.car_count += 1;
+            return Ok(car);
         } else {
             // weight needs to be 1/weights, because dijkstra takes cost and not weight of nodes
             let mut path = match dijkstra(
                 &start_node,
-                |p| self.indexed.connections[*p].clone(),
+                |p| self.indexed.connections[p].clone(),
                 |i| *i == end_node,
             ) {
                 Some((p, _)) => p,
@@ -320,11 +334,14 @@ impl<Car: Movable> MovableServer<Car> {
             // Reverse list of nodes to be able to pop off the last element
             path.reverse();
             // IONode is the first element
+            // println!("Path: {:?}", path);
             path.pop();
             let mut car = Car::new(); // PathAwareCar { speed: 1.0, path, id: self.car_count };
             car.set_speed(1.0);
             car.set_path(path);
             car.set_id(self.car_count);
+            self.car_count += 1;
+            println!("Car Count: {}", self.car_count);
             self.cache.insert((start_node, end_node), car.clone());
             return Ok(car);
         }

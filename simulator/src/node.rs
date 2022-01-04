@@ -489,9 +489,9 @@ impl<Car: Movable> Street<Car> {
     }
     /// returns a reference to the Car with index i
     fn get_car_by_index(&mut self, i: usize) -> &Car {
-        let mut element_index = i;
+        let mut element_index = i as isize;
         for lane in self.lanes.iter() {
-            let num_m = lane.num_movables();
+            let num_m = lane.num_movables() as isize;
             if element_index - num_m < 0 {
                 return lane.get_movable_by_index(i) 
             }

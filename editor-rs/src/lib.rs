@@ -110,7 +110,7 @@ pub enum NodeType {
 }
 
 const GRID_NODE_SPACING: usize = 100;
-const GRID_SIDE_LENGTH: usize = 3;
+const GRID_SIDE_LENGTH: usize = 5;
 const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
 const CROSSING_SIZE: f32 = 20.0;
@@ -182,7 +182,7 @@ pub fn run() {
                 .with_run_criteria(tool_systems::run_if_add_ionode.system())
                 .with_system(tool_systems::add_io_node_system.system()),
         )
-        .add_system(simulation_display::display_cars.system())
+        .add_system_to_stage(CoreStage::PostUpdate, simulation_display::display_cars.system())
         // .add_system_set(
         //     SystemSet::new()
         //         .with_run_criteria(simulation_display::run_if_simulating.system())
@@ -196,7 +196,7 @@ fn debug_status_updates(sim_manager: Res<SimManager>) {
     if let Some(r) = report {
         let update: String = r
             .values()
-            .map(|s| s.iter().map(|s| s.position.to_string()))
+            .map(|s| s.iter().map(|s| s.position.to_string() + ", "))
             .flatten()
             .collect();
         debug!("Car Status Update: {}", update);
@@ -364,8 +364,8 @@ fn spawn_node_grid(
                             commands.spawn_bundle(StreetBundle::new(
                                 i,
                                 n_builder,
-                                pos_i,
                                 pos_j,
+                                pos_i,
                                 theme.street,
                             ));
                         }
