@@ -42,8 +42,8 @@ impl UITheme {
     }
     pub fn dracula() -> UITheme {
         UITheme {
-            background: Color::rgb(40.0, 42.0, 54.0),
-            io_node: Color::rgb(255.0, 184.0, 108.0),
+            background: Color::rgb(200.0/255.0, 42.0/255.0, 54.0/255.0),
+            io_node: Color::rgb(255.0/255.0, 184.0/255.0, 108.0/255.0),
             street: Color::rgb(248.0, 248.0, 242.0),
             crossing: Color::rgb(255.0, 184.0, 108.0),
             highlight: Color::rgb(255.0, 85.0, 85.0),

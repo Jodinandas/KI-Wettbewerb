@@ -134,9 +134,9 @@ pub fn run() {
         .insert_resource(SimManager::new())
         .add_startup_system(spawn_node_grid.system())
         .add_startup_system(spawn_camera.system())
-        .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .insert_resource(UITheme::dracula()) // Theme
         .insert_resource(CurrentTheme::DRACULA) // Theme
+        .insert_resource(ClearColor(UITheme::dracula().background))
         .insert_resource(bevy::input::InputSystem)
         .add_system(user_interface::ui_example.system())
         .add_system_to_stage(CoreStage::PreUpdate, mark_under_cursor.system())
