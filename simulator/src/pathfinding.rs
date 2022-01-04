@@ -82,6 +82,7 @@ impl Movable for PathAwareCar {
         let to_return = match self.path.last() {
             Some(value) => value,
             None => {
+                warn!("Path Empty");
                 return Err(Box::new(PathError {
                     msg: "Path is empty, but next connection was requested.",
                     expected_node: None,
@@ -90,7 +91,8 @@ impl Movable for PathAwareCar {
             }
         };
 
-        if !connection_ids.contains(&to_return) {
+        if !connection_ids.contains(to_return) {
+            warn!("Requested connection not in connections of node");
             return Err(Box::new(PathError {
                 msg: "Requested connection not present in current available in node",
                 expected_node: Some(*to_return),
@@ -136,6 +138,7 @@ impl Movable for PathAwareCar {
                 ) {
                     return Ok(Some(next_node.clone()));
                 } else {
+                    warn!("Red Light");
                     return Ok(None);
                 }
             }
