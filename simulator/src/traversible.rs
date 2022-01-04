@@ -1,3 +1,5 @@
+use std::ptr;
+
 use crate::movable::MovableStatus;
 
 use super::{movable::RandCar, traits::Movable};
@@ -22,20 +24,32 @@ impl<T: Movable> Traversible<T> {
             length,
         }
     }
-    /// update all the movables by timestep `t` and return all that have reached the end
-    ///
-    /// TODO
-    pub fn update_movables(&mut self, t: f64) -> Vec<T> {
-        // return all movables that are
-        let mut out = Vec::<T>::new();
+    /// update all the movables by timestep `t` and return the index of all that have reached the end
+    pub fn update_movables(&mut self, t: f64) -> Vec<usize> {
+        // let mut out = Vec::<&mut T>::new();
+        // for i in 0..self.movables.len() {
+        let mut out = Vec::new();
+        let l = self.length;
         for i in 0..self.movables.len() {
-            let (m, mut dist) = &self.movables[i];
-            dist += t as f32 * m.get_speed();
-            if dist >= self.length {
-                out.push(self.movables.remove(i).0);
+            let (m, dist) = &mut self.movables[i];
+            *dist += t as f32 * m.get_speed();
+            if *dist >= l {
+                out.push(i);   
             }
         }
         out
+    }
+    /// removes a movable using a reference to it. This can be useful for
+    /// removing cars lazily and checking conditions outside the traversible
+    /// before removing it
+    pub fn rm_movable_by_ref(&mut self, movable: &T) -> Result<T, &'static str>{
+        let index = match self.movables.iter().enumerate().find(
+            | (_i, (m, _p)) | ptr::eq(movable, m)
+        ) {
+            Some((i, _)) => i,
+            None => return Err("Invalid reference passed to rm_movable_by_ref")
+        };
+        Ok(self.movables.remove(index).0)
     }
 
     /// puts a movable on the beginning of the road
@@ -53,10 +67,18 @@ impl<T: Movable> Traversible<T> {
         self.movables
             .iter()
             .map(|(m, t)| MovableStatus {
-                position: *t/self.length,
+                position: t.max(self.length) / self.length,
                 lane_index: 0,
-                movable_id: m.get_id()
+                movable_id: m.get_id(),
             })
             .collect()
+    }
+
+    pub fn remove_movable(&mut self, i: usize) -> T {
+        self.movables.remove(i).0
+    }
+    
+    pub fn get_movable_by_index<'a>(&'a self, i: usize) -> &'a T {
+        &self.movables[i].0
     }
 }

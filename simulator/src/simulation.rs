@@ -12,6 +12,8 @@ use std::{cmp, ptr, thread};
 
 use super::int_mut::{IntMut, WeakIntMut};
 use super::node::Node;
+#[allow(unused_imports)]
+use log::{trace, debug, info, warn, error};
 
 /// A struct representing the street network
 ///
@@ -35,6 +37,8 @@ where Car: Movable
     pub max_iter: Option<usize>,
     /// An optional delay between each iteration
     pub delay: u64,
+    /// how much the simulation is advanced each step
+    pub dt: f32
 }
 
 /// Error is thrown when a node that should exist, doesn't exist anymore
@@ -54,16 +58,21 @@ impl<Car: Movable> Simulator<Car> {
     /// nodes
     pub fn update_all_nodes(&mut self, dt: f64) {
         for i in 0..self.nodes.len() {
-            let node = &mut self.nodes[i];
-            let mut cars_at_end = node.get().update_cars(dt);
-            // TODO: Use something more efficient than cloning the whole Vec here
+            let node = &self.nodes[i];
+
             let options = node.get().get_out_connections();
-            for j in cars_at_end.len()..0 {
+            let mut cars_at_end = node.get().update_cars(dt);
+            // make sure that the rightmost elements get removed first to avoid
+            // the indices becoming invalid
+            cars_at_end.sort();
+            // cars_at_end.reverse();
+            // TODO: Use something more efficient than cloning the whole Vec here
+            for j in (0..cars_at_end.len()).rev() {
                 let next: Result<Option<WeakIntMut<Node<Car>>>, Box<dyn Error>> =
-                    cars_at_end[j].decide_next(&options, node);
+                    node.get().get_car_by_index(cars_at_end[j]).decide_next(&options, node);
                 match next {
                     Err(_) => {
-                        println!(
+                        warn!(
                             "Unable to decide next node for car with index {} at node {}",
                             j, i
                         );
@@ -74,16 +83,19 @@ impl<Car: Movable> Simulator<Car> {
                                 .try_upgrade()
                                 .expect("Referenced connection does not exist"))
                                 .get()
-                                .add_car(cars_at_end.pop().unwrap())
+                                .add_car(node.get().remove_car(j));
+                                // println!("{:?}", nn.try_upgrade().expect("asdof").get())
                                 },
                             None => {
                                 // Nothing to do here. If car can not be moved, we will not move it
+                                debug!("aösldk")
                             },
                         }
                     }     
                         
                 }
             }
+
         }
     }
 
@@ -103,15 +115,16 @@ impl<Car: Movable> Simulator<Car> {
             // Convert the time to seconds and wait either as long as the
             // last iteration took if the iteration took longer than the
             // specified delay or update using the delay
-            let dt = cmp::max(self.delay as u128, iteration_compute_time) as f64 / 1000.0;
-            self.sim_iter(dt);
+            // let dt = cmp::max(self.delay as u128, iteration_compute_time) as f64 / 1000.0;
+            self.sim_iter(self.dt.into());
 
             counter += 1;
             // TODO: Could case the system to wait an unnecessary millisecond
-            thread::sleep(Duration::from_millis(cmp::min(
-                self.delay - iteration_compute_time as u64,
-                0,
-            )));
+            //thread::sleep(Duration::from_millis(cmp::max(
+            //    self.delay - iteration_compute_time as u64,
+            //    0,
+            //)));
+            // thread::sleep(Duration::from_millis(self.delay));
         }
         Ok(())
     }
@@ -119,7 +132,9 @@ impl<Car: Movable> Simulator<Car> {
     /// a single iteration
     pub fn sim_iter(&mut self, dt: f64) {
         // At the moment all nodes are updated
+        // error!("{}", self.delay);
         self.update_all_nodes(dt);
+        thread::sleep(Duration::from_millis(self.delay));
     }
 
     /// returns status information for all of the cars in the simulation

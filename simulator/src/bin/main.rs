@@ -1,6 +1,5 @@
-use simulator::{SimulatorBuilder, path::PathAwareCar};
+use simulator::{path::PathAwareCar, SimulatorBuilder};
 extern crate pretty_env_logger;
-
 
 fn main() {
     // NOTE: The logger expects an environment variable called RUST_LOG

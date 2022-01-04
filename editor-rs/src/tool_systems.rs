@@ -3,17 +3,18 @@ use bevy::{
     input::Input,
     math::Vec2,
     prelude::{
-        BuildChildren, Children, Commands, Entity, GlobalTransform,
-        MouseButton, Parent, Query, QuerySet, Res, ResMut, Transform, With, Without,
+        BuildChildren, Children, Commands, Entity, GlobalTransform, MouseButton, Parent, Query,
+        QuerySet, Res, ResMut, Transform, With, Without,
     },
     window::Windows,
 };
 use bevy_prototype_lyon::entity::ShapeBundle;
-use simulator::{nodes::{
-    CrossingBuilder, IONodeBuilder, InOut, NodeBuilder, NodeBuilderTrait,
-}, SimManager};
 #[allow(unused_imports)]
-use log::{trace, debug, info, warn, error};
+use log::{debug, error, info, trace, warn};
+use simulator::{
+    nodes::{CrossingBuilder, IONodeBuilder, InOut, NodeBuilder, NodeBuilderTrait},
+    SimManager,
+};
 
 use crate::{
     get_primary_window_size,
@@ -25,8 +26,8 @@ use crate::{
     AddStreetStage, StreetLinePosition, CONNECTOR_DISPLAY_RADIUS,
 };
 use crate::{
-    node_bundles::node_render, themes::UITheme, toolbar::ToolType, Camera,
-    NeedsRecolor, NodeBuilderRef, NodeType, SimulationID, UIState, UnderCursor,
+    node_bundles::node_render, themes::UITheme, toolbar::ToolType, Camera, NeedsRecolor,
+    NodeBuilderRef, NodeType, SimulationID, UIState, UnderCursor,
 };
 
 pub fn run_if_delete_node(ttype: Res<UIState>) -> ShouldRun {
@@ -116,10 +117,13 @@ pub fn generate_connectors(
                     NodeBuilder::IONode(_node) => {
                         // draw a connector in the middle of the ionode
                         let id = commands
-                            .spawn_bundle(ConnectorCircleOut::new(OutputCircle::Middle, theme.connector_out))
+                            .spawn_bundle(ConnectorCircleOut::new(
+                                OutputCircle::Middle,
+                                theme.connector_out,
+                            ))
                             .id();
                         connectors.push(id);
-                    },
+                    }
                     NodeBuilder::Crossing(crossing_builder) => {
                         let dirs = [
                             OutputCircle::N,
@@ -130,37 +134,42 @@ pub fn generate_connectors(
                         for cdir in dirs.iter() {
                             if !crossing_builder.has_connection(InOut::OUT, cdir.as_dir()) {
                                 let id = commands
-                                    .spawn_bundle(ConnectorCircleOut::new(*cdir, theme.connector_out))
+                                    .spawn_bundle(ConnectorCircleOut::new(
+                                        *cdir,
+                                        theme.connector_out,
+                                    ))
                                     .id();
                                 connectors.push(id);
                             }
                         }
                     }
-               }
- 
-            },
+                }
+            }
             AddStreetStage::SelectingInput => {
                 let street_info = street
                     .single()
                     .expect("Unable to get street even though stage is set to SelectingInput");
                 if nbr.get_id() == street_info.start_id.0 {
-                    return 
+                    return;
                 }
                 match &**nbr {
                     NodeBuilder::Street(_) => return,
                     NodeBuilder::IONode(_node) => {
                         // draw a connector in the middle of the ionode
                         let id = commands
-                            .spawn_bundle(ConnectorCircleIn::new(InputCircle::Middle, theme.connector_in))
+                            .spawn_bundle(ConnectorCircleIn::new(
+                                InputCircle::Middle,
+                                theme.connector_in,
+                            ))
                             .id();
                         connectors.push(id);
-                    },
+                    }
                     NodeBuilder::Crossing(crossing_builder) => {
                         let dirs = [
                             InputCircle::N,
                             InputCircle::S,
                             InputCircle::W,
-                            InputCircle::E
+                            InputCircle::E,
                         ];
                         for cdir in dirs.iter() {
                             if !crossing_builder.has_connection(InOut::IN, cdir.as_dir()) {
@@ -171,9 +180,8 @@ pub fn generate_connectors(
                             }
                         }
                     }
-               }
- 
-            },
+                }
+            }
         }
         commands
             .entity(entity)
@@ -241,7 +249,7 @@ pub fn connector_clicked(
                 // still connecting crossings
                 ui_state.toolbar.locked = true;
                 // delete the connectors
-                out_circles.q1().iter().for_each(| c | {
+                out_circles.q1().iter().for_each(|c| {
                     commands.entity(c).despawn();
                 });
                 commands.entity(parent_node.0).remove::<HasConnectors>();
@@ -276,12 +284,11 @@ pub fn connector_clicked(
                     theme.street,
                 );
                 info!("new Street with position {} {}", street_pos.0, street_pos.1);
-                commands
-                    .entity(entity).despawn();
+                commands.entity(entity).despawn();
                 commands.spawn_bundle(street_bundle);
                 *stage = AddStreetStage::SelectingOutput;
                 // delete the connectors
-                in_circles.q1().iter().for_each(| c | {
+                in_circles.q1().iter().for_each(|c| {
                     commands.entity(c).despawn();
                 });
                 ui_state.toolbar.locked = false;
@@ -453,7 +460,6 @@ pub fn delete_node_system_simple(
         }
     }
 }
-
 
 pub fn select_node(
     mut commands: Commands,

@@ -2,13 +2,13 @@ use crate::datastructs::IntMut;
 
 use super::{int_mut::WeakIntMut, node::Node, traits::Movable};
 use rand::Rng;
-use std::error::Error;
+use std::{error::Error, sync::MutexGuard};
 
 /// A person that takes turn at random
 #[derive(Debug, Clone)]
 pub struct RandPerson {
     speed: f32,
-    id: u32
+    id: u32,
 }
 
 impl Movable for RandPerson {
@@ -20,9 +20,9 @@ impl Movable for RandPerson {
     }
     fn update(&mut self, _t: f64) {}
     fn decide_next(
-        &mut self,
+        &self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
-        _current_node: &IntMut<Node<Self>>,
+        _current_node: &IntMut<Node<RandPerson>>,
     ) -> Result<Option<WeakIntMut<Node<Self>>>, Box<dyn Error>> {
         let i = rand::thread_rng().gen_range(0..connections.len());
         Ok(Some(connections[i].clone()))
@@ -37,10 +37,7 @@ impl Movable for RandPerson {
     }
 
     fn new() -> Self {
-        RandPerson {
-            speed: 0.0,
-            id: 0,
-        }
+        RandPerson { speed: 0.0, id: 0 }
     }
 }
 
@@ -48,7 +45,7 @@ impl Movable for RandPerson {
 #[derive(Debug, Clone)]
 pub struct RandCar {
     speed: f32,
-    id: u32
+    id: u32,
 }
 
 impl RandCar {
@@ -67,9 +64,9 @@ impl Movable for RandCar {
     }
     fn update(&mut self, _t: f64) {}
     fn decide_next(
-        &mut self,
+        &self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
-        _current_node: &IntMut<Node<Self>>,
+        _current_node: &IntMut<Node>,
     ) -> Result<Option<WeakIntMut<Node>>, Box<dyn Error>> {
         let i = rand::thread_rng().gen_range(0..connections.len());
         Ok(Some(connections[i].clone()))
@@ -84,10 +81,7 @@ impl Movable for RandCar {
     }
 
     fn new() -> Self {
-        RandCar {
-            speed: 0.0,
-            id: 0,
-        }
+        RandCar { speed: 0.0, id: 0 }
     }
 }
 

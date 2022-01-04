@@ -14,14 +14,14 @@ use super::node::Node;
 use super::node_builder::NodeBuilder;
 use super::simulation::NodeDoesntExistError;
 #[allow(unused_imports)]
-use log::{trace, debug, info, warn, error};
+use log::{debug, error, info, trace, warn};
 
 /// A car with a predefined path.
 #[derive(Debug, Clone)]
 pub struct PathAwareCar {
     speed: f32,
     path: Vec<usize>,
-    id: u32
+    id: u32,
 }
 
 #[derive(Debug)]
@@ -48,12 +48,23 @@ impl Movable for PathAwareCar {
         self.speed = s
     }
 
+    fn new() -> Self {
+        PathAwareCar {
+            speed: 0.0,
+            path: Vec::new(),
+            id: 0,
+        }
+    }
+
     fn update(&mut self, _t: f64) {
         panic!("Not yet implemented! Consider using decide_next() instead");
     }
+    fn set_path(&mut self, p: Vec<usize>) {
+        self.path = p;
+    }
 
     fn decide_next(
-        &mut self,
+        &self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
         current_node: &IntMut<Node<Self>>,
     ) -> Result<Option<WeakIntMut<Node<Self>>>, Box<dyn Error>> {
@@ -95,38 +106,39 @@ impl Movable for PathAwareCar {
 
         // the next node onto which a car wants to progress
         let next_node = &connections[index];
-        match &*next_node.upgrade().get(){
+        match &*next_node.upgrade().get() {
             Node::Street(_) => {
                 // if the next node is a street, we can simply return it
-                self.path.pop().expect("Could not remove last element while trying to get onto Street");
-                return Ok(Some(next_node.clone()))
-            },
+                return Ok(Some(next_node.clone()));
+            }
             Node::IONode(_) => {
                 // if the next node is a IONode, we can simply return it
-                self.path.pop().expect("Could not remove last element while trying to get onto IONode");
-                return Ok(Some(next_node.clone()))
-            },
+                return Ok(Some(next_node.clone()));
+            }
             Node::Crossing(crossing) => {
                 // if the next node is a crossing, we need to check wether the traffic light is configured in
                 // such a way that we can drive onto the next street
                 let dn = crossing.get_out_connections();
                 // the "overnext" node onto which the car wants to drive
-                let desired_overnext_node = dn.iter().find(
-                    | out_node | {
-                        if out_node.upgrade().get().id() == overnext_node_id(&self.path){
-                            true
-                        } else {
-                            false
-                        }
-                    });
+                let desired_overnext_node = dn.iter().find(|out_node| {
+                    if out_node.upgrade().get().id() == overnext_node_id(&self.path) {
+                        true
+                    } else {
+                        false
+                    }
+                });
                 // if we can reach the "overnext" node (street), we can return it, else the car will not move
-                if crossing.can_out_node_be_reached(current_node, &desired_overnext_node.expect("for some reason the overnext node does not exist despite existing").upgrade()){
-                    self.path.pop().expect("This should really not have happened because overnext_node_id worked");
-                    return Ok(Some(next_node.clone()))
+                if crossing.can_out_node_be_reached(
+                    current_node,
+                    &desired_overnext_node
+                        .expect("for some reason the overnext node does not exist despite existing")
+                        .upgrade(),
+                ) {
+                    return Ok(Some(next_node.clone()));
                 } else {
-                    return Ok(None)
+                    return Ok(None);
                 }
-            },
+            }
         }
     }
 
@@ -137,22 +149,17 @@ impl Movable for PathAwareCar {
     fn set_id(&mut self, id: u32) {
         self.id = id
     }
-
-    fn new() -> Self {
-        PathAwareCar {
-            speed: 0.0,
-            path: Vec::new(),
-            id: 0,
+    fn advance(&mut self) {
+        match self.path.pop() {
+            Some(_) => {},
+            None => warn!("Could not remove last element while advancing to the next node"),
         }
-    }
-    fn set_path(&mut self, p: Vec<usize>) {
-        self.path = p;
     }
 }
 
-fn overnext_node_id(path: &Vec<usize>) -> usize{
-    if path.len() >= 2{
-        return path[path.len()-2]
+fn overnext_node_id(path: &Vec<usize>) -> usize {
+    if path.len() >= 2 {
+        return path[path.len() - 2];
     } else {
         panic!("tried to get ;overnext; node, but it does not exist for this path")
     }
@@ -232,17 +239,20 @@ impl IndexedNodeNetwork {
 #[derive(Debug)]
 pub struct NoPathError {
     pub start: usize,
-    pub end: usize
+    pub end: usize,
 }
 
 impl Display for NoPathError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Unable to compute path between IONodes: {} and {}", self.start, self.end)
+        write!(
+            f,
+            "Unable to compute path between IONodes: {} and {}",
+            self.start, self.end
+        )
     }
 }
 
 impl Error for NoPathError {}
-
 
 /// generates new movables with a given path
 ///
@@ -250,14 +260,15 @@ impl Error for NoPathError {}
 /// without paths having to generate a new path each time. It caches
 /// paths.
 #[derive(Debug)]
-pub struct MovableServer<Car=PathAwareCar> 
-where Car: Movable
+pub struct MovableServer<Car = PathAwareCar>
+where
+    Car: Movable,
 {
     // nodes: Vec<IntMut<NodeBuilder>>,
     indexed: IndexedNodeNetwork,
     cache: HashMap<(usize, usize), Car>,
     /// used to assign each car a unique number
-    car_count: u32
+    car_count: u32,
 }
 
 impl<Car: Movable> MovableServer<Car> {
@@ -268,7 +279,7 @@ impl<Car: Movable> MovableServer<Car> {
         MovableServer {
             indexed: IndexedNodeNetwork::new(),
             cache: HashMap::new(),
-            car_count: 0
+            car_count: 0,
         }
     }
     /// index a simulation builder in the movable server so we can access it lateron
@@ -300,11 +311,11 @@ impl<Car: Movable> MovableServer<Car> {
                 None => {
                     let perror = NoPathError {
                         start: start_node,
-                        end: end_node
+                        end: end_node,
                     };
                     trace!("{:?}", perror);
-                    return Err(perror)
-                },
+                    return Err(perror);
+                }
             };
             // Reverse list of nodes to be able to pop off the last element
             path.reverse();
@@ -320,15 +331,14 @@ impl<Car: Movable> MovableServer<Car> {
     }
 }
 
-
 mod tests {
 
     #[test]
     #[should_panic]
     fn generate_movable_test() {
-        use crate::pathfinding::PathAwareCar;
         use crate::debug::build_grid_sim;
         use crate::pathfinding::MovableServer;
+        use crate::pathfinding::PathAwareCar;
         let simbuilder = build_grid_sim(4);
         let mut test = MovableServer::<PathAwareCar>::new();
         test.register_simulator_builder(&simbuilder);

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use bevy::{prelude::*};
+use bevy::prelude::*;
 use bevy_egui::{
     egui::{self, CollapsingHeader, CtxRef, Ui},
     EguiContext,
@@ -8,8 +8,8 @@ use bevy_egui::{
 use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder, SimManager};
 
 use crate::{
-    tool_systems::SelectedNode, CurrentTheme, NeedsRecolor,
-    NodeBuilderRef, NodeType, UIMode, UIState, UITheme, 
+    tool_systems::SelectedNode, CurrentTheme, NeedsRecolor, NodeBuilderRef, NodeType, UIMode,
+    UIState, UITheme,
 };
 
 /// Draws the ui
@@ -215,7 +215,7 @@ pub fn ui_example(
                 ui.vertical(|ui| {
                     let mut new_theme = (*current_theme).clone();
                     ui.radio_value(&mut new_theme, CurrentTheme::LIGHT, "Light");
-                    ui.radio_value(&mut new_theme, CurrentTheme::DARK, "Dark");
+                    ui.radio_value(&mut new_theme, CurrentTheme::DRACULA, "Dracula");
                     if new_theme != *current_theme {
                         *current_theme = new_theme;
                         *theme = UITheme::from_enum(&new_theme);

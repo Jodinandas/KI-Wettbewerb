@@ -23,7 +23,7 @@ pub struct UITheme {
 #[derive(PartialEq, Clone, Copy)]
 pub enum CurrentTheme {
     LIGHT,
-    DARK,
+    DRACULA,
 }
 
 impl UITheme {
@@ -37,28 +37,28 @@ impl UITheme {
             connector_in: Color::rgb(0.0, 0.0, 255.0),
             connector_out: Color::rgb(255.0, 0.0, 0.0),
             placing_street: Color::rgb(255.0, 0.0, 0.0),
-            car_color: Color::rgb(0.0, 0.0, 0.0),
+            car_color: Color::rgb(255.0, 0.0, 0.0),
             egui_visuals: Visuals::light(),
         }
     }
-    pub fn dark() -> UITheme {
+    pub fn dracula() -> UITheme {
         UITheme {
-            background: Color::rgb(0.0, 0.0, 0.0),
-            io_node: Color::rgb(200.0, 200.0, 0.0),
-            street: Color::rgb(255., 255., 255.),
-            crossing: Color::rgb(200.0, 200.0, 0.0),
-            highlight: Color::rgb(255.0, 0.0, 0.0),
-            connector_in: Color::rgb(0.0, 0.0, 255.0),
-            connector_out: Color::rgb(255.0, 0.0, 0.0),
-            placing_street: Color::rgb(255.0, 0.0, 0.0),
-            car_color: Color::rgb(0.0, 0.0, 0.0),
+            background: Color::rgb(40.0, 42.0, 54.0),
+            io_node: Color::rgb(255.0, 184.0, 108.0),
+            street: Color::rgb(248.0, 248.0, 242.0),
+            crossing: Color::rgb(255.0, 184.0, 108.0),
+            highlight: Color::rgb(255.0, 85.0, 85.0),
+            connector_in: Color::rgb(139.0, 233.0, 253.0),
+            connector_out: Color::rgb(255.0, 121.0, 198.0),
+            placing_street: Color::rgb(189.0, 147.0, 249.0),
+            car_color: Color::rgb(80.0, 250.0, 123.0),
             egui_visuals: Visuals::dark(),
         }
     }
     pub fn from_enum(theme: &CurrentTheme) -> UITheme {
         match theme {
             CurrentTheme::LIGHT => UITheme::light(),
-            CurrentTheme::DARK => UITheme::dark(),
+            CurrentTheme::DRACULA => UITheme::dracula(),
         }
     }
 }

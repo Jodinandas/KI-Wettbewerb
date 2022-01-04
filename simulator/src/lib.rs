@@ -1,4 +1,4 @@
-//! The backend that does all the heavy lifing. 
+//! The backend that does all the heavy lifing.
 
 #![warn(missing_docs)]
 /// constructs a square of crossings. mostly for debugging purposes
@@ -20,12 +20,12 @@ mod node;
 mod node_builder;
 /// is responsible for calculating paths through the street network
 mod pathfinding;
+/// top level struct used for managing Simulation, SimulationManager, MovableServer
+mod sim_manager;
 /// used for simulating a street network
 mod simulation;
 /// constructs simulations
 mod simulation_builder;
-/// top level struct used for managing Simulation, SimulationManager, MovableServer
-mod sim_manager;
 /// provides logic to move cars and pedestrians
 mod traversible;
 // reexport

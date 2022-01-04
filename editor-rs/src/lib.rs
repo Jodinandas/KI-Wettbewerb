@@ -2,35 +2,34 @@ use bevy::prelude::*;
 use bevy::render::mesh::VertexAttributeValues;
 use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::prelude::*;
-use simulator::{self, SimManager};
 use simulator::datastructs::IntMut;
 use simulator::debug::build_grid_sim;
 use simulator::nodes::{NodeBuilder, NodeBuilderTrait};
+use simulator::{self, SimManager};
 use themes::*;
 use tool_systems::SelectedNode;
 use wasm_bindgen::prelude::*;
 mod input;
 mod node_bundles;
+mod simulation_display;
 mod themes;
 mod tool_systems;
 mod toolbar;
 mod user_interface;
-mod simulation_display;
-use node_bundles::node_render;
 #[allow(unused_imports)]
-use log::{trace, debug, info, warn, error};
-
+use log::{debug, error, info, trace, warn};
+use node_bundles::node_render;
 
 use crate::node_bundles::{CrossingBundle, IONodeBundle, StreetBundle};
 
 #[derive(PartialEq)]
 pub enum Theme {
     Light,
-    Dark,
+    Dracula,
 }
 impl Default for Theme {
     fn default() -> Self {
-        Theme::Light
+        Theme::Dracula
     }
 }
 
@@ -111,7 +110,7 @@ pub enum NodeType {
 }
 
 const GRID_NODE_SPACING: usize = 100;
-const GRID_SIDE_LENGTH: usize = 7;
+const GRID_SIDE_LENGTH: usize = 3;
 const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
 const CROSSING_SIZE: f32 = 20.0;
@@ -136,8 +135,8 @@ pub fn run() {
         .add_startup_system(spawn_node_grid.system())
         .add_startup_system(spawn_camera.system())
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
-        .insert_resource(UITheme::dark()) // Theme
-        .insert_resource(CurrentTheme::DARK) // Theme
+        .insert_resource(UITheme::dracula()) // Theme
+        .insert_resource(CurrentTheme::DRACULA) // Theme
         .insert_resource(bevy::input::InputSystem)
         .add_system(user_interface::ui_example.system())
         .add_system_to_stage(CoreStage::PreUpdate, mark_under_cursor.system())
@@ -171,7 +170,7 @@ pub fn run() {
                 .with_run_criteria(tool_systems::run_if_add_street.system())
                 .with_system(tool_systems::generate_connectors.system())
                 .with_system(tool_systems::render_new_street.system())
-                .with_system(input::mark_connector_under_cursor.system())
+                .with_system(input::mark_connector_under_cursor.system()),
         )
         .add_system_set(
             SystemSet::new()
@@ -183,23 +182,24 @@ pub fn run() {
                 .with_run_criteria(tool_systems::run_if_add_ionode.system())
                 .with_system(tool_systems::add_io_node_system.system()),
         )
-        .add_system_set(
-            SystemSet::new()
-                .with_run_criteria(simulation_display::run_if_simulating.system())
-                .with_system(simulation_display::display_cars.system()),
-        )
+        .add_system(simulation_display::display_cars.system())
+        // .add_system_set(
+        //     SystemSet::new()
+        //         .with_run_criteria(simulation_display::run_if_simulating.system())
+        //         .with_system(simulation_display::display_cars.system()),
+        // )
         .run();
 }
 
-fn debug_status_updates(
-    sim_manager: Res<SimManager>
-) {
+fn debug_status_updates(sim_manager: Res<SimManager>) {
     let report = sim_manager.get_status_updates();
     if let Some(r) = report {
-        let update: String = r.values().map(| s | {
-            s.iter().map( | s | s.position.to_string())
-        }).flatten().collect();
-        info!("Car Status Update: {:?}", r);
+        let update: String = r
+            .values()
+            .map(|s| s.iter().map(|s| s.position.to_string()))
+            .flatten()
+            .collect();
+        debug!("Car Status Update: {}", update);
     }
 }
 

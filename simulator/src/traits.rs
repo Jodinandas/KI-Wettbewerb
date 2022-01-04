@@ -3,6 +3,7 @@ use crate::node::Node;
 use dyn_clone::DynClone;
 use std::error::Error;
 use std::fmt::Debug;
+use std::sync::MutexGuard;
 
 use crate::movable::{MovableStatus, RandCar};
 
@@ -17,8 +18,8 @@ where
 {
     /// returns true, if the given node is connected
     fn is_connected(&self, other: &IntMut<Node<Car>>) -> bool;
-    /// advances the car position
-    fn update_cars(&mut self, t: f64) -> Vec<Car>;
+    /// advances the car position and returns the index of all cars at the end
+    fn update_cars(&mut self, t: f64) -> Vec<usize>;
     /// returns a list of all the other nodes connected to the node
     fn get_out_connections(&self) -> Vec<WeakIntMut<Node<Car>>>;
     /// adds a new car to the beginning of the node
@@ -32,6 +33,12 @@ where
     /// returns a vector of [MovableStatus] structs containing information
     /// on cars
     fn get_car_status(&self) -> Vec<MovableStatus>;
+    /// removes a car by reference
+    fn rm_car_by_ref(&mut self, car: &Car) -> Car;
+    /// removes a car with its index
+    fn remove_car(&mut self, i: usize) -> Car;
+    /// car_ref from id
+    fn get_car_by_index(&mut self, i: usize) -> &Car;
 }
 
 // make it possible to derive Clone for structs with Box<dyn NodeTrait>
@@ -59,7 +66,7 @@ pub trait Movable: Debug + Clone + Send + Sync + DynClone {
     /// It can very well happen that the next node can't be determined
     /// if the part of the program that figures out the paths makes a mistake
     fn decide_next(
-        &mut self,
+        &self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
         current_node: &IntMut<Node<Self>>,
     ) -> Result<Option<WeakIntMut<Node<Self>>>, Box<dyn Error>>;
@@ -67,6 +74,8 @@ pub trait Movable: Debug + Clone + Send + Sync + DynClone {
     fn get_id(&self) -> u32;
     // sets the internal id
     fn set_id(&mut self, id: u32);
+    /// is called when the movable advances to the next node
+    fn advance(&mut self) {}
 }
 
 // make it possible to derive Clone for structs with Box<dyn Movable>
