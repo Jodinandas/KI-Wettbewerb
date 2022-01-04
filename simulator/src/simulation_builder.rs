@@ -1,6 +1,6 @@
 use crate::node_builder::InOut;
 use crate::pathfinding::{MovableServer, PathAwareCar};
-use crate::traits::Movable;
+use crate::traits::{Movable, NodeTrait};
 
 use super::int_mut::IntMut;
 use super::node::Node;
@@ -265,7 +265,7 @@ impl<Car: Movable> SimulatorBuilder<Car> {
             };
         }
         // create the nodes
-        let mut sim_nodes: Vec<IntMut<Node<Car>>> = self
+        let sim_nodes: Vec<IntMut<Node<Car>>> = self
             .nodes
             .iter()
             .map(|n| {
@@ -277,8 +277,9 @@ impl<Car: Movable> SimulatorBuilder<Car> {
             })
             .collect();
         // create the connections
-        self.nodes.iter().enumerate().for_each(|(i, start_node_arc)| {
+        self.nodes.iter().for_each(|start_node_arc| {
             let mut start_node = start_node_arc.get();
+            let start_id = start_node.get_id();
             start_node
                 .get_out_connections()
                 .iter()
@@ -286,8 +287,10 @@ impl<Car: Movable> SimulatorBuilder<Car> {
                     // get strong reference to get the id
                     let end_node_builder_int_mut = &*c;
                     let end_node_builder = &*end_node_builder_int_mut;
-                    let starting_node = &sim_nodes[i];
-                    let end_node = &sim_nodes[end_node_builder.upgrade().get().get_id()];
+                    // find the node with the correct id
+                    let end_id = end_node_builder.upgrade().get().get_id();
+                    let starting_node = sim_nodes.iter().find( | n | n.get().id() == start_id).unwrap();
+                    let end_node = sim_nodes.iter().find( | n | n.get().id() == end_id).unwrap();
                     let starting_node_unwrapped = &mut *starting_node.get();
                     // we will connect using the out connections and set the in connections
                     // at the same time

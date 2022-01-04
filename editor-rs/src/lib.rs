@@ -110,7 +110,7 @@ pub enum NodeType {
 }
 
 const GRID_NODE_SPACING: usize = 100;
-const GRID_SIDE_LENGTH: usize = 3;
+const GRID_SIDE_LENGTH: usize = 70;
 const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
 const CROSSING_SIZE: f32 = 20.0;
@@ -364,8 +364,8 @@ fn spawn_node_grid(
                             commands.spawn_bundle(StreetBundle::new(
                                 i,
                                 n_builder,
-                                pos_i,
                                 pos_j,
+                                pos_i,
                                 theme.street,
                             ));
                         }

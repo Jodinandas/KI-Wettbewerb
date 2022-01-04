@@ -40,7 +40,7 @@ impl Simulating {
         time_steps: f32,
     ) -> Simulating {
         debug!("creating new Simulating");
-        sim_builder.with_delay(100).with_dt(0.01);
+        sim_builder.with_delay(0).with_dt(10.0);
         let mut new_sim = sim_builder.build(mv_server);
         // the channel that information about the car updates will be passed through
         let (tx, rx) = mpsc::channel();
@@ -60,7 +60,7 @@ impl Simulating {
             let mut i = 0;
             while !*terminate_moved.get() {
                 i += 1;
-                new_sim.sim_iter(time_steps.into());
+                new_sim.sim_iter();
                 // report car position updates
                 if *report_updates_moved.get() {
                     let updates = new_sim.get_car_status();
@@ -183,9 +183,8 @@ impl SimManager {
     ///  status updates faster than the UI can display it (This could cause the
     ///  Receiver to fill up.)
     pub fn get_status_updates(&self) -> Option<HashMap<usize, Vec<MovableStatus>>> {
-        trace!("Tried to get status updates");
         match self.tracking_index {
-            Some(i) => match self.simulations[i].car_updates.lock().unwrap().recv_timeout(Duration::from_millis(10)) {
+            Some(i) => match self.simulations[i].car_updates.lock().unwrap().recv_timeout(Duration::from_millis(20)) {
                 Ok(value) => Some(value),
                 Err(_) => None,
             },

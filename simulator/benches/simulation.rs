@@ -20,10 +20,10 @@ fn simulation_performance_bench(c: &mut Criterion) {
         let mut sim = sim_builder.build(&mv_server);
         // iterate a few times to get the cars to enter the simulation
         for _ in 0..100 {
-            sim.sim_iter(1.0)
+            sim.sim_iter()
         }
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &_size| {
-            b.iter(|| sim.sim_iter(1.0))
+            b.iter(|| sim.sim_iter())
         });
     }
     group.finish()
