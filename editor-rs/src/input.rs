@@ -111,7 +111,46 @@ pub fn get_shape_under_mouse<'a, T: Iterator<Item = (Entity, &'a Transform, &'a 
     }
     None
 }
-
+pub fn get_shape_under_mouse_mut_ref<'a, T: Iterator<Item = (Entity, &'a mut Transform, &'a NodeType)>>(
+    m_pos: Vec2,
+    windows: Res<Windows>,
+    shapes: T, // &Query<(Entity, &Transform, &NodeType)>,
+    camera: &Query<&Transform, With<Camera>>,
+) -> Option<(Entity, Transform, NodeType)> {
+    if let Ok(camera_transform) = camera.single() {
+        // camera scaling factor
+        // let scaling = camera_transform.scale.x;
+        // get position of 0,0 of world coordinate system in screen coordinates
+        let mouse_pos = mouse_to_world_space(camera_transform, m_pos, &windows);
+        // dbg!(mouse_pos);
+        let min_dist_io = IONODE_SIZE * IONODE_SIZE;
+        let half_square_side_len = CROSSING_SIZE / 2.0;
+        let mut shapes_under_cursor = shapes.filter(|(_entity, transform, node_type)| {
+            match node_type {
+                NodeType::CROSSING => {
+                    let position = Vec2::new(transform.translation.x, transform.translation.y);
+                    // is the mouse in the square?
+                    position.x - half_square_side_len <= mouse_pos.x
+                        && mouse_pos.x <= position.x + half_square_side_len
+                        && position.y - half_square_side_len <= mouse_pos.y
+                        && mouse_pos.y <= position.y + half_square_side_len
+                }
+                NodeType::IONODE => {
+                    let position = Vec2::new(transform.translation.x, transform.translation.y);
+                    // calculate distance, squared to improve performance so does not need to be rooted
+                    let dist = (position - mouse_pos).length_squared();
+                    dist <= min_dist_io
+                }
+                NodeType::STREET => false, // streets can't be selected
+            }
+        });
+        return match shapes_under_cursor.next() {
+            Some((e, t, n)) => Some((e, t.clone(), n.clone())),
+            None => None,
+        };
+    }
+    None
+}
 // used by the code that checks if a shape was clicked
 #[derive(Clone)]
 pub struct ShapeClicked<'a> {

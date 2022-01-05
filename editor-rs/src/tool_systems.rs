@@ -500,16 +500,14 @@ pub fn move_node_system(
     mut ev_motion: EventReader<MouseMotion>,
     windows: Res<Windows>,
     mut sim_manager: ResMut<SimManager>,
-    shapes: QuerySet<(
-        Query<(Entity, &mut Transform, &NodeType), With<UnderCursor>>,
-    )>,
+    shapes: Query<(Entity, &mut Transform, &NodeType), With<UnderCursor>>,
     mut commands: Commands,
 ){
     let mut mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
         Some(click) => click,
         None => return,
     };
-    let (entity_shape, mut trans, _) = match input::get_shape_under_mouse(mouse_click, windows, &*shapes.q0().iter_mut(), &camera) {
+    let (entity_shape, mut trans, _) = match input::get_shape_under_mouse_mut_ref(mouse_click, windows, (shapes.iter()), &camera) {
         Some(s) => s,
         None => return,
     };
