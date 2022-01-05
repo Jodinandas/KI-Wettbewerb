@@ -28,29 +28,29 @@ pub enum CurrentTheme {
 impl UITheme {
     pub fn light() -> UITheme {
         UITheme {
-            background: Color::rgb(220.0/255.0, 220.0/255.0, 220.0/255.0),
-            io_node: Color::rgb(40.0/255.0, 40.0/255.0, 50.0/255.0),
-            street: Color::rgb(120.0/255.0, 120.0/255.0, 130.0/255.0),
-            crossing: Color::rgb(40.0/255.0, 40.0/255.0, 50.0/255.0),
-            highlight: Color::rgb(160.0/255.0, 100.0/255.0, 100.0/255.0),
-            connector_in: Color::rgb(240.0/255.0, 100.0/255.0, 0.0/255.0),
-            connector_out: Color::rgb(240.0/255.0, 100.0/255.0, 0.0/255.0),
-            placing_street: Color::rgb(160.0/255.0, 100.0/255.0, 100.0/255.0),
-            car_color: Color::rgb(100.0/255.0, 240.0/255.0, 100.0/255.0),
+            background: Color::rgb(220.0 / 255.0, 220.0 / 255.0, 220.0 / 255.0),
+            io_node: Color::rgb(40.0 / 255.0, 40.0 / 255.0, 50.0 / 255.0),
+            street: Color::rgb(120.0 / 255.0, 120.0 / 255.0, 130.0 / 255.0),
+            crossing: Color::rgb(40.0 / 255.0, 40.0 / 255.0, 50.0 / 255.0),
+            highlight: Color::rgb(160.0 / 255.0, 100.0 / 255.0, 100.0 / 255.0),
+            connector_in: Color::rgb(240.0 / 255.0, 100.0 / 255.0, 0.0 / 255.0),
+            connector_out: Color::rgb(240.0 / 255.0, 100.0 / 255.0, 0.0 / 255.0),
+            placing_street: Color::rgb(160.0 / 255.0, 100.0 / 255.0, 100.0 / 255.0),
+            car_color: Color::rgb(100.0 / 255.0, 240.0 / 255.0, 100.0 / 255.0),
             egui_visuals: Visuals::light(),
         }
     }
     pub fn dracula() -> UITheme {
         UITheme {
-            background: Color::rgb(40.0/255.0, 42.0/255.0, 54.0/255.0),
-            io_node: Color::rgb(255.0/255.0, 184.0/255.0, 108.0/255.0),
-            street: Color::rgb(248.0/255.0, 248.0/255.0, 242.0/255.0),
-            crossing: Color::rgb(255.0/255.0, 184.0/255.0, 108.0/255.0),
-            highlight: Color::rgb(255.0/255.0, 85.0/255.0, 85.0/255.0),
-            connector_in: Color::rgb(80.0/255.0, 250.0/255.0, 123.0/255.0),
-            connector_out: Color::rgb(80.0/255.0, 250.0/255.0, 123.0/255.0),
-            placing_street: Color::rgb(255.0/255.0, 85.0/255.0, 85.0/255.0),
-            car_color: Color::rgb(80.0/255.0, 250.0/255.0, 123.0/255.0),
+            background: Color::rgb(40.0 / 255.0, 42.0 / 255.0, 54.0 / 255.0),
+            io_node: Color::rgb(255.0 / 255.0, 184.0 / 255.0, 108.0 / 255.0),
+            street: Color::rgb(248.0 / 255.0, 248.0 / 255.0, 242.0 / 255.0),
+            crossing: Color::rgb(255.0 / 255.0, 184.0 / 255.0, 108.0 / 255.0),
+            highlight: Color::rgb(255.0 / 255.0, 85.0 / 255.0, 85.0 / 255.0),
+            connector_in: Color::rgb(80.0 / 255.0, 250.0 / 255.0, 123.0 / 255.0),
+            connector_out: Color::rgb(80.0 / 255.0, 250.0 / 255.0, 123.0 / 255.0),
+            placing_street: Color::rgb(255.0 / 255.0, 85.0 / 255.0, 85.0 / 255.0),
+            car_color: Color::rgb(80.0 / 255.0, 250.0 / 255.0, 123.0 / 255.0),
             egui_visuals: Visuals::dark(),
         }
     }
@@ -61,7 +61,7 @@ impl UITheme {
         }
     }
 }
-impl Default for UITheme{
+impl Default for UITheme {
     fn default() -> Self {
         UITheme::dracula()
     }

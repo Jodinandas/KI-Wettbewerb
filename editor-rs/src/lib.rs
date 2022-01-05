@@ -7,7 +7,7 @@ use simulator::debug::build_grid_sim;
 use simulator::nodes::{NodeBuilder, NodeBuilderTrait};
 use simulator::{self, SimManager};
 use themes::*;
-use tool_systems::{SelectedNode,};
+use tool_systems::SelectedNode;
 use wasm_bindgen::prelude::*;
 mod input;
 mod node_bundles;

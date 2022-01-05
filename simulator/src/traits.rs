@@ -91,10 +91,9 @@ pub trait Movable: Debug + Clone + Send + Sync + DynClone {
         CarReport {
             time_taken: 0.0,
             distance_traversed: 0.0,
-            total_dist: 0.0
+            total_dist: 0.0,
         }
     }
-    
 }
 
 // make it possible to derive Clone for structs with Box<dyn Movable>

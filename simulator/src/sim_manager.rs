@@ -183,7 +183,12 @@ impl SimManager {
     ///  Receiver to fill up.)
     pub fn get_status_updates(&self) -> Option<HashMap<usize, Vec<MovableStatus>>> {
         match self.tracking_index {
-            Some(i) => match self.simulations[i].car_updates.lock().unwrap().recv_timeout(Duration::from_millis(20)) {
+            Some(i) => match self.simulations[i]
+                .car_updates
+                .lock()
+                .unwrap()
+                .recv_timeout(Duration::from_millis(20))
+            {
                 Ok(value) => Some(value),
                 Err(_) => None,
             },

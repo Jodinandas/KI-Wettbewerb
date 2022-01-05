@@ -1,10 +1,10 @@
 use bevy::{
     ecs::schedule::ShouldRun,
-    input::{Input, mouse::MouseMotion},
-    math::{Vec2, vec3},
+    input::{mouse::MouseMotion, Input},
+    math::{vec3, Vec2},
     prelude::{
-        BuildChildren, Children, Commands, Entity, GlobalTransform, MouseButton, Parent, Query,
-        QuerySet, Res, ResMut, Transform, With, Without, EventReader,
+        BuildChildren, Children, Commands, Entity, EventReader, GlobalTransform, MouseButton,
+        Parent, Query, QuerySet, Res, ResMut, Transform, With, Without,
     },
     window::Windows,
 };
@@ -502,7 +502,7 @@ pub fn move_node_system(
     mut sim_manager: ResMut<SimManager>,
     shapes: Query<(Entity, &mut Transform, &NodeType), With<UnderCursor>>,
     mut commands: Commands,
-){
+) {
     let mut mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
         Some(click) => click,
         None => return,

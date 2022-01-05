@@ -1,6 +1,6 @@
 use std::{collections::HashMap, error::Error, fmt::Debug, hash::Hash};
 
-use crate::node::{TrafficLightState, CostCalcParameters};
+use crate::node::{CostCalcParameters, TrafficLightState};
 use crate::traits::Movable;
 
 use super::int_mut::{IntMut, WeakIntMut};
@@ -9,8 +9,8 @@ use super::{
     node::{Crossing, IONode, Node, Street},
     traversible::Traversible,
 };
-use dyn_clone::DynClone;
 use art_int::{self, Neuron};
+use dyn_clone::DynClone;
 
 /// A struct that is part of the builder pattern and constructs nodes
 #[derive(Debug, Clone)]
@@ -128,11 +128,11 @@ impl NodeBuilderTrait for NodeBuilder {
     }
 
     fn get_node_dist(&self) -> f32 {
-       match self {
-        NodeBuilder::IONode(n) => n.get_node_dist(),
-        NodeBuilder::Crossing(n) => n.get_node_dist(),
-        NodeBuilder::Street(n) => n.get_node_dist(),
-    } 
+        match self {
+            NodeBuilder::IONode(n) => n.get_node_dist(),
+            NodeBuilder::Crossing(n) => n.get_node_dist(),
+            NodeBuilder::Street(n) => n.get_node_dist(),
+        }
     }
 }
 
@@ -278,7 +278,7 @@ impl NodeBuilderTrait for IONodeBuilder {
             cached: Vec::new(),
             movable_server: None,
             total_cost: 0.0,
-            cost_calc_params: CostCalcParameters{},
+            cost_calc_params: CostCalcParameters {},
         })
     }
     fn get_out_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {

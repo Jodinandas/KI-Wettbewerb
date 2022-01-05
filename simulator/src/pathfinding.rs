@@ -1,5 +1,5 @@
 use crate::node_builder::NodeBuilderTrait;
-use crate::traits::{Movable, NodeTrait, CarReport};
+use crate::traits::{CarReport, Movable, NodeTrait};
 use crate::SimulatorBuilder;
 use pathfinding::directed::dijkstra::dijkstra;
 use rand::distributions::WeightedIndex;
@@ -52,13 +52,12 @@ impl Movable for PathAwareCar {
     }
 
     fn get_report(&self) -> CarReport {
-         CarReport{
-             time_taken: self.time_spent,
-             distance_traversed: self.dist_traversed,
-             total_dist: self.path_len
-         }
+        CarReport {
+            time_taken: self.time_spent,
+            distance_traversed: self.dist_traversed,
+            total_dist: self.path_len,
+        }
     }
-
 
     fn new() -> Self {
         PathAwareCar {
@@ -105,7 +104,7 @@ impl Movable for PathAwareCar {
                     msg: "Path is empty, but next connection was requested.",
                     expected_node: None,
                     available_nodes: connection_ids,
-                }))
+                }));
             }
         };
 
@@ -172,7 +171,7 @@ impl Movable for PathAwareCar {
     }
     fn advance(&mut self) {
         match self.path.pop() {
-            Some(_) => {},
+            Some(_) => {}
             None => warn!("Could not remove last element while advancing to the next node"),
         }
     }
@@ -212,7 +211,8 @@ impl IndexedNodeNetwork {
     /// generates a new [IndexedNodeNetwork] from a list of [NodeBuilders](NodeBuilder)
     fn index_builder<Car: Movable>(&mut self, sbuilder: &SimulatorBuilder<Car>) {
         let nodes = &sbuilder.nodes;
-        let mut connections: HashMap<usize, Vec<IndexedConnection>> = HashMap::with_capacity(nodes.len());
+        let mut connections: HashMap<usize, Vec<IndexedConnection>> =
+            HashMap::with_capacity(nodes.len());
         let mut io_nodes: Vec<usize> = Vec::new();
         let mut node_lens = HashMap::with_capacity(nodes.len());
         let mut io_node_weights: Vec<f32> = Vec::new();
@@ -222,7 +222,8 @@ impl IndexedNodeNetwork {
             let id = node.get().get_id();
             connections.insert(id, {
                 // get the indices and weights of all connections
-                    node.get().get_out_connections()
+                node.get()
+                    .get_out_connections()
                     .iter()
                     .map(|n| {
                         let node_upgraded = n.upgrade();
@@ -253,7 +254,7 @@ impl IndexedNodeNetwork {
             connections,
             io_nodes,
             io_node_weights,
-            node_lens
+            node_lens,
         };
     }
     pub fn new() -> IndexedNodeNetwork {
@@ -330,7 +331,12 @@ impl<Car: Movable> MovableServer<Car> {
         // trace!("IONode Weights (indexed) : {:?}", self.indexed.io_node_weights);
         let mut weights = self.indexed.io_node_weights.clone();
         let mut ids = self.indexed.io_nodes.clone();
-        let self_index = ids.iter().enumerate().find( | (_i, nid ) | id == **nid).expect("Input id does not exist").0;
+        let self_index = ids
+            .iter()
+            .enumerate()
+            .find(|(_i, nid)| id == **nid)
+            .expect("Input id does not exist")
+            .0;
         weights.remove(self_index);
         ids.remove(self_index);
         let dist = WeightedIndex::new(weights).unwrap();
@@ -354,7 +360,9 @@ impl<Car: Movable> MovableServer<Car> {
                 &start_node,
                 |p| {
                     let conn = &self.indexed.connections[p];
-                    conn.iter().map(| iconn | (iconn.id, iconn.cost)).collect::<Vec<(usize, u32)>>()
+                    conn.iter()
+                        .map(|iconn| (iconn.id, iconn.cost))
+                        .collect::<Vec<(usize, u32)>>()
                 },
                 |i| *i == end_node,
             ) {
@@ -368,7 +376,7 @@ impl<Car: Movable> MovableServer<Car> {
                     return Err(perror);
                 }
             };
-            let path_len: f32 = path.iter().map(| id | self.indexed.node_lens[id]).sum();
+            let path_len: f32 = path.iter().map(|id| self.indexed.node_lens[id]).sum();
             // Reverse list of nodes to be able to pop off the last element
             path.reverse();
             // IONode is the first element

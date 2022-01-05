@@ -106,7 +106,7 @@ where
     /// vector is not always the id. (because nodes can be deleted as well)
     next_id: usize,
     /// how much a simulation is advanced each step
-    dt: f32
+    dt: f32,
 }
 
 impl<Car: Movable> SimulatorBuilder<Car> {

@@ -111,7 +111,10 @@ pub fn get_shape_under_mouse<'a, T: Iterator<Item = (Entity, &'a Transform, &'a 
     }
     None
 }
-pub fn get_shape_under_mouse_mut_ref<'a, T: Iterator<Item = (Entity, &'a mut Transform, &'a NodeType)>>(
+pub fn get_shape_under_mouse_mut_ref<
+    'a,
+    T: Iterator<Item = (Entity, &'a mut Transform, &'a NodeType)>,
+>(
     m_pos: Vec2,
     windows: Res<Windows>,
     shapes: T, // &Query<(Entity, &Transform, &NodeType)>,
