@@ -4,7 +4,7 @@ use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::prelude::*;
 use simulator::datastructs::IntMut;
 use simulator::debug::build_grid_sim;
-use simulator::nodes::{NodeBuilder, NodeBuilderTrait};
+use simulator::nodes::{NodeBuilder, NodeBuilderTrait, StreetBuilder};
 use simulator::{self, SimManager};
 use themes::*;
 use tool_systems::{SelectedNode,};
@@ -21,6 +21,7 @@ use log::{debug, error, info, trace, warn};
 use node_bundles::node_render;
 
 use crate::node_bundles::{CrossingBundle, IONodeBundle, StreetBundle};
+use crate::tool_systems::mouse_to_world_space;
 
 #[derive(PartialEq)]
 pub enum Theme {
@@ -163,7 +164,9 @@ pub fn run() {
         .add_system_set(
             SystemSet::new()
                 .with_run_criteria(tool_systems::run_if_select.system())
-                .with_system(tool_systems::select_node.system()),
+                .with_system(tool_systems::select_node.system())
+                .with_system(tool_systems::move_node_marking_system.system())
+                .with_system(move_nodes.system()),
         )
         .add_system_set(
             SystemSet::new()
@@ -236,6 +239,66 @@ pub fn recolor_nodes(
         // remove the repaint marker
         commands.entity(entity).remove::<NeedsRecolor>();
     });
+}
+
+pub struct GettingMoved{
+    delta_to_node: Vec2,
+    mouse_click_pos_in_world_cords: Vec2,
+}
+
+/// move all nodes with marker Component [NeedsRecolor]
+pub fn move_nodes(
+    mut commands: Commands,
+    to_move: QuerySet<(
+        Query<(Entity, &NodeBuilderRef, &NodeType, &mut Transform, &GettingMoved)>,
+        Query<(&Entity, &StreetLinePosition, &NodeBuilderRef)>)> 
+) {
+    to_move.q0().for_each_mut(| (entity, nodebuilderref, ntype, mut transform, gtmv)| {
+        match ntype{
+            NodeType::CROSSING => {
+                let new_pos = gtmv.mouse_click_pos_in_world_cords - gtmv.delta_to_node;
+                transform.translation = Vec3::new(new_pos.x, new_pos.y, transform.translation.z);
+                let mut conn_out: Vec<&StreetBuilder> = vec!();
+                let mut conn_in: Vec<&StreetBuilder> = vec!();
+                match &*nodebuilderref.0.get(){
+                    NodeBuilder::Crossing(crossing) => {
+                        for (dir, nbr) in &crossing.connections.input{
+                            let nbr_upgraded = nbr.upgrade();
+                            let nbr_guarded = nbr_upgraded.get();
+                            match &*nbr_guarded{
+                                NodeBuilder::Street(snbr) => {
+                                    conn_in.push(snbr);
+                                },
+                                _ => panic!("Can only be street")
+                            }
+                        }
+                        for (dir, nbr) in &crossing.connections.output{
+                            match &*nbr.upgrade().get(){
+                                NodeBuilder::Street(snbr) => {
+                                    conn_out.push(snbr);
+                                },
+                                _ => panic!("Can only be street")
+                            }
+                        }
+                    },
+                    _ => panic!("Why tf is the NodeBuilder of a crossing not a crossing ")
+                }
+                // iterate through all streets and find correct one to modify street line pos
+                for (entity, streetlinepos, nodebuilderref) in to_move.q1().iter(){
+                    for c in conn_out{
+                        match &*nodebuilderref.0.get(){
+                            NodeBuilder::Street(street) => {
+
+                            },
+                            _ => panic!("Das passiert sicher nicht.")
+                        }
+                    }
+                }
+            },
+            NodeType::IONODE => todo!(),
+            NodeType::STREET => todo!(),
+        }
+    })
 }
 
 /// This system marks a node under the cursor with the [UnderCursor] component

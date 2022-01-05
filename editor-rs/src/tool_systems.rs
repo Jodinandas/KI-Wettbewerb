@@ -23,7 +23,7 @@ use crate::{
         ConnectorCircleIn, ConnectorCircleOut, CrossingBundle, IONodeBundle, InputCircle,
         OutputCircle, StreetBundle,
     },
-    AddStreetStage, StreetLinePosition, CONNECTOR_DISPLAY_RADIUS,
+    AddStreetStage, StreetLinePosition, CONNECTOR_DISPLAY_RADIUS, GettingMoved,
 };
 use crate::{
     node_bundles::node_render, themes::UITheme, toolbar::ToolType, Camera, NeedsRecolor,
@@ -494,24 +494,37 @@ pub fn select_node(
         .insert(NeedsRecolor);
 }
 
-pub fn move_node_system(
-    mouse_input: Res<Input<MouseButton>>,
-    camera: Query<&Transform, With<Camera>>,
-    mut ev_motion: EventReader<MouseMotion>,
-    windows: Res<Windows>,
-    mut sim_manager: ResMut<SimManager>,
-    shapes: Query<(Entity, &mut Transform, &NodeType), With<UnderCursor>>,
+pub fn move_node_marking_system(
     mut commands: Commands,
-){
-    let mut mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
-        Some(click) => click,
-        None => return,
-    };
-    let (entity_shape, mut trans, _) = match input::get_shape_under_mouse_mut_ref(mouse_click, windows, (shapes.iter()), &camera) {
-        Some(s) => s,
-        None => return,
-    };
-    for ev in ev_motion.iter() {
-        trans.translation += vec3(ev.delta.x, ev.delta.y, 0.0);
+    mouse_input: Res<Input<MouseButton>>,
+    windows: Res<Windows>,
+    ev_motion: EventReader<MouseMotion>,
+    mut shapes: Query<(Entity, &Transform, Option<&mut GettingMoved>), With<SelectedNode>>,
+    camera: Query<&Transform, With<Camera>>
+) {
+    if input::movement_within_bounds(&mouse_input, &windows, &MouseButton::Left){
+        if let Some([pos, delta]) = input::handle_mouse_clicks_persistent(&mouse_input, &windows, ev_motion){
+            if let Ok((entity, transform, already_clicked)) = shapes.single_mut(){
+                match already_clicked {
+                    Some(mut gtmv) => {
+                        // update mouse click cords
+                        gtmv.mouse_click_pos_in_world_cords = mouse_to_world_space(&camera.single().expect("can not find camera"), pos.clone(), &windows);
+                    },
+                    None => {
+                        // if the mouse was not clicked before, we need to create a new GettingMoved Component
+                        commands.entity(entity).insert(GettingMoved{
+                            delta_to_node: {
+                                mouse_to_world_space(&camera.single().expect("can not find camera"), pos.clone(), &windows) - Vec2::new(transform.translation.x, transform.translation.y)
+                            },
+                            mouse_click_pos_in_world_cords: mouse_to_world_space(&camera.single().expect("can not find camera"), pos.clone(), &windows)
+                        });
+                    },
+                }
+            }
+        } else {
+            if let Ok((prev_moved, _, _)) = shapes.single_mut() {
+                commands.entity(prev_moved).remove::<GettingMoved>();
+            }
+        }
     }
 }

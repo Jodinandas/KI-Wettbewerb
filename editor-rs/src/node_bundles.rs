@@ -115,7 +115,7 @@ impl IONodeBundle {
         IONodeBundle {
             shape: node_render::io_node(pos, color),
             sim_id: SimulationID(id),
-            node_type: NodeType::CROSSING,
+            node_type: NodeType::IONODE,
             node_builder_ref: nbr,
         }
     }

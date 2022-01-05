@@ -177,6 +177,28 @@ pub fn handle_mouse_clicks(
     }
     None
 }
+/// to drag stuff around
+pub fn handle_mouse_clicks_persistent(
+    mouse_input: &Res<Input<MouseButton>>,
+    windows: &Res<Windows>,
+    mut ev_motion: EventReader<MouseMotion>,
+) -> Option<[Vec2; 2]> {
+    let win = windows.get_primary().expect("no primary window");
+    if mouse_input.pressed(MouseButton::Left) {
+        if let Some(pos) = win.cursor_position() {
+            if (pos.x > MIN_X) && (get_primary_window_size(&windows).x > (MAX_X + pos.x)) {
+                let mut delta:Option<Vec2> = None;
+                for ev in ev_motion.iter(){
+                    delta = Some(ev.delta);
+                }
+                if let Some(d) = delta{
+                    return Some([pos, d])
+                }
+            }
+        }
+    }
+    None
+}
 pub fn movement_within_bounds(
     mouse_input: &Res<Input<MouseButton>>,
     windows: &Res<Windows>,
