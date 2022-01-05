@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "editor-rs",
-    "simulator"
+    "simulator",
+    "KI"
 
 ]
