@@ -507,11 +507,11 @@ pub fn move_node_system(
         Some(click) => click,
         None => return,
     };
-    let (entity_shape, mut trans, _) = match input::get_shape_under_mouse_mut_ref(mouse_click, windows, (shapes.iter()), &camera) {
-        Some(s) => s,
-        None => return,
-    };
-    for ev in ev_motion.iter() {
-        trans.translation += vec3(ev.delta.x, ev.delta.y, 0.0);
-    }
+    //let (entity_shape, mut trans, _) = match input::get_shape_under_mouse_mut_ref(mouse_click, windows, (shapes.iter()), &camera) {
+    //    Some(s) => s,
+    //    None => return,
+    //};
+    // for ev in ev_motion.iter() {
+    //     trans.translation += vec3(ev.delta.x, ev.delta.y, 0.0);
+    // }
 }

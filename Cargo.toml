@@ -2,6 +2,5 @@
 members = [
     "editor-rs",
     "simulator",
-    "KI"
-
+    "art-int"
 ]

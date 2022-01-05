@@ -4,11 +4,14 @@ use super::node_builder::{CrossingConnections, Direction, InOut};
 use super::traversible::Traversible;
 use crate::movable::MovableStatus;
 use crate::pathfinding::MovableServer;
-use crate::traits::{Movable, NodeTrait};
+use crate::simulation::calculate_cost;
+use crate::traits::{Movable, NodeTrait, CarReport};
+use std::convert::TryFrom;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use std::error::Error;
 use std::ptr;
+use art_int;
 
 /// A node is any kind of logical object in the Simulation
 ///  ([Streets](Street), [IONodes](IONode), [Crossings](Crossing))
@@ -79,7 +82,7 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
     fn add_car(&mut self, car: Car) {
         match self {
             Node::Street(street) => street.add_movable(car),
-            Node::IONode(io_node) => io_node.absorbed_cars += 1,
+            Node::IONode(io_node) => io_node.add_car(car),
             Node::Crossing(crossing) => crossing.car_lane.add(car),
         }
     }
@@ -170,6 +173,14 @@ where
     pub id: usize,
     /// the state of the traffic light (ampelphase)
     pub traffic_light_state: TrafficLightState,
+    /// time since last cars could drive over the crossing in each direction
+    /// 
+    /// `[N, E, S, W]`
+    ///  
+    /// for further explanation, look at the method `calculate_nn_inputs`
+    pub time_since_input_passable: [f32; 4],
+    /// the NN used to determine the traffic light state at each iteration
+    pub nn: Option<art_int::Network>
 }
 impl<Car: Movable> Crossing<Car> {
     /// Returns a new Crossing with no connections and id=0
@@ -179,8 +190,80 @@ impl<Car: Movable> Crossing<Car> {
             car_lane: Traversible::<Car>::new(1.0),
             id: 0,
             traffic_light_state: TrafficLightState::S0,
+            time_since_input_passable: [0.0; 4],
+            nn: None 
         }
     }
+    /// calculates the inputs for the neural network controlling the traffic light state
+    /// # What are the inputs?
+    /// 
+    /// 1. For each direction, how many cars are waiting to go over the crossing?
+    /// 2. For each direction, when was the last time, cars were able to go over the crossing?
+    /// 
+    /// If there is no street, the time and number of cars is set to 0.0
+    pub fn calculate_nn_inputs(&self) -> [f32; 8] {
+        let mut cars_at_end = [0.0f32; 4];
+        self.connections.input.iter().for_each(| (dir, conn) | {
+            let index = match dir {
+                Direction::N => 0,
+                Direction::E => 1,
+                Direction::S => 2,
+                Direction::W => 3,
+            };
+            let cars = match &*conn.upgrade().get() {
+                Node::Street(street) => street.get_num_cars_at_end(),
+                _ => {error!("Crossing connected with crossing or IONode"); return}
+            };
+            cars_at_end[index] = cars as f32;
+        });
+        [
+            cars_at_end[0],
+            cars_at_end[1],
+            cars_at_end[2],
+            cars_at_end[3],
+            self.time_since_input_passable[0],
+            self.time_since_input_passable[1],
+            self.time_since_input_passable[2],
+            self.time_since_input_passable[3],
+        ]
+    }
+    /// Is used to set the NN given by the genetic algorithm
+    pub fn set_neural_network(&mut self, nn: art_int::Network) {
+        // make sure the input has the right size
+        assert_eq!(nn.layers[0].neurons[0].weights.len(), 8);
+        self.nn = Some(nn);
+    }
+    /// computes the traffic light state using the neural network
+    pub fn determine_traffic_light_state(&self) -> Result<TrafficLightState, &'static str> {
+        let nn_input = self.calculate_nn_inputs();
+        // the output should be a value between 0 and 1 where 0.25 is state 0, 0.5 is state 1 and so on
+        let nn_output = match &self.nn {
+            Some(nn) => {
+                let out_vec = nn.propagate(nn_input.into());
+                let out = out_vec.get(0);
+                out.map(| op | *op).ok_or("NN has no output!")?
+            },
+            None => return Err("cannot determine traffic state without NeuralNetwork"),
+        };
+        Ok (
+            if nn_output < 0.25 {
+                TrafficLightState::S0
+            } else if nn_output < 0.5 {
+                TrafficLightState::S1
+            } else if nn_output < 0.75 {
+                TrafficLightState::S2
+            } else {
+                TrafficLightState::S3
+            }
+        )
+    }
+
+    /// removes the neural network and returns it
+    pub fn remove_neural_network(&mut self) -> Result<art_int::Network, &'static str> {
+        let nn = self.nn.take();
+        nn.ok_or("No neural network to remove!")
+    } 
+    
     /// Returns a list of only OUTPUT connecitons
     ///
     /// This function is deprecated and will be removed soon
@@ -335,11 +418,16 @@ impl<Car: Movable> Crossing<Car> {
         }
     }
 }
+
+/// information important for calculating the Cost
+#[derive(Clone, Debug)]
+pub struct CostCalcParameters;
+
 /// A Node that represents either the start of the simulation or the end of it
 ///
 /// One of its responsibilities is to add cars and passengers to the simulation
 #[derive(Debug, Clone)]
-pub struct IONode<Car = RandCar>
+pub struct IONode<Car = RandCar,>
 where
     Car: Movable,
 {
@@ -347,6 +435,8 @@ where
     pub connections: Vec<WeakIntMut<Node<Car>>>,
     /// new Cars/Second
     pub spawn_rate: f64,
+    /// parameters for calculating the cost
+    pub cost_calc_params: CostCalcParameters,
     /// time since last spawn in seconds
     pub time_since_last_spawn: f64,
     /// Tracks how many cars have reached their destination in this node
@@ -356,6 +446,8 @@ where
     pub id: usize,
     /// car cache to be able to return references in the update_cars function
     pub cached: Vec<Car>,
+    /// total cost all cars produced
+    pub total_cost:  f32,
     /// The movable server used to spawn new cars
     pub movable_server: Option<IntMut<MovableServer<Car>>>,
 }
@@ -370,9 +462,11 @@ where
             spawn_rate: 1.0,
             time_since_last_spawn: 0.0,
             absorbed_cars: 0,
+            total_cost: 0.0,
             id: 0,
             cached: Vec::new(),
             movable_server: None,
+            cost_calc_params: CostCalcParameters {},
         }
     }
     /// Used when constructing a node from a [NodeBuilder](crate::nodes::NodeBuilder)
@@ -392,6 +486,13 @@ where
     pub fn get_car_status(&self) -> Vec<MovableStatus> {
         Vec::new()
     }
+
+    /// adds car
+    pub fn add_car(&mut self, car: Car) {
+        self.absorbed_cars += 1;
+        self.total_cost += calculate_cost(car.get_report(), &self.cost_calc_params);
+    }
+    
 }
 
 /// A `Street` is mostly used to connect `IONode`s or `Crossing`s
@@ -472,6 +573,10 @@ impl<Car: Movable> Street<Car> {
             offset += traversible.num_movables();
         }
         movables
+    }
+    /// returns the number of cars waiting at the end
+    pub fn get_num_cars_at_end(&self) -> u32 {
+        self.lanes.iter().map(| lane | lane.num_movables_waiting()).sum()
     }
     /// removes a movable using the index.
     /// 

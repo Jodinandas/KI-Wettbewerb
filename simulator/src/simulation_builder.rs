@@ -1,3 +1,4 @@
+use crate::node::CostCalcParameters;
 use crate::node_builder::InOut;
 use crate::pathfinding::{MovableServer, PathAwareCar};
 use crate::traits::{Movable, NodeTrait};
@@ -261,7 +262,8 @@ impl<Car: Movable> SimulatorBuilder<Car> {
                 nodes: cache.iter().map(|n| n.deep_copy()).collect(),
                 max_iter: self.max_iter,
                 delay: self.delay,
-                dt: self.dt
+                dt: self.dt,
+                calc_params: CostCalcParameters,
             };
         }
         // create the nodes
@@ -369,7 +371,8 @@ impl<Car: Movable> SimulatorBuilder<Car> {
             nodes: sim_nodes,
             max_iter: self.max_iter,
             delay: self.delay,
-            dt: self.dt
+            dt: self.dt,
+            calc_params: CostCalcParameters {},
         }
     }
     /// Drops the internal node cache

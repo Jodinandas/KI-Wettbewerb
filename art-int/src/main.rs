@@ -1,4 +1,4 @@
-use KI::{Network, LayerTopology, Layer, Neuron};
+use art_int::{Network, LayerTopology, Layer, Neuron};
 // Dieser Teil wurde von Patryk Wyochowaniec implementiert und unter der MIT Licence auf github herausgegeben: https://github.com/Patryk27/shorelark
 // Copyright (c) 2020-2021, Patryk Wychowaniec pwychowaniec@pm.me
 
