@@ -1,9 +1,12 @@
 pub use self::layer_topology::*;
 
 pub use self::{layer::*, neuron::*};
+use genetics::IndividualComponent;
+use rand::prelude::ThreadRng;
 use rand::{Rng, RngCore};
 use std::iter::once;
 
+pub mod genetics;
 pub mod layer;
 mod layer_topology;
 pub mod neuron;
@@ -58,6 +61,56 @@ impl Network {
             .flat_map(|layer| layer.neurons.iter())
             .flat_map(|neuron| once(&neuron.bias).chain(&neuron.weights))
             .cloned()
+    }
+}
+
+
+/// Performs crossover on two neurons
+fn crossover_neurons(n1: &Neuron, n2: &Neuron, rng: &mut ThreadRng) -> Neuron {
+    let output_neurons = n1.weights.len();
+    // the first element is ALWAYS the bias of the neuron
+    let mut bias_and_weights_iterator = once(&n1.bias)
+        .chain(n1.weights.iter())
+        .zip(once(&n2.bias)
+                .chain(n2.weights.iter())
+        ).map( | (w_or_b_left, w_or_b_right) | {
+            match rng.gen_bool(0.5) {
+                true => *w_or_b_left,
+                false => *w_or_b_right,
+            }
+        });
+    Neuron::from_weights(output_neurons, &mut bias_and_weights_iterator)
+}
+
+impl IndividualComponent for Network {
+    fn crossover(&self, other: Self, rng: &mut ThreadRng) -> Self {
+        // operate on two layers in the same position at the same time
+        let new_layers = self.layers.iter().zip(other.layers.iter()).map(| (this_layer, other_layer) | {
+            // operate on two neurons in the same position at the same time
+            Layer::new(
+                this_layer.neurons.iter().zip(other_layer.neurons.iter()).map(
+                    | (this_neuron, other_neuron) | crossover_neurons(this_neuron, other_neuron, rng)
+                ).collect()
+            )
+        }).collect::<Vec<Layer>>();
+        Network::new(new_layers)
+    }
+
+    fn mutate(&mut self, coeff: f32, rng: &mut ThreadRng) {
+        // for each layer
+        self.layers.iter_mut().for_each(| layer | {
+            // for each neuron
+            layer.neurons.iter_mut().for_each( | neuron | {
+                // for each weight and bias (bias is the first value)
+                once(&mut neuron.bias).chain(neuron.weights.iter_mut()).for_each( | w_or_b  | {
+                    let sign = match rng.gen_bool(0.5) {
+                        true => -1.0,
+                        false => 1.0,
+                    };
+                    *w_or_b += sign * coeff * rng.gen::<f32>();
+                });
+            });
+        });
     }
 }
 
