@@ -26,7 +26,7 @@ impl Network {
 
         let layers = layers
             .windows(2)
-            .map(|layers| Layer::random(rng, layers[0].neurons, layers[1].neurons))
+            .map(|layers| Layer::random(rng, layers[0].neurons, layers[1].neurons, layers[1].activation))
             .collect();
 
         Self::new(layers)
@@ -39,7 +39,7 @@ impl Network {
 
         let layers = layers
             .windows(2)
-            .map(|layers| Layer::from_weights(layers[0].neurons, layers[1].neurons, &mut weights))
+            .map(|layers| Layer::from_weights(layers[0].neurons, layers[1].neurons, &mut weights, layers[1].activation))
             .collect();
 
         if weights.next().is_some() {
@@ -75,7 +75,7 @@ fn crossover_neurons(n1: &Neuron, n2: &Neuron, rng: &mut ThreadRng) -> Neuron {
             true => *w_or_b_left,
             false => *w_or_b_right,
         });
-    Neuron::from_weights(output_neurons, &mut bias_and_weights_iterator)
+    Neuron::from_weights(output_neurons, &mut bias_and_weights_iterator, n1.activation)
 }
 
 impl IndividualComponent for Network {
@@ -138,9 +138,9 @@ mod tests {
             let network = Network::random(
                 &mut rng,
                 &[
-                    LayerTopology { neurons: 3 },
-                    LayerTopology { neurons: 2 },
-                    LayerTopology { neurons: 1 },
+                    LayerTopology::new(3),
+                    LayerTopology::new(2),
+                    LayerTopology::new(1),
                 ],
             );
 
@@ -175,7 +175,7 @@ mod tests {
 
         #[test]
         fn test() {
-            let layers = &[LayerTopology { neurons: 3 }, LayerTopology { neurons: 2 }];
+            let layers = &[LayerTopology::new(3), LayerTopology::new(2)];
             let weights = vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
 
             let actual: Vec<_> = Network::from_weights(layers, weights.clone())
@@ -193,10 +193,10 @@ mod tests {
         fn test() {
             let layers = (
                 Layer::new(vec![
-                    Neuron::new(0.0, vec![-0.5, -0.4, -0.3]),
-                    Neuron::new(0.0, vec![-0.2, -0.1, 0.0]),
+                    Neuron::new(0.0, vec![-0.5, -0.4, -0.3], ActivationFunc::ReLu),
+                    Neuron::new(0.0, vec![-0.2, -0.1, 0.0], ActivationFunc::ReLu),
                 ]),
-                Layer::new(vec![Neuron::new(0.0, vec![-0.5, 0.5])]),
+                Layer::new(vec![Neuron::new(0.0, vec![-0.5, 0.5], ActivationFunc::ReLu)]),
             );
             let network = Network::new(vec![layers.0.clone(), layers.1.clone()]);
 
@@ -213,8 +213,8 @@ mod tests {
         #[test]
         fn test() {
             let network = Network::new(vec![
-                Layer::new(vec![Neuron::new(0.1, vec![0.2, 0.3, 0.4])]),
-                Layer::new(vec![Neuron::new(0.5, vec![0.6, 0.7, 0.8])]),
+                Layer::new(vec![Neuron::new(0.1, vec![0.2, 0.3, 0.4], ActivationFunc::ReLu)]),
+                Layer::new(vec![Neuron::new(0.5, vec![0.6, 0.7, 0.8], ActivationFunc::ReLu)]),
             ]);
 
             let actual: Vec<_> = network.weights().collect();

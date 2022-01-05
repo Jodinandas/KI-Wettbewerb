@@ -20,17 +20,18 @@ impl Layer {
         input_size: usize,
         output_size: usize,
         weights: &mut dyn Iterator<Item = f32>,
+        activation: ActivationFunc
     ) -> Self {
         let neurons = (0..output_size)
-            .map(|_| Neuron::from_weights(input_size, weights))
+            .map(|_| Neuron::from_weights(input_size, weights, activation))
             .collect();
 
         Self::new(neurons)
     }
 
-    pub fn random(rng: &mut dyn RngCore, input_neurons: usize, output_neurons: usize) -> Self {
+    pub fn random(rng: &mut dyn RngCore, input_neurons: usize, output_neurons: usize, activation: ActivationFunc) -> Self {
         let neurons = (0..output_neurons)
-            .map(|_| Neuron::random(rng, input_neurons))
+            .map(|_| Neuron::random(rng, input_neurons, activation))
             .collect();
 
         Self::new(neurons)
@@ -56,7 +57,7 @@ mod tests {
         #[test]
         fn test() {
             let mut rng = ChaCha8Rng::from_seed(Default::default());
-            let layer = Layer::random(&mut rng, 3, 2);
+            let layer = Layer::random(&mut rng, 3, 2, ActivationFunc::ReLu);
 
             let actual_biases: Vec<_> = layer.neurons.iter().map(|neuron| neuron.bias).collect();
             let expected_biases = vec![-0.6255188, 0.5238807];
@@ -82,8 +83,8 @@ mod tests {
         #[test]
         fn test() {
             let neurons = (
-                Neuron::new(0.0, vec![0.1, 0.2, 0.3]),
-                Neuron::new(0.0, vec![0.4, 0.5, 0.6]),
+                Neuron::new(0.0, vec![0.1, 0.2, 0.3], ActivationFunc::ReLu),
+                Neuron::new(0.0, vec![0.4, 0.5, 0.6], ActivationFunc::ReLu),
             );
             let layer = Layer::new(vec![neurons.0.clone(), neurons.1.clone()]);
 
@@ -105,6 +106,7 @@ mod tests {
                 3,
                 2,
                 &mut vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8].into_iter(),
+                ActivationFunc::ReLu
             );
 
             let actual_biases: Vec<_> = layer.neurons.iter().map(|neuron| neuron.bias).collect();
