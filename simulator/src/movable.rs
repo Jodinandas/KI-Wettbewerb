@@ -18,7 +18,7 @@ impl Movable for RandPerson {
     fn set_speed(&mut self, s: f32) {
         self.speed = s
     }
-    fn update(&mut self, _t: f64) {}
+    fn update(&mut self, _t: f32) {}
     fn decide_next(
         &self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
@@ -62,7 +62,7 @@ impl Movable for RandCar {
     fn set_speed(&mut self, s: f32) {
         self.speed = s
     }
-    fn update(&mut self, _t: f64) {}
+    fn update(&mut self, _t: f32) {}
     fn decide_next(
         &self,
         connections: &Vec<WeakIntMut<Node<Self>>>,

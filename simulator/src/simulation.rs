@@ -1,7 +1,9 @@
 use crate::movable::MovableStatus;
 use crate::movable::RandCar;
+use crate::node::CostCalcParameters;
 use crate::pathfinding::MovableServer;
 use crate::pathfinding::PathAwareCar;
+use crate::traits::CarReport;
 use crate::traits::Movable;
 use crate::traits::NodeTrait;
 use std::collections::HashMap;
@@ -12,8 +14,25 @@ use std::{cmp, ptr, thread};
 
 use super::int_mut::{IntMut, WeakIntMut};
 use super::node::Node;
+use art_int::LayerTopology;
 #[allow(unused_imports)]
-use log::{trace, debug, info, warn, error};
+use log::{debug, error, info, trace, warn};
+use rand::thread_rng;
+
+/// Error is thrown when a node that should exist, doesn't exist anymore
+#[derive(Debug)]
+pub struct NodeDoesntExistError;
+impl Error for NodeDoesntExistError {}
+impl Display for NodeDoesntExistError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Tried to access Node that doesnt't exist (anymore).")
+    }
+}
+
+/// calculates the cost of a car
+pub fn calculate_cost(report: CarReport, _params: &CostCalcParameters) -> f32 {
+    report.total_dist / report.distance_traversed * report.time_taken
+}
 
 /// A struct representing the street network
 ///
@@ -26,7 +45,8 @@ use log::{trace, debug, info, warn, error};
 /// by so called IONodes
 #[derive(Debug)]
 pub struct Simulator<Car = PathAwareCar>
-where Car: Movable
+where
+    Car: Movable,
 {
     /// A list of all the nodes.
     ///
@@ -38,21 +58,12 @@ where Car: Movable
     /// An optional delay between each iteration
     pub delay: u64,
     /// how much the simulation is advanced each step
-    pub dt: f32
-}
-
-/// Error is thrown when a node that should exist, doesn't exist anymore
-#[derive(Debug)]
-pub struct NodeDoesntExistError;
-impl Error for NodeDoesntExistError {}
-impl Display for NodeDoesntExistError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Tried to access Node that doesnt't exist (anymore).")
-    }
+    pub dt: f32,
+    /// The parameters used for cost calculation
+    pub calc_params: CostCalcParameters,
 }
 
 /// The simulator, the top level struct that is instaniated to simulate traffic
-
 impl<Car: Movable> Simulator<Car> {
     /// Update all nodes moving the cars and people to the next
     /// nodes
@@ -68,8 +79,10 @@ impl<Car: Movable> Simulator<Car> {
             // cars_at_end.reverse();
             // TODO: Use something more efficient than cloning the whole Vec here
             for j in (0..cars_at_end.len()).rev() {
-                let next: Result<Option<WeakIntMut<Node<Car>>>, Box<dyn Error>> =
-                    node.get().get_car_by_index(cars_at_end[j]).decide_next(&options, node);
+                let next: Result<Option<WeakIntMut<Node<Car>>>, Box<dyn Error>> = node
+                    .get()
+                    .get_car_by_index(cars_at_end[j])
+                    .decide_next(&options, node);
                 match next {
                     Err(_) => {
                         warn!(
@@ -78,28 +91,83 @@ impl<Car: Movable> Simulator<Car> {
                         );
                     }
                     Ok(next_node) => {
-                        match next_node{
+                        match next_node {
                             Some(nn) => {
                                 let mut car = node.get().remove_car(j);
                                 car.advance();
-                                nn
-                                    .try_upgrade()
+                                nn.try_upgrade()
                                     .expect("Referenced connection does not exist")
                                     .get()
                                     .add_car(car);
                                 // println!("{:?}", nn.try_upgrade().expect("asdof").get())
-                                },
+                            }
                             None => {
                                 // Nothing to do here. If car can not be moved, we will not move it
                                 debug!("aösldk")
-                            },
+                            }
                         }
-                    }     
-                        
+                    }
                 }
             }
-
         }
+    }
+    /// used the output from the genetic algorithm to set the neural networks
+    pub fn set_neural_networks(&mut self, mut nns: Vec<art_int::Network>) {
+        nns.reverse();
+        self.nodes.iter_mut().for_each(|n| match &mut *n.get() {
+            Node::Crossing(crossing) => crossing.set_neural_network(
+                nns.pop()
+                    .expect("Cannot set neural network because there are too few nns as input"),
+            ),
+            _ => {}
+        });
+    }
+
+    /// returns all neural networks in the simulation and removes them from the crossings
+    ///
+    /// the nns of crossings that are first in the list of nodes are first
+    pub fn remove_all_neural_networks(&mut self) -> Vec<art_int::Network> {
+        let mut nns = Vec::new();
+        self.nodes.iter_mut().for_each(|n| match &mut *n.get() {
+            Node::Crossing(crossing) => {
+                if let Ok(nn) = crossing.remove_neural_network() {
+                    nns.push(nn)
+                } else {
+                    warn!("Removing all neural networks but crossing doesn't have a neural network")
+                }
+            }
+            _ => {}
+        });
+        nns
+    }
+
+     
+    /// initialises all NNs with random values
+    pub fn init_neural_networks_random(&mut self, topology: &[LayerTopology]) {
+        let mut rng = thread_rng();
+        self.nodes.iter_mut().for_each(|n| match &mut *n.get() {
+            Node::Crossing(crossing) => {
+                crossing.set_neural_network(art_int::Network::random(&mut rng, topology))
+            }
+            _ => {}
+        });
+    }
+    
+        /// returns the total cost of all the cars in the simulation 
+        /// (including those that have already been destroyed)
+    pub fn calculate_sim_cost(&self) -> f32 {
+        self.nodes
+            .iter()
+            .map(|n| match &*n.get() {
+                Node::Street(s) => s
+                    .lanes
+                    .iter()
+                    .map(|l| l.calculate_cost_of_movables(&self.calc_params))
+                    .sum(),
+                Node::IONode(n) => n.total_cost,
+                Node::Crossing(c) => c.car_lane.calculate_cost_of_movables(&self.calc_params),
+            })
+            .sum()
     }
 
     /// Simulates until a stop condition is met
@@ -199,10 +267,10 @@ impl Display for Simulator {
 mod tests {
     #[test]
     fn test_simloop() {
-        use crate::pathfinding::PathAwareCar;
-        use crate::pathfinding::MovableServer;
-        use crate::datastructs::IntMut;
         use super::super::simulation_builder::SimulatorBuilder;
+        use crate::datastructs::IntMut;
+        use crate::pathfinding::MovableServer;
+        use crate::pathfinding::PathAwareCar;
         let json: &str = r#"{"crossings": [{"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]}, {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
         let mut sim_builder = SimulatorBuilder::<PathAwareCar>::from_json(&json).unwrap();
         let mut mv_server = MovableServer::<PathAwareCar>::new();

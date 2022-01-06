@@ -1,3 +1,4 @@
+use crate::node::CostCalcParameters;
 use crate::node_builder::InOut;
 use crate::pathfinding::{MovableServer, PathAwareCar};
 use crate::traits::{Movable, NodeTrait};
@@ -105,7 +106,7 @@ where
     /// vector is not always the id. (because nodes can be deleted as well)
     next_id: usize,
     /// how much a simulation is advanced each step
-    dt: f32
+    dt: f32,
 }
 
 impl<Car: Movable> SimulatorBuilder<Car> {
@@ -261,7 +262,8 @@ impl<Car: Movable> SimulatorBuilder<Car> {
                 nodes: cache.iter().map(|n| n.deep_copy()).collect(),
                 max_iter: self.max_iter,
                 delay: self.delay,
-                dt: self.dt
+                dt: self.dt,
+                calc_params: CostCalcParameters,
             };
         }
         // create the nodes
@@ -369,7 +371,8 @@ impl<Car: Movable> SimulatorBuilder<Car> {
             nodes: sim_nodes,
             max_iter: self.max_iter,
             delay: self.delay,
-            dt: self.dt
+            dt: self.dt,
+            calc_params: CostCalcParameters {},
         }
     }
     /// Drops the internal node cache

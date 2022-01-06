@@ -1,10 +1,10 @@
 use std::ptr;
 
-use crate::movable::MovableStatus;
+use crate::{movable::MovableStatus, node::CostCalcParameters, simulation::calculate_cost};
 
 use super::{movable::RandCar, traits::Movable};
 #[allow(unused_imports)]
-use log::{trace, debug, info, warn, error};
+use log::{debug, error, info, trace, warn};
 
 /// This structs represents a sidewalk, a street or something else that can be walked on
 #[derive(Debug, Clone)]
@@ -16,6 +16,8 @@ where
     movables: Vec<(T, f32)>,
     /// The total length of the traversible
     length: f32,
+    /// the number of movables that are waiting at the end to go on a crossing
+    movables_waiting: u32,
 }
 
 impl<T: Movable> Traversible<T> {
@@ -24,6 +26,7 @@ impl<T: Movable> Traversible<T> {
         Traversible {
             movables: Vec::new(),
             length,
+            movables_waiting: 0,
         }
     }
     /// update all the movables by timestep `t` and return the index of all that have reached the end
@@ -36,21 +39,32 @@ impl<T: Movable> Traversible<T> {
             let (m, dist) = &mut self.movables[i];
             *dist += t as f32 * m.get_speed();
             if *dist >= l {
-                out.push(i);   
+                self.movables_waiting += 1;
+                out.push(i);
             }
         }
         out
     }
+    /// returns the number of movables that are waiting to go on a crossing
+    pub fn num_movables_waiting(&self) -> u32 {
+        self.movables_waiting
+    }
     /// removes a movable using a reference to it. This can be useful for
     /// removing cars lazily and checking conditions outside the traversible
     /// before removing it
-    pub fn rm_movable_by_ref(&mut self, movable: &T) -> Result<T, &'static str>{
-        let index = match self.movables.iter().enumerate().find(
-            | (_i, (m, _p)) | ptr::eq(movable, m)
-        ) {
+    pub fn rm_movable_by_ref(&mut self, movable: &T) -> Result<T, &'static str> {
+        let index = match self
+            .movables
+            .iter()
+            .enumerate()
+            .find(|(_i, (m, _p))| ptr::eq(movable, m))
+        {
             Some((i, _)) => i,
-            None => return Err("Invalid reference passed to rm_movable_by_ref")
+            None => return Err("Invalid reference passed to rm_movable_by_ref"),
         };
+        if self.movables_waiting > 0 {
+            self.movables_waiting -= 1;
+        }
         Ok(self.movables.remove(index).0)
     }
 
@@ -79,8 +93,15 @@ impl<T: Movable> Traversible<T> {
     pub fn remove_movable(&mut self, i: usize) -> T {
         self.movables.remove(i).0
     }
-    
+
     pub fn get_movable_by_index<'a>(&'a self, i: usize) -> &'a T {
         &self.movables[i].0
+    }
+
+    pub fn calculate_cost_of_movables(&self, params: &CostCalcParameters) -> f32 {
+        self.movables
+            .iter()
+            .map(|(m, _)| calculate_cost(m.get_report(), params))
+            .sum()
     }
 }

@@ -44,6 +44,13 @@ where
 // make it possible to derive Clone for structs with Box<dyn NodeTrait>
 dyn_clone::clone_trait_object!(NodeTrait);
 
+/// Information useful for calculating the cost
+pub struct CarReport {
+    pub distance_traversed: f32,
+    pub total_dist: f32,
+    pub time_taken: f32,
+}
+
 /// This trait represents some kind of movable
 ///
 /// idea for movables:
@@ -58,7 +65,7 @@ pub trait Movable: Debug + Clone + Send + Sync + DynClone {
     /// returns new Movable
     fn new() -> Self;
     /// advances the time
-    fn update(&mut self, t: f64);
+    fn update(&mut self, t: f32);
     /// sets the path. (Only used in PathAwareCar)
     fn set_path(&mut self, P: Vec<usize>) {}
     /// Decides the next node for the movable to move to
@@ -74,8 +81,19 @@ pub trait Movable: Debug + Clone + Send + Sync + DynClone {
     fn get_id(&self) -> u32;
     /// sets the internal id
     fn set_id(&mut self, id: u32);
+    /// sets the total length of the path the movable has to traverse
+    ///     this is typically done by the MovableServer
+    fn set_path_len(&mut self, len: f32) {}
     /// is called when the movable advances to the next node
     fn advance(&mut self) {}
+    /// is used to calculate a global cost for the genetic algorithm
+    fn get_report(&self) -> CarReport {
+        CarReport {
+            time_taken: 0.0,
+            distance_traversed: 0.0,
+            total_dist: 0.0,
+        }
+    }
 }
 
 // make it possible to derive Clone for structs with Box<dyn Movable>

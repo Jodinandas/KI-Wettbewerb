@@ -1,10 +1,10 @@
 use bevy::{
     ecs::schedule::ShouldRun,
-    input::Input,
-    math::Vec2,
+    input::{mouse::MouseMotion, Input},
+    math::{vec3, Vec2},
     prelude::{
-        BuildChildren, Children, Commands, Entity, GlobalTransform, MouseButton, Parent, Query,
-        QuerySet, Res, ResMut, Transform, With, Without,
+        BuildChildren, Children, Commands, Entity, EventReader, GlobalTransform, MouseButton,
+        Parent, Query, QuerySet, Res, ResMut, Transform, With, Without,
     },
     window::Windows,
 };
@@ -499,4 +499,26 @@ pub fn select_node(
         .entity(entity)
         .insert(SelectedNode)
         .insert(NeedsRecolor);
+}
+
+pub fn move_node_system(
+    mouse_input: Res<Input<MouseButton>>,
+    camera: Query<&Transform, With<Camera>>,
+    mut ev_motion: EventReader<MouseMotion>,
+    windows: Res<Windows>,
+    mut sim_manager: ResMut<SimManager>,
+    shapes: Query<(Entity, &mut Transform, &NodeType), With<UnderCursor>>,
+    mut commands: Commands,
+) {
+    let mut mouse_click = match input::handle_mouse_clicks(&mouse_input, &windows) {
+        Some(click) => click,
+        None => return,
+    };
+    //let (entity_shape, mut trans, _) = match input::get_shape_under_mouse_mut_ref(mouse_click, windows, (shapes.iter()), &camera) {
+    //    Some(s) => s,
+    //    None => return,
+    //};
+    // for ev in ev_motion.iter() {
+    //     trans.translation += vec3(ev.delta.x, ev.delta.y, 0.0);
+    // }
 }
