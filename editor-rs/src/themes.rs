@@ -31,6 +31,52 @@ pub enum CurrentTheme {
 
 impl UITheme {
     pub fn light() -> UITheme {
+        let text_color = Color32::from_rgb(40,40,50);
+        let light_bg_color = Color32::from_rgb(220,220,220);
+        let light_bg_color_light = Color32::from_rgb(240,240,240);
+        let light_bg_color_dark = Color32::from_rgb(185,185,185);
+        let mut visuals = Visuals::light();
+        visuals.override_text_color = Some(text_color);
+        visuals.extreme_bg_color = light_bg_color;
+        visuals.code_bg_color = light_bg_color;
+        //visuals.widgets = style::Widgets::style(&self, style::WidgetVisuals::bg_fill(Color32::from_rgb(40,42,54)));
+        visuals.widgets = style::Widgets{
+            noninteractive: style::WidgetVisuals{
+                bg_fill: light_bg_color_dark,
+                bg_stroke: Stroke::new(0.5, light_bg_color_light),
+                corner_radius: 0.0,
+                fg_stroke: Stroke::new(0.5, text_color),
+                expansion: 0.0,
+            },
+            inactive: style::WidgetVisuals{
+                bg_fill: light_bg_color,
+                bg_stroke: Stroke::new(0.5, light_bg_color_light),
+                corner_radius: 0.0,
+                fg_stroke: Stroke::new(0.5, text_color),
+                expansion: 0.0,
+            },
+            hovered: style::WidgetVisuals{
+                bg_fill: light_bg_color_light,
+                bg_stroke: Stroke::new(0.5, light_bg_color_light),
+                corner_radius: 0.0,
+                fg_stroke: Stroke::new(0.5, text_color),
+                expansion: 0.0,
+            },
+            active: style::WidgetVisuals{
+                bg_fill: light_bg_color_light,
+                bg_stroke: Stroke::new(0.5, light_bg_color_light),
+                corner_radius: 0.0,
+                fg_stroke: Stroke::new(0.5, text_color),
+                expansion: 0.0,
+            },
+            open: style::WidgetVisuals{
+                bg_fill: light_bg_color_light,
+                bg_stroke: Stroke::new(0.5, light_bg_color_light),
+                corner_radius: 0.0,
+                fg_stroke: Stroke::new(0.5, text_color),
+                expansion: 0.0,
+            },
+        };
         UITheme {
             background: Color::rgb(220.0/255.0, 220.0/255.0, 220.0/255.0),
             io_node: Color::rgb(40.0/255.0, 40.0/255.0, 50.0/255.0),
@@ -41,48 +87,56 @@ impl UITheme {
             connector_out: Color::rgb(240.0/255.0, 100.0/255.0, 0.0/255.0),
             placing_street: Color::rgb(160.0/255.0, 100.0/255.0, 100.0/255.0),
             car_color: Color::rgb(80.0/255.0, 180.0/255.0, 80.0/255.0),
-            egui_visuals: Visuals::light(),
+            egui_visuals: visuals,
             text_color: Color32::from_rgb(0,0,0)
         }
     }
     pub fn dracula() -> UITheme {
-        let mut visuals = Visuals::dark();
-        visuals.override_text_color = Some(Color32::from_rgb(248,248,242));
-        visuals.extreme_bg_color = Color32::from_rgb(40,42,54);
-        visuals.code_bg_color = Color32::from_rgb(40,42,54);
-        visuals.button_frame = true;
         let text_color = Color32::from_rgb(248,248,242);
+        let dracula_bg_color = Color32::from_rgb(40,42,54);
+        let dracula_bg_color_light = Color32::from_rgb(60,63,81);
+        let dracula_bg_color_dark = Color32::from_rgb(30,31,40);
+        let mut visuals = Visuals::dark();
+        visuals.override_text_color = Some(text_color);
+        visuals.extreme_bg_color = dracula_bg_color;
+        visuals.code_bg_color = dracula_bg_color;
         //visuals.widgets = style::Widgets::style(&self, style::WidgetVisuals::bg_fill(Color32::from_rgb(40,42,54)));
         visuals.widgets = style::Widgets{
             noninteractive: style::WidgetVisuals{
-                bg_fill: Color32::from_rgb(30,31,40),
-                bg_stroke: Stroke::new(0.5, Color32::from_rgb(60, 63, 81)),
+                bg_fill: dracula_bg_color_dark,
+                bg_stroke: Stroke::new(0.5, dracula_bg_color_light),
                 corner_radius: 0.0,
                 fg_stroke: Stroke::new(0.5, text_color),
                 expansion: 0.0,
             },
             inactive: style::WidgetVisuals{
-                bg_fill: Color32::from_rgb(50,53,69),
-                bg_stroke: Stroke::new(0.5, Color32::from_rgb(60, 63, 81)),
+                bg_fill: dracula_bg_color,
+                bg_stroke: Stroke::new(0.5, dracula_bg_color_light),
                 corner_radius: 0.0,
                 fg_stroke: Stroke::new(0.5, text_color),
                 expansion: 0.0,
             },
             hovered: style::WidgetVisuals{
-                bg_fill: Color32::from_rgb(40,42,54),
-                bg_stroke: Stroke::new(0.5, Color32::from_rgb(60, 63, 81)),
+                bg_fill: dracula_bg_color_light,
+                bg_stroke: Stroke::new(0.5, dracula_bg_color_light),
                 corner_radius: 0.0,
                 fg_stroke: Stroke::new(0.5, text_color),
                 expansion: 0.0,
             },
             active: style::WidgetVisuals{
-                bg_fill: Color32::from_rgb(40,42,54),
-                bg_stroke: Stroke::new(0.5, Color32::from_rgb(60, 63, 81)),
+                bg_fill: dracula_bg_color_light,
+                bg_stroke: Stroke::new(0.5, dracula_bg_color_light),
                 corner_radius: 0.0,
                 fg_stroke: Stroke::new(0.5, text_color),
                 expansion: 0.0,
             },
-            ..style::Widgets::default()
+            open: style::WidgetVisuals{
+                bg_fill: dracula_bg_color_light,
+                bg_stroke: Stroke::new(0.5, dracula_bg_color_light),
+                corner_radius: 0.0,
+                fg_stroke: Stroke::new(0.5, text_color),
+                expansion: 0.0,
+            },
         };
         UITheme {
             background: Color::rgb(40.0/255.0, 42.0/255.0, 54.0/255.0),
