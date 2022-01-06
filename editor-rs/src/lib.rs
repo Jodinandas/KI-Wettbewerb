@@ -2,7 +2,7 @@ use std::sync::MutexGuard;
 
 use bevy::prelude::*;
 use bevy::render::mesh::VertexAttributeValues;
-use bevy_egui::EguiPlugin;
+use bevy_egui::{EguiPlugin, EguiContext};
 use bevy_prototype_lyon::prelude::*;
 use simulator::datastructs::IntMut;
 use simulator::debug::build_grid_sim;
@@ -10,6 +10,7 @@ use simulator::nodes::{NodeBuilder, NodeBuilderTrait, InOut};
 use simulator::{self, SimManager};
 use themes::*;
 use tool_systems::SelectedNode;
+use user_interface::repaint_ui;
 use wasm_bindgen::prelude::*;
 mod input;
 mod node_bundles;
@@ -145,6 +146,7 @@ pub fn run() {
         .insert_resource(CurrentTheme::DRACULA) // Theme
         .insert_resource(ClearColor(UITheme::dracula().background))
         .insert_resource(bevy::input::InputSystem)
+        .insert_resource(first_frame{ b: true })
         .add_system(user_interface::ui_example.system())
         .add_system_to_stage(CoreStage::PreUpdate, mark_under_cursor.system())
         // .add_system(color_under_cursor.system())
@@ -153,6 +155,7 @@ pub fn run() {
         .add_system(input::mouse_panning.system())
         .add_system(recolor_nodes.system())
         .add_system(debug_status_updates.system())
+        .add_system(toggle_theme_on_startup.system())
         // .add_system(toolbarsystem.system())
         .add_system_set_to_stage(
             CoreStage::PostUpdate,
@@ -195,6 +198,35 @@ pub fn run() {
                 .with_system(simulation_display::display_cars.system()),
         )
         .run();
+}
+
+
+struct first_frame{
+    b: bool
+}
+
+fn toggle_theme_on_startup(commands: Commands, egui_context: ResMut<EguiContext>, mut background: ResMut<ClearColor>, nodes: Query<Entity, With<NodeType>>,
+    mut theme: ResMut<UITheme>, mut current_theme: ResMut<CurrentTheme>, mut ff: ResMut<first_frame>) {
+    if ff.b {
+    let mut new_theme = CurrentTheme::LIGHT;
+    if new_theme != *current_theme {
+        *current_theme = new_theme;
+        *theme = UITheme::from_enum(&new_theme);
+    }
+    new_theme = CurrentTheme::DRACULA;
+    if new_theme != *current_theme {
+        *current_theme = new_theme;
+        *theme = UITheme::from_enum(&new_theme);
+    }
+    repaint_ui(
+        commands,
+        Some(egui_context.ctx()),
+        &mut background,
+        &nodes,
+        theme,
+        );
+    ff.b = false;
+    }
 }
 
 fn debug_status_updates(sim_manager: Res<SimManager>) {

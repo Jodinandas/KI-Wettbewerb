@@ -3,6 +3,7 @@ use bevy::{
     math::{Vec2, Vec3},
     prelude::{Color, Commands, Query, Res, ResMut, Transform},
 };
+use bevy_egui::egui::Color32;
 use bevy_prototype_lyon::{
     entity::ShapeBundle,
     prelude::{DrawMode, FillOptions, GeometryBuilder, ShapeColors},
