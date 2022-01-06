@@ -9,6 +9,7 @@ use crate::traits::{CarReport, Movable, NodeTrait};
 use art_int;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::error::Error;
 use std::ptr;
@@ -245,20 +246,22 @@ impl<Car: Movable> Crossing<Car> {
         let nn_output = match &self.nn {
             Some(nn) => {
                 let out_vec = nn.propagate(nn_input.into());
-                let out = out_vec.get(0);
-                out.map(|op| *op).ok_or("NN has no output!")?
+                //let out = out_vec.get(0);
+                //out.map(|op| *op).ok_or("NN has no output!")?
+                out_vec
             }
             None => return Err("cannot determine traffic state without NeuralNetwork"),
         };
-        Ok(if nn_output < 0.25 {
-            TrafficLightState::S0
-        } else if nn_output < 0.5 {
-            TrafficLightState::S1
-        } else if nn_output < 0.75 {
-            TrafficLightState::S2
-        } else {
-            TrafficLightState::S3
-        })
+        let i = nn_output.iter().enumerate().max_by(| (_, a), (_, b) | a.partial_cmp(b).unwrap_or(Ordering::Equal)).unwrap().0;
+        Ok(
+            match i {
+                0 => TrafficLightState::S0,
+                1 => TrafficLightState::S1,
+                2 => TrafficLightState::S2,
+                3 => TrafficLightState::S3,
+                _ => {warn!("NN returned strange index ({})", i); return Err("Weird index")},
+            }
+        )
     }
 
     /// removes the neural network and returns it

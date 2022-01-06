@@ -14,8 +14,10 @@ use std::{cmp, ptr, thread};
 
 use super::int_mut::{IntMut, WeakIntMut};
 use super::node::Node;
+use art_int::LayerTopology;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+use rand::thread_rng;
 
 /// Error is thrown when a node that should exist, doesn't exist anymore
 #[derive(Debug)]
@@ -139,6 +141,20 @@ impl<Car: Movable> Simulator<Car> {
         nns
     }
 
+     
+    /// initialises all NNs with random values
+    pub fn init_neural_networks_random(&mut self, topology: &[LayerTopology]) {
+        let mut rng = thread_rng();
+        self.nodes.iter_mut().for_each(|n| match &mut *n.get() {
+            Node::Crossing(crossing) => {
+                crossing.set_neural_network(art_int::Network::random(&mut rng, topology))
+            }
+            _ => {}
+        });
+    }
+    
+        /// returns the total cost of all the cars in the simulation 
+        /// (including those that have already been destroyed)
     pub fn calculate_sim_cost(&self) -> f32 {
         self.nodes
             .iter()

@@ -2,6 +2,7 @@ use crate::datastructs::{IntMut, MovableStatus};
 use crate::path::MovableServer;
 use crate::pathfinding::PathAwareCar;
 use crate::SimulatorBuilder;
+use art_int::{LayerTopology, ActivationFunc};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use std::collections::HashMap;
@@ -41,6 +42,14 @@ impl Simulating {
     ) -> Simulating {
         debug!("creating new Simulating");
         let mut new_sim = sim_builder.build(mv_server);
+        new_sim.init_neural_networks_random(
+            &[
+                LayerTopology::new(8),
+                LayerTopology::new(6),
+                LayerTopology::new(4),
+                LayerTopology::new(0).with_activation(ActivationFunc::SoftMax),
+            ]
+        );
         // the channel that information about the car updates will be passed through
         let (tx, rx) = mpsc::channel();
         let terminate = IntMut::new(false);

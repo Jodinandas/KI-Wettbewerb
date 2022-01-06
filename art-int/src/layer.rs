@@ -1,19 +1,57 @@
 use crate::*;
 
+#[derive(Clone, Debug, Copy, PartialEq)]
+pub enum ActivationFunc {
+    ReLu,
+    SoftMax,
+}
+
+impl ActivationFunc {
+    pub fn propagate(&self, neurons: &[Neuron], mut inputs: Vec<f32>) -> Vec<f32> {
+        match self {
+            ActivationFunc::ReLu => {
+                neurons.iter().map( | n | {
+                    let output = inputs
+                        .iter()
+                        .zip(&n.weights)
+                        .map(|(input, weight)| input * weight)
+                        .sum::<f32>();
+
+                    (n.bias + output).max(0.0)
+                }).collect()
+            },
+            ActivationFunc::SoftMax =>  {
+                let mut sum: f32 = 0.0;
+                inputs.iter_mut().for_each( | value | {
+                    *value = value.exp();
+                    sum += *value;
+                });
+                inputs.iter_mut().for_each( | value | {
+                    *value /= sum;
+                });
+
+                inputs
+            },
+        }
+    }
+}
 #[derive(Clone, Debug)]
 pub struct Layer {
     pub neurons: Vec<Neuron>,
+    pub activation: ActivationFunc
 }
 
 impl Layer {
-    pub fn new(neurons: Vec<Neuron>) -> Self {
-        assert!(!neurons.is_empty());
+    pub fn new(neurons: Vec<Neuron>, activation: ActivationFunc) -> Self {
+        if activation != ActivationFunc::SoftMax {
+            assert!(!neurons.is_empty());
+        }
 
         assert!(neurons
             .iter()
             .all(|neuron| neuron.weights.len() == neurons[0].weights.len()));
 
-        Self { neurons }
+        Self { neurons, activation}
     }
 
     pub fn from_weights(
@@ -23,25 +61,22 @@ impl Layer {
         activation: ActivationFunc
     ) -> Self {
         let neurons = (0..output_size)
-            .map(|_| Neuron::from_weights(input_size, weights, activation))
+            .map(|_| Neuron::from_weights(input_size, weights))
             .collect();
 
-        Self::new(neurons)
+        Self::new(neurons, activation)
     }
 
     pub fn random(rng: &mut dyn RngCore, input_neurons: usize, output_neurons: usize, activation: ActivationFunc) -> Self {
         let neurons = (0..output_neurons)
-            .map(|_| Neuron::random(rng, input_neurons, activation))
+            .map(|_| Neuron::random(rng, input_neurons))
             .collect();
 
-        Self::new(neurons)
+        Self::new(neurons, activation)
     }
 
     pub fn propagate(&self, inputs: Vec<f32>) -> Vec<f32> {
-        self.neurons
-            .iter()
-            .map(|neuron| neuron.propagate(&inputs))
-            .collect()
+        self.activation.propagate(&self.neurons, inputs)
     }
 }
 
@@ -77,25 +112,6 @@ mod tests {
         }
     }
 
-    mod propagate {
-        use super::*;
-
-        #[test]
-        fn test() {
-            let neurons = (
-                Neuron::new(0.0, vec![0.1, 0.2, 0.3], ActivationFunc::ReLu),
-                Neuron::new(0.0, vec![0.4, 0.5, 0.6], ActivationFunc::ReLu),
-            );
-            let layer = Layer::new(vec![neurons.0.clone(), neurons.1.clone()]);
-
-            let inputs = &[-0.5, 0.0, 0.5];
-
-            let actual = layer.propagate(inputs.to_vec());
-            let expected = vec![neurons.0.propagate(inputs), neurons.1.propagate(inputs)];
-
-            approx::assert_relative_eq!(actual.as_slice(), expected.as_slice());
-        }
-    }
 
     mod from_weights {
         use super::*;
