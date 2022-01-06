@@ -113,7 +113,7 @@ pub enum NodeType {
 }
 
 const GRID_NODE_SPACING: usize = 100;
-const GRID_SIDE_LENGTH: usize = 70;
+const GRID_SIDE_LENGTH: usize = 7;
 const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
 const CROSSING_SIZE: f32 = 20.0;
@@ -147,7 +147,7 @@ pub fn run() {
         .insert_resource(ClearColor(UITheme::dracula().background))
         .insert_resource(bevy::input::InputSystem)
         .insert_resource(first_frame{ b: true })
-        .add_system(user_interface::ui_example.system())
+        .add_system(user_interface::draw_user_interface.system())
         .add_system_to_stage(CoreStage::PreUpdate, mark_under_cursor.system())
         // .add_system(color_under_cursor.system())
         //.add_system(rotation_test.system())

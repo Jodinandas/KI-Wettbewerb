@@ -101,12 +101,13 @@ where
     pub nodes: Vec<IntMut<NodeBuilder>>,
     max_iter: Option<usize>,
     cache: Option<Vec<IntMut<Node<Car>>>>,
-    delay: u64,
+    /// public so it can be more easily changed in the front end
+    pub delay: u64,
     /// The id of the next node. This is necessary, as the length of the nodes
     /// vector is not always the id. (because nodes can be deleted as well)
     next_id: usize,
     /// how much a simulation is advanced each step
-    dt: f32,
+    pub dt: f32,
 }
 
 impl<Car: Movable> SimulatorBuilder<Car> {

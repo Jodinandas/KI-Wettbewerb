@@ -35,6 +35,8 @@ struct Simulating {
     terminated: IntMut<bool>,
     report_updates: Vec<IntMut<bool>>,
     pub current_generation: IntMut<u32>,
+    /// if set to true, the current Generation will be evolved forcefully
+    pub terminate_generation: IntMut<bool>,
     pub generation_thread_handle: JoinHandle<Vec<SimData>>
 }
 
@@ -43,7 +45,8 @@ struct SimData {
     pub simulator: Simulator,
     pub channel: mpsc::Sender<HashMap<usize, Vec<MovableStatus>>>,
     pub report_updates:  IntMut<bool>,
-    pub terminate: IntMut<bool>
+    pub terminate: IntMut<bool>,
+    pub terminate_generation: IntMut<bool>,
 }
    
 impl Simulating {
@@ -59,6 +62,7 @@ impl Simulating {
         debug!("creating new Simulating");
         // create all the necessary variables for the simulation thread to later use them in a
         // parallel iterator
+        let terminate_generation = IntMut::new(false);
         let report_updates = (0..population).map( | _ | IntMut::new(false)).collect::<Vec<IntMut<bool>>>();
         let (car_tx, car_rx) = mpsc::channel();
         let terminate = IntMut::new(false);
@@ -77,6 +81,7 @@ impl Simulating {
                 channel: car_tx.clone(),
                 report_updates: report_updates[i].clone(),
                 terminate: terminate.clone(),
+                terminate_generation: terminate_generation.clone()
             }
         }).collect();
         // drop the inital transmitter to prevent having a transmitter that does nothing
@@ -99,7 +104,7 @@ impl Simulating {
                         error!("Simulation panicked! Backtrace: {}", e);
                     }));
                     let mut _i = 0;
-                    while !*data.terminate.get() {
+                    while !*data.terminate_generation.get() &&  !*data.terminate.get() {
                         _i += 1;
                         data.simulator.sim_iter();
                         // report car position updates
@@ -132,6 +137,7 @@ impl Simulating {
             current_generation: IntMut::new(0),
             generation_thread_handle: handle,
             report_updates,
+            terminate_generation,
         }
     }
     /// True, if the simulation has terminated
@@ -163,12 +169,16 @@ pub struct SimManager {
     sim_builder: SimulatorBuilder, // <PathAwareCar>, TODO: Finally implement generics in the simulator struct
     /// A list of currently running Simulators
     simulations: Option<Simulating>,
-    /// the index of the simulation which currently tracks car updates
-    tracking_index: Option<usize>,
     /// how likely the nn is to mutate
     mutation_chance: f32,
     /// how strongly it mutates if it mutates
-    mutation_coeff: f32
+    mutation_coeff: f32,
+    /// 
+    is_simulating: bool,
+    /// the number of generations that should be simulated
+    pub generations: usize,
+    /// the size of each population in a generation
+    pub population: usize
 }
 
 /// This error is returned if one tries to modify the SimulatorBuilder while a Simulation is running
@@ -210,9 +220,11 @@ impl SimManager {
             movable_server: IntMut::new(movable_server),
             sim_builder: sim_builder,
             simulations: None,
-            tracking_index: None,
             mutation_chance: 0.01,
-            mutation_coeff: 0.3
+            mutation_coeff: 0.3,
+            is_simulating: false,
+            population: 10,
+            generations: 10
         }
     }
     /// Returns a mutable reference to the SimulatorBuilder, if no Simulation
@@ -227,8 +239,8 @@ impl SimManager {
         }
         return Ok(&mut self.sim_builder);
     }
-    /// Starts simulating the specified number of simulation
-    pub fn simulate(&mut self, population: usize, generations: usize) -> Result<(), Box<dyn Error>> {
+    /// Starts simulating 
+    pub fn simulate(&mut self) -> Result<(), Box<dyn Error>> {
         // are any simulations still running?
         let any_sims = self.simulations.iter().any(|s| !s.has_terminated());
         if any_sims {
@@ -244,13 +256,27 @@ impl SimManager {
             Simulating::new(
                 &mut self.sim_builder,
                 &self.movable_server,
-                population, 
-                generations,
+                self.population, 
+                self.generations,
                 self.mutation_chance,
                 self.mutation_coeff
             )
         );
+        self.is_simulating = true;
         Ok(())
+    }
+
+    /// Are Simulations currently running?
+    pub fn is_simulating(&self) -> bool {
+        self.is_simulating
+    }
+
+
+    /// Terminates the current generation and performs Crossover
+    pub fn terminate_generation(&mut self) {
+        if let Some(sim) = &mut self.simulations {
+            *sim.terminate_generation.get() = true;
+        }
     }
 
     /// returns a status update, if it is found in the channel, else

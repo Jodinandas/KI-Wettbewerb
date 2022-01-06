@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::RangeInclusive};
 
 use bevy::prelude::*;
 use bevy_egui::{
@@ -15,7 +15,7 @@ use crate::{
 /// Draws the ui
 ///
 /// Nice reference: [Examples](https://github.com/mvlabat/bevy_egui/blob/main/examples/ui.rs)
-pub fn ui_example(
+pub fn draw_user_interface(
     commands: Commands,
     egui_context: ResMut<EguiContext>,
     mut ui_state: ResMut<UIState>,
@@ -37,9 +37,15 @@ pub fn ui_example(
                 ui.button("Nothing here yet...");
             });
             ui.separator();
-            if ui.button("Preferences").clicked() {
-                ui_state.new_mode(UIMode::Preferences);
-            }
+            ui.horizontal( | ui | {
+                if ui.button("Street Editor").clicked() {
+                    ui_state.new_mode(UIMode::Editor);
+                } else if ui.button("Simulation").clicked() {
+                    ui_state.new_mode(UIMode::Simulator);
+                } else if ui.button("Preferences").clicked() {
+                    ui_state.new_mode(UIMode::Preferences);
+                }
+            });
         });
     });
     match ui_state.mode {
@@ -184,22 +190,104 @@ pub fn ui_example(
                 .resizable(false)
                 .show(egui_context.ctx(), |ui| {
                     ui.vertical_centered(|ui| ui_state.toolbar.render_tools(ui));
-                    ui.separator();
-                    if ui.button("Start Simulation").clicked() {
-                        ui_state.mode = UIMode::Simulator;
-                        let num_sims = 15;
-                        match sim_manager.simulate(num_sims, 10) {
-                            Ok(_) => info!("Starting with {} concurrent Simulations", num_sims),
-                            Err(e) => error!("Unable to start Simulations. Error: {}", e),
-                        }
-                        match sim_manager.track_simulation(0) {
-                            Ok(_) => info!("Set to track simulation with index 0"),
-                            Err(_) => warn!("Can not track simulation with index 0"),
-                        }
-                    }
+                    // ui.separator();
+                    // if ui.button("Start Simulation").clicked() {
+                    //     ui_state.mode = UIMode::Simulator;
+                    //     let num_sims = 15;
+                    //     match sim_manager.simulate(num_sims, 10) {
+                    //         Ok(_) => info!("Starting with {} concurrent Simulations", num_sims),
+                    //         Err(e) => error!("Unable to start Simulations. Error: {}", e),
+                    //     }
+                    //     match sim_manager.track_simulation(0) {
+                    //         Ok(_) => info!("Set to track simulation with index 0"),
+                    //         Err(_) => warn!("Can not track simulation with index 0"),
+                    //     }
+                    // }
                 });
         }
-        UIMode::Simulator => {}
+        UIMode::Simulator => {
+            // Left Side panel, mainly for displaying the item editor
+            egui::SidePanel::left("Simulation Settings")
+                .default_width(300.0)
+                .resizable(false)
+                .show(egui_context.ctx(), |ui| {
+                ui.heading("Simulation Settings");
+                match sim_manager.is_simulating() {
+                    false => {
+                        ui.vertical(| ui | {
+                            let builder = sim_manager.modify_sim_builder().expect("Can not modify SimBuilder even though no simulation is running");
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut builder.delay,
+                                    0..=1000
+                                )
+                                .text("Simulation delay in ms")
+                                .clamp_to_range(true)
+                            );
+                            ui.label("(Useful for inspecting the car movement)");
+                            ui.separator();
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut builder.dt,
+                                    0.01..=10.0
+                                )
+                                .text("Time step in seconds")
+                                .clamp_to_range(true)
+                            );
+                            ui.separator();
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut sim_manager.generations,
+                                    1..=100
+                                )
+                                .text("Number of generations to simulate")
+                                .clamp_to_range(true)
+                            );
+                            ui.separator();
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut sim_manager.population,
+                                    1..=1000
+                                )
+                                .text("Population size")
+                                .clamp_to_range(true)
+                            );
+                            ui.separator();
+                            ui.heading("Commands");
+                            ui.horizontal_wrapped(|  ui | {
+                                if ui.button("Start Simulation").clicked() {
+                                    match sim_manager.simulate() {
+                                        Err(err) => error!("Error when trying to start simulation: {}", err),
+                                        Ok(_) => {
+                                            match sim_manager.track_simulation(0) {
+                                                Ok(_) => info!("Tracking Simulation index=0"),
+                                                Err(_) => warn!("Unable to track Simulation with index=0"),
+                                            };
+                                            info!("Started simulation")
+                                        }
+                                    }
+                                }
+                            });
+                        });
+                    },
+                    true => {
+                        ui.add(egui::Label::new("Locked").strong());
+                    },
+                }
+            });
+            // Toolbar
+            egui::SidePanel::right("Simulation Overview")
+                .default_width(100.0)
+                .resizable(false)
+                .show(egui_context.ctx(), |ui| {
+                    ui.horizontal(| ui | {
+                        ui.heading("Simulation Overview");
+                    });
+                    ui.vertical_centered(|ui| {
+                    });
+                });
+
+        }
         UIMode::Preferences => {
             // egui::CentralPanel::default()
             egui::CentralPanel::default().show(egui_context.ctx(), |ui| {
