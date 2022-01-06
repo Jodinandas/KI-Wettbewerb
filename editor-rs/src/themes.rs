@@ -139,8 +139,6 @@ impl UITheme {
             },
         };
         UITheme {
-
-            egui_visuals: Visuals::dark(),
             background: Color::rgb(40.0/255.0, 42.0/255.0, 54.0/255.0),
             io_node: Color::rgb(255.0/255.0, 184.0/255.0, 108.0/255.0),
             street: Color::rgb(248.0/255.0, 248.0/255.0, 242.0/255.0),
