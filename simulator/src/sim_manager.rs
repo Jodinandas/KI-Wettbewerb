@@ -18,6 +18,18 @@ use std::time::Duration;
 use rayon::prelude::*;
 
 
+/// Useful for displaying information about each Simulation in the frontend
+pub struct SimulationStatus { 
+    pub displaying: bool    
+}
+impl SimulationStatus {
+    pub fn new() -> SimulationStatus {
+        SimulationStatus {
+            displaying: false
+        }
+    }
+}
+
 
 /// saves a handle to the thread performing the simulation
 /// and provides ways of communication
@@ -37,7 +49,9 @@ struct Simulating {
     pub current_generation: IntMut<u32>,
     /// if set to true, the current Generation will be evolved forcefully
     pub terminate_generation: IntMut<bool>,
-    pub generation_thread_handle: JoinHandle<Vec<SimData>>
+    pub generation_thread_handle: JoinHandle<Vec<SimData>>,
+    /// status information for all the simulations
+    simulation_information: Vec<SimulationStatus>,
 }
 
 /// used to encapsulate data used when creating a Simulator
@@ -66,7 +80,8 @@ impl Simulating {
         let report_updates = (0..population).map( | _ | IntMut::new(false)).collect::<Vec<IntMut<bool>>>();
         let (car_tx, car_rx) = mpsc::channel();
         let terminate = IntMut::new(false);
-        let simulation_information: Vec<SimData> =  (0..population).map( | i | {
+        let mut simulation_information = Vec::with_capacity(population);
+        let simulation_data: Vec<SimData> =  (0..population).map( | i | {
             let mut sim = sim_builder.build(mv_server);
             sim.init_neural_networks_random(
             &[
@@ -76,6 +91,7 @@ impl Simulating {
                     LayerTopology::new(0).with_activation(ActivationFunc::SoftMax),
                 ]
             );
+            simulation_information.push(SimulationStatus::new());
             SimData {
                 simulator: sim,
                 channel: car_tx.clone(),
@@ -94,7 +110,7 @@ impl Simulating {
                 error!("Simulation panicked! Backtrace: {}", e);
             }));
             let mut rng = thread_rng();
-            let mut terminated_sims: Vec<SimData> = simulation_information;
+            let mut terminated_sims: Vec<SimData> = simulation_data;
             for _generation in 0..generations {
                 terminated_sims = terminated_sims.into_par_iter()
                  .map( move | mut data | {
@@ -138,6 +154,7 @@ impl Simulating {
             generation_thread_handle: handle,
             report_updates,
             terminate_generation,
+            simulation_information,
         }
     }
     /// True, if the simulation has terminated
@@ -302,6 +319,13 @@ impl SimManager {
         match &mut self.simulations {
             Some(sim) => sim.track_simulation(i),
             None => Err("Can not track simulation if no simulations are running".to_string()),
+        }
+    }
+    /// returns the simulation information of the current simulating
+    pub fn get_sim_status(&mut self) -> Result<&mut Vec<SimulationStatus>, String> {
+        match &mut self.simulations {
+            Some(sim) => Ok(&mut sim.simulation_information),
+            None => Err("There is no simulation".to_string()),
         }
     }
 }

@@ -57,7 +57,7 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
                         Some(server) => {
                             let car_result = server.get().generate_movable(io_node.id);
                             info!("Spawned new movable");
-                            if let Ok(mut car) = car_result {
+                            if let Ok(car) = car_result {
                                 io_node.cached.push(car);
                                 new_cars.push(io_node.cached.len() - 1);
                             }
@@ -490,7 +490,14 @@ where
     }
     /// get car status (position and lane index)
     pub fn get_car_status(&self) -> Vec<MovableStatus> {
-        Vec::new()
+        self.cached.iter().map(| car | {
+            MovableStatus {
+                position: 0.0,
+                lane_index: 0,
+                movable_id: car.get_id(),
+                delete: true,
+            }
+        }).collect()
     }
 
     /// adds car

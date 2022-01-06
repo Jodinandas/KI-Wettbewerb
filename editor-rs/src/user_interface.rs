@@ -284,6 +284,18 @@ pub fn draw_user_interface(
                         ui.heading("Simulation Overview");
                     });
                     ui.vertical_centered(|ui| {
+                        if let Ok(stati) = sim_manager.get_sim_status() {
+                            stati.iter_mut().enumerate().for_each( | (i, sim_info) | {
+                                if ui.button(format!("Simulation {}", i)).clicked()  {
+                                    sim_info.displaying = !sim_info.displaying;
+                                }
+                                if sim_info.displaying {
+                                    egui::Window::new(format!("Information for Simulation {}", i)).show( egui_context.ctx(), | ui | {
+                                                
+                                    });
+                                }
+                            });
+                        }
                     });
                 });
 

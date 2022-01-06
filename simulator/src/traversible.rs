@@ -86,6 +86,7 @@ impl<T: Movable> Traversible<T> {
                 position: t.min(self.length) / self.length,
                 lane_index: 0,
                 movable_id: m.get_id(),
+                delete: false,
             })
             .collect()
     }

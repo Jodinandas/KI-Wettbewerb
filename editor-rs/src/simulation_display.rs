@@ -1,7 +1,7 @@
 use bevy::{
     ecs::schedule::ShouldRun,
     math::{Vec2, Vec3},
-    prelude::{Color, Commands, Query, Res, ResMut, Transform},
+    prelude::{Color, Commands, Query, Res, ResMut, Transform, Entity},
 };
 use bevy_egui::egui::Color32;
 use bevy_prototype_lyon::{
@@ -45,7 +45,7 @@ pub fn display_cars(
     mut commands: Commands,
     sim_manager: ResMut<SimManager>,
     nodes: Query<(&SimulationID, &StreetLinePosition)>,
-    mut cars: Query<(&CarID, &mut Transform)>,
+    mut cars: Query<(Entity, &CarID, &mut Transform)>,
     theme: Res<UITheme>,
 ) {
     if let Some(updates) = sim_manager.get_status_updates() {
@@ -59,10 +59,12 @@ pub fn display_cars(
                     stati.iter().for_each(|status| {
                         let new_car_position = start + (end - start) * status.position;
                         info!("Placing car to {}", new_car_position);
-                        match cars.iter_mut().find(|(id, _)| id.0 == status.movable_id) {
-                            Some((_, mut transform)) => {
-                                *transform.translation =
-                                    *Vec3::new(new_car_position.x, new_car_position.y, CAR_Z);
+                        match cars.iter_mut().find(|(_e, id, _)| id.0 == status.movable_id) {
+                            Some((entity, _, mut transform)) => {
+                                match status.delete {
+                                    true => commands.entity(entity).despawn(),
+                                    false => *transform.translation = *Vec3::new(new_car_position.x, new_car_position.y, CAR_Z)
+                                }
                             }
                             None => {
                                 let new_car = render_car(new_car_position, theme.car_color);
