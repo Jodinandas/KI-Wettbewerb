@@ -1,9 +1,13 @@
 use crate::datastructs::{IntMut, MovableStatus};
 use crate::path::MovableServer;
 use crate::pathfinding::PathAwareCar;
-use crate::SimulatorBuilder;
+use crate::{SimulatorBuilder, Simulator};
+use art_int::genetics::{crossover_sim_nns, mutate_sim_nns};
+use art_int::{LayerTopology, ActivationFunc, Network};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+use rand::prelude::SliceRandom;
+use rand::thread_rng;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::Display;
@@ -11,74 +15,140 @@ use std::panic;
 use std::sync::{mpsc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
+use rayon::prelude::*;
+
+
 
 /// saves a handle to the thread performing the simulation
 /// and provides ways of communication
 struct Simulating {
-    /// the handle of the simulation thread
-    sim: JoinHandle<()>,
-    /// Car updates are received from this part of the channel if the simulator is
+    /// Car updates are received from this part of the channel if the simulators are 
     /// set to report updates with `report_updates`
     ///
     /// Unfortunatly, this field has to be wrapped  in a Mutex so it implements the
     /// [Sync] trait. (Which is required by bevy)
     pub car_updates: Mutex<mpsc::Receiver<HashMap<usize, Vec<MovableStatus>>>>,
-    /// if this bool is set to true, the Simulator will terminate
+    /// if this bool is set to true, the Simulators will terminate. This is forceful termination
     pub terminate: IntMut<bool>,
-    /// this bool is set by the simulator and reports if the simulation has ended
+    /// this bool is set by the thread executing the simulations and reports if all simulation has ended
     /// this variable is not public to ensure it is only modified by the simulator
     terminated: IntMut<bool>,
-    /// if set to true, updates will be sent to `car_updates`
-    pub report_updates: IntMut<bool>,
+    report_updates: Vec<IntMut<bool>>,
+    pub current_generation: IntMut<u32>,
+    pub generation_thread_handle: JoinHandle<Vec<SimData>>
 }
 
+/// used to encapsulate data used when creating a Simulator
+struct SimData {
+    pub simulator: Simulator,
+    pub channel: mpsc::Sender<HashMap<usize, Vec<MovableStatus>>>,
+    pub report_updates:  IntMut<bool>,
+    pub terminate: IntMut<bool>
+}
+   
 impl Simulating {
-    /// starts a new simulation
+    /// Creates new simulations and runs them in different threads using the rayon crate
     pub fn new(
         sim_builder: &mut SimulatorBuilder,
         mv_server: &IntMut<MovableServer>,
-        time_steps: f32,
+        population: usize,
+        generations: usize,
+        mutation_chance: f32,
+        mutation_coeff: f32
     ) -> Simulating {
         debug!("creating new Simulating");
-        let mut new_sim = sim_builder.build(mv_server);
-        // the channel that information about the car updates will be passed through
-        let (tx, rx) = mpsc::channel();
+        // create all the necessary variables for the simulation thread to later use them in a
+        // parallel iterator
+        let report_updates = (0..population).map( | _ | IntMut::new(false)).collect::<Vec<IntMut<bool>>>();
+        let (car_tx, car_rx) = mpsc::channel();
         let terminate = IntMut::new(false);
+        let simulation_information: Vec<SimData> =  (0..population).map( | i | {
+            let mut sim = sim_builder.build(mv_server);
+            sim.init_neural_networks_random(
+            &[
+                    LayerTopology::new(8),
+                    LayerTopology::new(6),
+                    LayerTopology::new(4),
+                    LayerTopology::new(0).with_activation(ActivationFunc::SoftMax),
+                ]
+            );
+            SimData {
+                simulator: sim,
+                channel: car_tx.clone(),
+                report_updates: report_updates[i].clone(),
+                terminate: terminate.clone(),
+            }
+        }).collect();
+        // drop the inital transmitter to prevent having a transmitter that does nothing
+        drop(car_tx);
+        // Now use this data to simulate in parallel
         let terminated = IntMut::new(false);
-        let report_updates = IntMut::new(false);
-        let report_updates_moved = report_updates.clone();
-        let terminate_moved = terminate.clone();
-        let terminated_moved = terminated.clone();
-        // -------------------------- this is where the magic happens --------------
+        let terminated_ref = terminated.clone();
         let handle = thread::spawn(move || {
-            info!("starting Simulation thread");
-            println!("Starting sim thread");
             panic::set_hook(Box::new(|e| {
                 error!("Simulation panicked! Backtrace: {}", e);
             }));
-            let mut i = 0;
-            while !*terminate_moved.get() {
-                i += 1;
-                new_sim.sim_iter();
-                // report car position updates
-                if *report_updates_moved.get() {
-                    let updates = new_sim.get_car_status();
-                    tx.send(updates).expect("Unable to send car status updates, even though report_updates is set to true");
-                }
+            let mut rng = thread_rng();
+            let mut terminated_sims: Vec<SimData> = simulation_information;
+            for _generation in 0..generations {
+                terminated_sims = terminated_sims.into_par_iter()
+                 .map( move | mut data | {
+                    info!("starting Simulation thread");
+                    println!("Starting sim thread");
+                    panic::set_hook(Box::new(|e| {
+                        error!("Simulation panicked! Backtrace: {}", e);
+                    }));
+                    let mut _i = 0;
+                    while !*data.terminate.get() {
+                        _i += 1;
+                        data.simulator.sim_iter();
+                        // report car position updates
+                        if *data.report_updates.get() {
+                            let updates = data.simulator.get_car_status();
+                            data.channel.send(updates).expect("Unable to send car status updates, even though report_updates is set to true");
+                        }
+                    }
+                    data
+                }).collect();
+                // TODO: Maybe make this more efficient
+                let old_nns_and_costs: Vec<(f32, Vec<Network>)> = terminated_sims.iter_mut().map(
+                    | s | (s.simulator.calculate_sim_cost(), s.simulator.remove_all_neural_networks())
+                ).collect();
+                terminated_sims.iter_mut().for_each( | s | {
+                    let parent_a = &old_nns_and_costs.choose_weighted(&mut rng, | (cost, _nns) | 1.0/cost).expect("Empty population").1;
+                    let parent_b = &old_nns_and_costs.choose_weighted(&mut rng, | (cost, _nns) | 1.0/cost).expect("Empty population").1;
+                    let mut crossed = crossover_sim_nns(parent_a, parent_b, &mut rng);
+                    mutate_sim_nns(&mut rng, &mut crossed, mutation_chance, mutation_coeff);
+                    s.simulator.set_neural_networks(crossed);
+                });
             }
-            *terminated_moved.get() = true;
+            *terminated_ref.get() = true;
+            terminated_sims
         });
         Simulating {
-            sim: handle,
-            car_updates: Mutex::new(rx),
+            car_updates: Mutex::new(car_rx),
             terminate,
             terminated,
+            current_generation: IntMut::new(0),
+            generation_thread_handle: handle,
             report_updates,
         }
     }
     /// True, if the simulation has terminated
     pub fn has_terminated(&self) -> bool {
         *self.terminated.get()
+    }
+    /// tracks the specified simulation if it exists
+    ///  (and untracks all other simulations)
+    pub fn track_simulation(&mut self, i: usize) -> Result<(), String> {
+        if i >= self.report_updates.len() {
+            let err = format!("Index is higher than the number of simulations (got: {}, n sims: {})", i, self.report_updates.len());
+            return Err(err);
+        }
+        self.report_updates.iter_mut().enumerate().for_each( | (j, do_report) | {
+            *do_report.get() = i == j
+        });
+        Ok(())
     }
 }
 
@@ -92,9 +162,13 @@ pub struct SimManager {
     /// configure them (before simulating)
     sim_builder: SimulatorBuilder, // <PathAwareCar>, TODO: Finally implement generics in the simulator struct
     /// A list of currently running Simulators
-    simulations: Vec<Simulating>,
+    simulations: Option<Simulating>,
     /// the index of the simulation which currently tracks car updates
     tracking_index: Option<usize>,
+    /// how likely the nn is to mutate
+    mutation_chance: f32,
+    /// how strongly it mutates if it mutates
+    mutation_coeff: f32
 }
 
 /// This error is returned if one tries to modify the SimulatorBuilder while a Simulation is running
@@ -135,8 +209,10 @@ impl SimManager {
         SimManager {
             movable_server: IntMut::new(movable_server),
             sim_builder: sim_builder,
-            simulations: Vec::new(),
+            simulations: None,
             tracking_index: None,
+            mutation_chance: 0.01,
+            mutation_coeff: 0.3
         }
     }
     /// Returns a mutable reference to the SimulatorBuilder, if no Simulation
@@ -152,7 +228,7 @@ impl SimManager {
         return Ok(&mut self.sim_builder);
     }
     /// Starts simulating the specified number of simulation
-    pub fn simulate(&mut self, num_sims: usize) -> Result<(), Box<dyn Error>> {
+    pub fn simulate(&mut self, population: usize, generations: usize) -> Result<(), Box<dyn Error>> {
         // are any simulations still running?
         let any_sims = self.simulations.iter().any(|s| !s.has_terminated());
         if any_sims {
@@ -164,14 +240,16 @@ impl SimManager {
         self.movable_server
             .get()
             .register_simulator_builder(&self.sim_builder);
-        self.simulations.clear();
-        for _i in 0..num_sims {
-            self.simulations.push(Simulating::new(
+        self.simulations = Some(
+            Simulating::new(
                 &mut self.sim_builder,
                 &self.movable_server,
-                0.2,
-            ));
-        }
+                population, 
+                generations,
+                self.mutation_chance,
+                self.mutation_coeff
+            )
+        );
         Ok(())
     }
 
@@ -182,32 +260,22 @@ impl SimManager {
     ///  status updates faster than the UI can display it (This could cause the
     ///  Receiver to fill up.)
     pub fn get_status_updates(&self) -> Option<HashMap<usize, Vec<MovableStatus>>> {
-        match self.tracking_index {
-            Some(i) => match self.simulations[i].car_updates.lock().unwrap().recv_timeout(Duration::from_millis(20)) {
-                Ok(value) => Some(value),
-                Err(_) => None,
-            },
-            None => return None,
+        if let Some(sim) = &self.simulations {
+            if let Ok(value) = sim.car_updates.lock().expect("Unable to aquire lock on Car Update Receiver")
+            .recv_timeout(Duration::from_millis(20))
+                {
+                    return Some(value)
+                }
         }
+        None
     }
 
     /// tracks the car_updates of the simulation with the given index#
     /// raises an error, if no simulation with the given index exists
     pub fn track_simulation(&mut self, i: usize) -> Result<(), String> {
-        match i < self.simulations.len() {
-            true => {
-                // if another simulation was tracked, stop the status updates
-                match self.tracking_index {
-                    Some(old_i) => {
-                        *self.simulations[old_i].report_updates.get() = false;
-                    }
-                    None => {}
-                }
-                self.tracking_index = Some(i);
-                *self.simulations[i].report_updates.get() = true;
-            }
-            false => return Err("Simulation with the given index does not exist".into()),
+        match &mut self.simulations {
+            Some(sim) => sim.track_simulation(i),
+            None => Err("Can not track simulation if no simulations are running".to_string()),
         }
-        Ok(())
     }
 }

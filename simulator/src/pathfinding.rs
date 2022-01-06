@@ -1,5 +1,5 @@
 use crate::node_builder::NodeBuilderTrait;
-use crate::traits::{Movable, NodeTrait};
+use crate::traits::{CarReport, Movable, NodeTrait};
 use crate::SimulatorBuilder;
 use pathfinding::directed::dijkstra::dijkstra;
 use rand::distributions::WeightedIndex;
@@ -21,6 +21,9 @@ use log::{debug, error, info, trace, warn};
 pub struct PathAwareCar {
     speed: f32,
     path: Vec<usize>,
+    time_spent: f32,
+    dist_traversed: f32,
+    path_len: f32,
     id: u32,
 }
 
@@ -48,19 +51,33 @@ impl Movable for PathAwareCar {
         self.speed = s
     }
 
-    fn new() -> Self {
-        PathAwareCar {
-            speed: 0.0,
-            path: Vec::new(),
-            id: 0,
+    fn get_report(&self) -> CarReport {
+        CarReport {
+            time_taken: self.time_spent,
+            distance_traversed: self.dist_traversed,
+            total_dist: self.path_len,
         }
     }
 
-    fn update(&mut self, _t: f64) {
-        panic!("Not yet implemented! Consider using decide_next() instead");
+    fn new() -> Self {
+        PathAwareCar {
+            time_spent: 0.0,
+            speed: 0.0,
+            path: Vec::new(),
+            id: 0,
+            dist_traversed: 0.0,
+            path_len: 0.0,
+        }
+    }
+
+    fn update(&mut self, t: f32) {
+        self.time_spent += t
     }
     fn set_path(&mut self, p: Vec<usize>) {
         self.path = p;
+    }
+    fn set_path_len(&mut self, len: f32) {
+        self.path_len = len
     }
 
     fn decide_next(
@@ -87,7 +104,7 @@ impl Movable for PathAwareCar {
                     msg: "Path is empty, but next connection was requested.",
                     expected_node: None,
                     available_nodes: connection_ids,
-                }))
+                }));
             }
         };
 
@@ -154,7 +171,7 @@ impl Movable for PathAwareCar {
     }
     fn advance(&mut self) {
         match self.path.pop() {
-            Some(_) => {},
+            Some(_) => {}
             None => warn!("Could not remove last element while advancing to the next node"),
         }
     }
@@ -168,6 +185,13 @@ fn overnext_node_id(path: &Vec<usize>) -> usize {
     }
 }
 
+/// this struct saved data of a connection that is important for caching / path finding
+#[derive(Debug, Clone)]
+struct IndexedConnection {
+    pub id: usize,
+    pub cost: u32,
+}
+
 /// A Data Structure representing the connections with indices to make
 /// using path finding algorithms easier
 #[derive(Debug)]
@@ -177,7 +201,8 @@ struct IndexedNodeNetwork {
     /// contains a list of connections for each given index, with the first element
     /// of the contained tuple being the id of the connection, and the second one
     /// being the cost of moving to the specified connection
-    pub connections: HashMap<usize, Vec<(usize, usize)>>,
+    pub connections: HashMap<usize, Vec<IndexedConnection>>,
+    pub node_lens: HashMap<usize, f32>,
     pub io_nodes: Vec<usize>,
     pub io_node_weights: Vec<f32>,
 }
@@ -186,8 +211,10 @@ impl IndexedNodeNetwork {
     /// generates a new [IndexedNodeNetwork] from a list of [NodeBuilders](NodeBuilder)
     fn index_builder<Car: Movable>(&mut self, sbuilder: &SimulatorBuilder<Car>) {
         let nodes = &sbuilder.nodes;
-        let mut connections: HashMap<usize, Vec<(usize, usize)>> = HashMap::with_capacity(nodes.len());
+        let mut connections: HashMap<usize, Vec<IndexedConnection>> =
+            HashMap::with_capacity(nodes.len());
         let mut io_nodes: Vec<usize> = Vec::new();
+        let mut node_lens = HashMap::with_capacity(nodes.len());
         let mut io_node_weights: Vec<f32> = Vec::new();
         println!("Started to index");
         nodes.iter().for_each(|node| {
@@ -195,17 +222,20 @@ impl IndexedNodeNetwork {
             let id = node.get().get_id();
             connections.insert(id, {
                 // get the indices and weights of all connections
-                    node.get().get_out_connections()
+                node.get()
+                    .get_out_connections()
                     .iter()
                     .map(|n| {
                         let node_upgraded = n.upgrade();
                         let c_node = node_upgraded.get();
-                        (
-                            c_node.get_id(),
+
+                        node_lens.insert(id, c_node.get_node_dist());
+                        IndexedConnection {
+                            id: c_node.get_id(),
                             // funny weights calculation (dijkstra expects a cost as usize
                             // instead of the float weights we use)
-                            ((1.0 / c_node.get_weight()) * 100000.0) as usize,
-                        )
+                            cost: ((1.0 / c_node.get_weight()) * 100000.0) as u32,
+                        }
                     })
                     .collect()
             });
@@ -224,11 +254,13 @@ impl IndexedNodeNetwork {
             connections,
             io_nodes,
             io_node_weights,
+            node_lens,
         };
     }
     pub fn new() -> IndexedNodeNetwork {
         IndexedNodeNetwork {
             connections: HashMap::new(),
+            node_lens: HashMap::new(),
             io_nodes: Vec::new(),
             io_node_weights: Vec::new(),
         }
@@ -299,7 +331,12 @@ impl<Car: Movable> MovableServer<Car> {
         // trace!("IONode Weights (indexed) : {:?}", self.indexed.io_node_weights);
         let mut weights = self.indexed.io_node_weights.clone();
         let mut ids = self.indexed.io_nodes.clone();
-        let self_index = ids.iter().enumerate().find( | (_i, nid ) | id == **nid).expect("Input id does not exist").0;
+        let self_index = ids
+            .iter()
+            .enumerate()
+            .find(|(_i, nid)| id == **nid)
+            .expect("Input id does not exist")
+            .0;
         weights.remove(self_index);
         ids.remove(self_index);
         let dist = WeightedIndex::new(weights).unwrap();
@@ -321,7 +358,12 @@ impl<Car: Movable> MovableServer<Car> {
             // weight needs to be 1/weights, because dijkstra takes cost and not weight of nodes
             let mut path = match dijkstra(
                 &start_node,
-                |p| self.indexed.connections[p].clone(),
+                |p| {
+                    let conn = &self.indexed.connections[p];
+                    conn.iter()
+                        .map(|iconn| (iconn.id, iconn.cost))
+                        .collect::<Vec<(usize, u32)>>()
+                },
                 |i| *i == end_node,
             ) {
                 Some((p, _)) => p,
@@ -334,6 +376,7 @@ impl<Car: Movable> MovableServer<Car> {
                     return Err(perror);
                 }
             };
+            let path_len: f32 = path.iter().map(|id| self.indexed.node_lens[id]).sum();
             // Reverse list of nodes to be able to pop off the last element
             path.reverse();
             // IONode is the first element
@@ -341,6 +384,7 @@ impl<Car: Movable> MovableServer<Car> {
             path.pop();
             let mut car = Car::new(); // PathAwareCar { speed: 1.0, path, id: self.car_count };
             car.set_speed(1.0);
+            car.set_path_len(path_len);
             car.set_path(path);
             car.set_id(self.car_count);
             self.car_count += 1;

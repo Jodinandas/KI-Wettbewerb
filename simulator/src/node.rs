@@ -4,9 +4,13 @@ use super::node_builder::{CrossingConnections, Direction, InOut};
 use super::traversible::Traversible;
 use crate::movable::MovableStatus;
 use crate::pathfinding::MovableServer;
-use crate::traits::{Movable, NodeTrait};
+use crate::simulation::calculate_cost;
+use crate::traits::{CarReport, Movable, NodeTrait};
+use art_int;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+use std::cmp::Ordering;
+use std::convert::TryFrom;
 use std::error::Error;
 use std::ptr;
 
@@ -55,7 +59,7 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
                             info!("Spawned new movable");
                             if let Ok(mut car) = car_result {
                                 io_node.cached.push(car);
-                                new_cars.push(io_node.cached.len()-1);
+                                new_cars.push(io_node.cached.len() - 1);
                             }
                             io_node.time_since_last_spawn = 0.0;
                         }
@@ -79,7 +83,7 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
     fn add_car(&mut self, car: Car) {
         match self {
             Node::Street(street) => street.add_movable(car),
-            Node::IONode(io_node) => io_node.absorbed_cars += 1,
+            Node::IONode(io_node) => io_node.add_car(car),
             Node::Crossing(crossing) => crossing.car_lane.add(car),
         }
     }
@@ -108,19 +112,21 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
                     }
                 }
                 panic!("trying to remove car by reference that does not exist")
-            },
+            }
             Node::IONode(inner) => {
-                let index = match inner.cached.iter().enumerate().find(
-                    | (i, cached_car) | ptr::eq(*cached_car, car)
-                ) {
+                let index = match inner
+                    .cached
+                    .iter()
+                    .enumerate()
+                    .find(|(i, cached_car)| ptr::eq(*cached_car, car))
+                {
                     Some((i, _)) => i,
-                    None => panic!("Invalid reference passed to rm_movable_by_ref")
+                    None => panic!("Invalid reference passed to rm_movable_by_ref"),
                 };
                 inner.cached.remove(index)
-            },
+            }
             Node::Crossing(inner) => inner.car_lane.rm_movable_by_ref(car).unwrap(),
         }
-        
     }
 
     fn remove_car(&mut self, i: usize) -> Car {
@@ -170,6 +176,14 @@ where
     pub id: usize,
     /// the state of the traffic light (ampelphase)
     pub traffic_light_state: TrafficLightState,
+    /// time since last cars could drive over the crossing in each direction
+    ///
+    /// `[N, E, S, W]`
+    ///  
+    /// for further explanation, look at the method `calculate_nn_inputs`
+    pub time_since_input_passable: [f32; 4],
+    /// the NN used to determine the traffic light state at each iteration
+    pub nn: Option<art_int::Network>,
 }
 impl<Car: Movable> Crossing<Car> {
     /// Returns a new Crossing with no connections and id=0
@@ -179,8 +193,83 @@ impl<Car: Movable> Crossing<Car> {
             car_lane: Traversible::<Car>::new(1.0),
             id: 0,
             traffic_light_state: TrafficLightState::S0,
+            time_since_input_passable: [0.0; 4],
+            nn: None,
         }
     }
+    /// calculates the inputs for the neural network controlling the traffic light state
+    /// # What are the inputs?
+    ///
+    /// 1. For each direction, how many cars are waiting to go over the crossing?
+    /// 2. For each direction, when was the last time, cars were able to go over the crossing?
+    ///
+    /// If there is no street, the time and number of cars is set to 0.0
+    pub fn calculate_nn_inputs(&self) -> [f32; 8] {
+        let mut cars_at_end = [0.0f32; 4];
+        self.connections.input.iter().for_each(|(dir, conn)| {
+            let index = match dir {
+                Direction::N => 0,
+                Direction::E => 1,
+                Direction::S => 2,
+                Direction::W => 3,
+            };
+            let cars = match &*conn.upgrade().get() {
+                Node::Street(street) => street.get_num_cars_at_end(),
+                _ => {
+                    error!("Crossing connected with crossing or IONode");
+                    return;
+                }
+            };
+            cars_at_end[index] = cars as f32;
+        });
+        [
+            cars_at_end[0],
+            cars_at_end[1],
+            cars_at_end[2],
+            cars_at_end[3],
+            self.time_since_input_passable[0],
+            self.time_since_input_passable[1],
+            self.time_since_input_passable[2],
+            self.time_since_input_passable[3],
+        ]
+    }
+    /// Is used to set the NN given by the genetic algorithm
+    pub fn set_neural_network(&mut self, nn: art_int::Network) {
+        // make sure the input has the right size
+        assert_eq!(nn.layers[0].neurons[0].weights.len(), 8);
+        self.nn = Some(nn);
+    }
+    /// computes the traffic light state using the neural network
+    pub fn determine_traffic_light_state(&self) -> Result<TrafficLightState, &'static str> {
+        let nn_input = self.calculate_nn_inputs();
+        // the output should be a value between 0 and 1 where 0.25 is state 0, 0.5 is state 1 and so on
+        let nn_output = match &self.nn {
+            Some(nn) => {
+                let out_vec = nn.propagate(nn_input.into());
+                //let out = out_vec.get(0);
+                //out.map(|op| *op).ok_or("NN has no output!")?
+                out_vec
+            }
+            None => return Err("cannot determine traffic state without NeuralNetwork"),
+        };
+        let i = nn_output.iter().enumerate().max_by(| (_, a), (_, b) | a.partial_cmp(b).unwrap_or(Ordering::Equal)).unwrap().0;
+        Ok(
+            match i {
+                0 => TrafficLightState::S0,
+                1 => TrafficLightState::S1,
+                2 => TrafficLightState::S2,
+                3 => TrafficLightState::S3,
+                _ => {warn!("NN returned strange index ({})", i); return Err("Weird index")},
+            }
+        )
+    }
+
+    /// removes the neural network and returns it
+    pub fn remove_neural_network(&mut self) -> Result<art_int::Network, &'static str> {
+        let nn = self.nn.take();
+        nn.ok_or("No neural network to remove!")
+    }
+
     /// Returns a list of only OUTPUT connecitons
     ///
     /// This function is deprecated and will be removed soon
@@ -335,6 +424,11 @@ impl<Car: Movable> Crossing<Car> {
         }
     }
 }
+
+/// information important for calculating the Cost
+#[derive(Clone, Debug)]
+pub struct CostCalcParameters;
+
 /// A Node that represents either the start of the simulation or the end of it
 ///
 /// One of its responsibilities is to add cars and passengers to the simulation
@@ -347,6 +441,8 @@ where
     pub connections: Vec<WeakIntMut<Node<Car>>>,
     /// new Cars/Second
     pub spawn_rate: f64,
+    /// parameters for calculating the cost
+    pub cost_calc_params: CostCalcParameters,
     /// time since last spawn in seconds
     pub time_since_last_spawn: f64,
     /// Tracks how many cars have reached their destination in this node
@@ -356,6 +452,8 @@ where
     pub id: usize,
     /// car cache to be able to return references in the update_cars function
     pub cached: Vec<Car>,
+    /// total cost all cars produced
+    pub total_cost: f32,
     /// The movable server used to spawn new cars
     pub movable_server: Option<IntMut<MovableServer<Car>>>,
 }
@@ -370,9 +468,11 @@ where
             spawn_rate: 1.0,
             time_since_last_spawn: 0.0,
             absorbed_cars: 0,
+            total_cost: 0.0,
             id: 0,
             cached: Vec::new(),
             movable_server: None,
+            cost_calc_params: CostCalcParameters {},
         }
     }
     /// Used when constructing a node from a [NodeBuilder](crate::nodes::NodeBuilder)
@@ -391,6 +491,12 @@ where
     /// get car status (position and lane index)
     pub fn get_car_status(&self) -> Vec<MovableStatus> {
         Vec::new()
+    }
+
+    /// adds car
+    pub fn add_car(&mut self, car: Car) {
+        self.absorbed_cars += 1;
+        self.total_cost += calculate_cost(car.get_report(), &self.cost_calc_params);
     }
 }
 
@@ -445,8 +551,8 @@ impl<Car: Movable> Street<Car> {
         out
     }
     /// Advances the movables on all lanes
-    /// 
-    /// # How is the index calculated? 
+    ///
+    /// # How is the index calculated?
     /// Imagine this set of lanes
     /// ```text
     /// Lane 0: 0  1  2  3  4  5    | num of mov. : 5
@@ -457,7 +563,7 @@ impl<Car: Movable> Street<Car> {
     ///
     /// How can we calculate the lane and the index on that lane
     /// from just this number?
-    /// 
+    ///
     /// * Step 1: 10 - 5 = 5
     /// * Step 2: 5 - 3 = 2
     /// * Step 3: 2 - 4 < 0, so the offset is the number of movables on the previous two lanes
@@ -473,8 +579,15 @@ impl<Car: Movable> Street<Car> {
         }
         movables
     }
+    /// returns the number of cars waiting at the end
+    pub fn get_num_cars_at_end(&self) -> u32 {
+        self.lanes
+            .iter()
+            .map(|lane| lane.num_movables_waiting())
+            .sum()
+    }
     /// removes a movable using the index.
-    /// 
+    ///
     /// to see how the index is calculated, go to the documentation of `update_movable`
     pub fn remove_car(&mut self, index: usize) -> Car {
         let mut element_index = index;
@@ -493,7 +606,7 @@ impl<Car: Movable> Street<Car> {
         for lane in self.lanes.iter() {
             let num_m = lane.num_movables() as isize;
             if element_index - num_m < 0 {
-                return lane.get_movable_by_index(i) 
+                return lane.get_movable_by_index(i);
             }
             element_index -= num_m;
         }
@@ -515,7 +628,10 @@ impl<Car: Movable> Street<Car> {
             .min_by_key(|(_i, traversible)| traversible.num_movables());
         let i = match trav_most_movables {
             Some((i, _)) => i,
-            None => {warn!("Can not determine lane with minimum number of cars."); return},
+            None => {
+                warn!("Can not determine lane with minimum number of cars.");
+                return;
+            }
         };
         self.lanes[i].add(movable)
     }

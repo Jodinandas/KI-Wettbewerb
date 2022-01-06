@@ -1,6 +1,6 @@
 use std::{collections::HashMap, error::Error, fmt::Debug, hash::Hash};
 
-use crate::node::TrafficLightState;
+use crate::node::{CostCalcParameters, TrafficLightState};
 use crate::traits::Movable;
 
 use super::int_mut::{IntMut, WeakIntMut};
@@ -9,6 +9,7 @@ use super::{
     node::{Crossing, IONode, Node, Street},
     traversible::Traversible,
 };
+use art_int::{self, Neuron};
 use dyn_clone::DynClone;
 
 /// A struct that is part of the builder pattern and constructs nodes
@@ -36,6 +37,8 @@ pub trait NodeBuilderTrait: Debug + DynClone + Sync + Send {
     ///
     /// The weight is a measure of how likely cars will got through this node
     fn get_weight(&self) -> f32;
+    /// returns the distance a car has to traverse on this node
+    fn get_node_dist(&self) -> f32;
     /// id in the global list of nodebuilders
     ///
     /// This is necessary in some parts of the code to
@@ -123,6 +126,14 @@ impl NodeBuilderTrait for NodeBuilder {
             NodeBuilder::Street(n) => n.remove_connection(conn),
         }
     }
+
+    fn get_node_dist(&self) -> f32 {
+        match self {
+            NodeBuilder::IONode(n) => n.get_node_dist(),
+            NodeBuilder::Crossing(n) => n.get_node_dist(),
+            NodeBuilder::Street(n) => n.get_node_dist(),
+        }
+    }
 }
 
 /// Builder for [Street]
@@ -196,6 +207,10 @@ impl NodeBuilderTrait for StreetBuilder {
             }
         }
     }
+
+    fn get_node_dist(&self) -> f32 {
+        self.lane_length
+    }
 }
 impl StreetBuilder {
     /// sets the connection to the new value
@@ -262,6 +277,8 @@ impl NodeBuilderTrait for IONodeBuilder {
             id: self.id,
             cached: Vec::new(),
             movable_server: None,
+            total_cost: 0.0,
+            cost_calc_params: CostCalcParameters {},
         })
     }
     fn get_out_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
@@ -290,6 +307,11 @@ impl NodeBuilderTrait for IONodeBuilder {
     fn remove_connection(&mut self, conn: &WeakIntMut<NodeBuilder>) {
         self.connections_out.retain(|c| c != conn);
         self.connections_in.retain(|c| c != conn);
+    }
+
+    // IONodes don't have a length
+    fn get_node_dist(&self) -> f32 {
+        0.0
     }
 }
 impl IONodeBuilder {
@@ -468,6 +490,8 @@ impl NodeBuilderTrait for CrossingBuilder {
             car_lane: Traversible::<RandCar>::new(self.length),
             id: self.id,
             traffic_light_state: TrafficLightState::S0,
+            time_since_input_passable: [0.0; 4],
+            nn: None, // Will be set later with the `set_neural_network` function to keep the function signature consistent
         })
     }
     fn get_out_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
@@ -488,9 +512,13 @@ impl NodeBuilderTrait for CrossingBuilder {
         cout.append(&mut cin);
         cout
     }
+    fn is_connected(&self, other: &IntMut<NodeBuilder>) -> bool {
+        self.connections.is_connected(InOut::OUT, other)
+    }
     fn get_weight(&self) -> f32 {
         1.0
     }
+
     fn get_id(&self) -> usize {
         self.id
     }
@@ -499,13 +527,13 @@ impl NodeBuilderTrait for CrossingBuilder {
         self.id = id
     }
 
-    fn is_connected(&self, other: &IntMut<NodeBuilder>) -> bool {
-        self.connections.is_connected(InOut::OUT, other)
-    }
-
     fn remove_connection(&mut self, conn: &WeakIntMut<NodeBuilder>) {
         self.connections.remove_connection(InOut::IN, conn);
         self.connections.remove_connection(InOut::OUT, conn);
+    }
+
+    fn get_node_dist(&self) -> f32 {
+        self.length
     }
 }
 
