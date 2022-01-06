@@ -320,7 +320,7 @@ impl IONodeBuilder {
         IONodeBuilder {
             connections_out: Vec::new(),
             connections_in: Vec::new(),
-            spawn_rate: 1.0,
+            spawn_rate: 0.05,
             id: 0,
         }
     }
@@ -564,5 +564,9 @@ impl CrossingBuilder {
     /// returns true, if there a connection is present at the specified position
     pub fn has_connection(&self, conn_type: InOut, dir: Direction) -> bool {
         self.connections.has_connection(conn_type, dir)
+    }
+    /// returns the direction of the item
+    pub fn get_direction_for_item(&self, conn_type: InOut, item: &IntMut<NodeBuilder>) -> Option<Direction> {
+        self.connections.get_direction_for_item(conn_type, item)
     }
 }

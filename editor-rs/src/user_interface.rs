@@ -9,7 +9,7 @@ use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder, SimManager};
 
 use crate::{
     tool_systems::SelectedNode, CurrentTheme, NeedsRecolor, NodeBuilderRef, NodeType, UIMode,
-    UIState, UITheme,
+    UIState, themes::UITheme,
 };
 
 /// Draws the ui
@@ -20,7 +20,6 @@ pub fn ui_example(
     egui_context: ResMut<EguiContext>,
     mut ui_state: ResMut<UIState>,
     mut sim_manager: ResMut<SimManager>,
-    meshes: ResMut<Assets<Mesh>>,
     mut background: ResMut<ClearColor>,
     mut theme: ResMut<UITheme>,
     mut current_theme: ResMut<CurrentTheme>,
@@ -51,7 +50,7 @@ pub fn ui_example(
                 .resizable(false)
                 .show(egui_context.ctx(), |ui| {
                     ui.horizontal(|ui| {
-                        ui.heading("ItemEditor");
+                        ui.colored_label(theme.text_color,"ItemEditor");
                         egui::warn_if_debug_build(ui);
                     });
                     ui.separator();
@@ -83,7 +82,7 @@ pub fn ui_example(
                                     NodeBuilder::Crossing(n) => ("Crossing", n.id),
                                     NodeBuilder::Street(n) => ("Street", n.id),
                                 };
-                                ui.label(format!("{:?}\t(id={}): {}", dir, id, ntype));
+                                ui.colored_label(theme.text_color,format!("{:?}\t(id={}): {}", dir, id, ntype));
                                 if ntype == "Street" {
                                     match &mut *c.upgrade().get() {
                                         NodeBuilder::Street(street) => {
@@ -101,12 +100,12 @@ pub fn ui_example(
                         match &mut *selected_node.get() {
                             NodeBuilder::IONode(node) => {
                                 ui.horizontal(|ui| {
-                                    ui.label("Node type: ");
-                                    ui.label("In/Out Node");
+                                    ui.colored_label(theme.text_color, "Node type: ");
+                                    ui.colored_label(theme.text_color,"In/Out Node");
                                 });
                                 ui.horizontal(|ui| {
-                                    ui.label("Node ID: ");
-                                    ui.label(node.id.to_string());
+                                    ui.colored_label(theme.text_color,"Node ID: ");
+                                    ui.colored_label(theme.text_color,node.id.to_string());
                                 });
                                 ui.add(
                                     egui::Slider::new(&mut node.spawn_rate, 0.0..=100.0)
@@ -125,7 +124,7 @@ pub fn ui_example(
                                             NodeBuilder::Crossing(n) => ("Crossing", n.id),
                                             NodeBuilder::Street(n) => ("Street", n.id),
                                         };
-                                        ui.label(format!("(id={}): {}", id, ntype));
+                                        ui.colored_label(theme.text_color, format!("(id={}): {}", id, ntype));
                                         if ntype == "Street" {
                                             match &mut *c.upgrade().get() {
                                                 NodeBuilder::Street(street) => {
@@ -146,12 +145,12 @@ pub fn ui_example(
                             }
                             NodeBuilder::Crossing(node) => {
                                 ui.horizontal(|ui| {
-                                    ui.label("Node type: ");
-                                    ui.label("Crossing");
+                                    ui.colored_label(theme.text_color,"Node type: ");
+                                    ui.colored_label(theme.text_color,"Crossing");
                                 });
                                 ui.horizontal(|ui| {
-                                    ui.label("Node ID: ");
-                                    ui.label(node.id.to_string());
+                                    ui.colored_label(theme.text_color,"Node ID: ");
+                                    ui.colored_label(theme.text_color,node.id.to_string());
                                 });
                                 CollapsingHeader::new(format!(
                                     "Connections IN ({})",
@@ -168,12 +167,12 @@ pub fn ui_example(
                             }
                             NodeBuilder::Street(node) => {
                                 ui.horizontal(|ui| {
-                                    ui.label("Node type: ");
-                                    ui.label("Street");
+                                    ui.colored_label(theme.text_color,"Node type: ");
+                                    ui.colored_label(theme.text_color,"Street");
                                 });
                                 ui.horizontal(|ui| {
-                                    ui.label("Node ID: ");
-                                    ui.label(node.id.to_string());
+                                    ui.colored_label(theme.text_color,"Node ID: ");
+                                    ui.colored_label(theme.text_color,node.id.to_string());
                                 });
                             }
                         }
@@ -205,7 +204,7 @@ pub fn ui_example(
             // egui::CentralPanel::default()
             egui::CentralPanel::default().show(egui_context.ctx(), |ui| {
                 ui.horizontal(|ui| {
-                    ui.heading("Preferences");
+                    ui.colored_label(theme.text_color,"Preferences");
                     ui.spacing();
                     if ui.button("(Close)").clicked() {
                         ui_state.to_prev_mode();
@@ -236,7 +235,7 @@ pub fn ui_example(
     }
 }
 
-fn repaint_ui(
+pub fn repaint_ui(
     mut commands: Commands,
     egui_ui: Option<&CtxRef>,
     background: &mut ResMut<ClearColor>,

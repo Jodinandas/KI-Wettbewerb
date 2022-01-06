@@ -23,7 +23,7 @@ use crate::{
         ConnectorCircleIn, ConnectorCircleOut, CrossingBundle, IONodeBundle, InputCircle,
         OutputCircle, StreetBundle,
     },
-    AddStreetStage, StreetLinePosition, CONNECTOR_DISPLAY_RADIUS,
+    AddStreetStage, StreetLinePosition, CONNECTOR_DISPLAY_RADIUS, calculate_offset_from_crossing_in,
 };
 use crate::{
     node_bundles::node_render, themes::UITheme, toolbar::ToolType, Camera, NeedsRecolor,
@@ -193,6 +193,7 @@ pub fn generate_connectors(
 /// Stores info needed when constructing a new street
 pub struct NewStreetInfo {
     pub start_id: SimulationID,
+    pub start_nbr: NodeBuilderRef,
     pub out_conn_type: OutputCircle,
 }
 
@@ -201,15 +202,15 @@ pub struct NewStreetInfo {
 pub fn connector_clicked(
     mut stage: ResMut<AddStreetStage>,
     out_circles: QuerySet<(
-        Query<(&Parent, &GlobalTransform, &OutputCircle), With<UnderCursor>>,
+        Query<(&Parent, &OutputCircle), With<UnderCursor>>,
         Query<Entity, With<OutputCircle>>,
     )>,
     in_circles: QuerySet<(
-        Query<(&Parent, &GlobalTransform, &InputCircle), With<UnderCursor>>,
+        Query<(&Parent, &InputCircle), With<UnderCursor>>,
         Query<Entity, With<InputCircle>>,
     )>,
     street: Query<(Entity, &NewStreetInfo, &StreetLinePosition), With<PlacingStreet>>,
-    parent_nodes: Query<&SimulationID>,
+    parent_nodes: Query<(&SimulationID, &Transform, &NodeBuilderRef)>,
     mut sim_manager: ResMut<SimManager>,
     windows: Res<Windows>,
     theme: Res<UITheme>,
@@ -228,18 +229,19 @@ pub fn connector_clicked(
     }
     match *stage {
         AddStreetStage::SelectingOutput => {
-            if let Ok((parent_node, pos, ctype)) = out_circles.q0().single() {
-                let start = Vec2::new(pos.translation.x, pos.translation.y);
-                let new_street = node_render::street(start, mouse_pos, theme.placing_street);
-                let id = parent_nodes
+            if let Ok((parent_node, ctype)) = out_circles.q0().single() {
+                let (id, parent_trans, nbr) = parent_nodes
                     .get(parent_node.0)
                     .expect("There is no parent for connector!");
+                let start = Vec2::new(parent_trans.translation.x, parent_trans.translation.y);
+                let new_street = node_render::street(start, mouse_pos, theme.placing_street);
                 info!("Starting to create new Street at position {:?}", start);
                 commands
                     .spawn()
                     .insert_bundle(new_street)
                     .insert(PlacingStreet)
                     .insert(NewStreetInfo {
+                        start_nbr: nbr.clone(),
                         start_id: id.clone(),
                         out_conn_type: *ctype,
                     })
@@ -256,13 +258,14 @@ pub fn connector_clicked(
             }
         }
         AddStreetStage::SelectingInput => {
-            if let Ok((parent, _pos, ctype)) = in_circles.q0().single() {
+            if let Ok((parent, ctype)) = in_circles.q0().single() {
                 let (entity, street_info, street_pos) = street
                     .single()
                     .expect("Unable to get street even though input connector was clicked");
-                let end_id = parent_nodes
+                let (end_id, parent_pos, nbr) = parent_nodes
                     .get(parent.0)
                     .expect("There is no parent for connector!");
+                let parent_pos = Vec2::new(parent_pos.translation.x, parent_pos.translation.y);
                 let builder = match sim_manager.modify_sim_builder() {
                     Ok(b) => b,
                     Err(_) => return,
@@ -275,12 +278,16 @@ pub fn connector_clicked(
                     Ok(s) => s,
                     Err(e) => panic!("{}", e),
                 };
+                // set the correct offset so that streets are parallel
+                let node_start = street_info.start_nbr.0.get();
+                let node_end = nbr.0.get();
+                let offset = calculate_offset_from_crossing_in(new_street, &node_start, &node_end);
                 let new_street_id = new_street.get().get_id();
                 let street_bundle = StreetBundle::new(
                     new_street_id,
                     new_street,
-                    street_pos.0,
-                    street_pos.1,
+                    street_pos.0+offset,
+                    parent_pos+offset,
                     theme.street,
                 );
                 info!("new Street with position {} {}", street_pos.0, street_pos.1);
