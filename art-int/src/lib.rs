@@ -79,7 +79,7 @@ fn crossover_neurons(n1: &Neuron, n2: &Neuron, rng: &mut ThreadRng) -> Neuron {
 }
 
 impl IndividualComponent for Network {
-    fn crossover(&self, other: Self, rng: &mut ThreadRng) -> Self {
+    fn crossover(&self, other: &Self, rng: &mut ThreadRng) -> Self {
         // operate on two layers in the same position at the same time
         let new_layers = self
             .layers

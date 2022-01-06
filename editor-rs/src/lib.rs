@@ -110,7 +110,7 @@ pub enum NodeType {
 }
 
 const GRID_NODE_SPACING: usize = 100;
-const GRID_SIDE_LENGTH: usize = 5;
+const GRID_SIDE_LENGTH: usize = 70;
 const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
 const CROSSING_SIZE: f32 = 20.0;
@@ -320,7 +320,7 @@ fn spawn_node_grid(
         .modify_sim_builder()
         .expect("Simulation is running while trying to construct grid");
     *new_builder = build_grid_sim(side_len as u32);
-    new_builder.with_delay(100).with_dt(2.0);
+    new_builder.with_delay(0).with_dt(2.0);
     info!("spawning node grid");
 
     let calc_y = |ie| ((side_len - ie / side_len) * spacing) as f32;

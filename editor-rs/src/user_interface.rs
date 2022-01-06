@@ -188,8 +188,8 @@ pub fn ui_example(
                     ui.separator();
                     if ui.button("Start Simulation").clicked() {
                         ui_state.mode = UIMode::Simulator;
-                        let num_sims = 1;
-                        match sim_manager.simulate(num_sims) {
+                        let num_sims = 15;
+                        match sim_manager.simulate(num_sims, 10) {
                             Ok(_) => info!("Starting with {} concurrent Simulations", num_sims),
                             Err(e) => error!("Unable to start Simulations. Error: {}", e),
                         }
