@@ -50,7 +50,7 @@ struct Simulating {
     pub current_generation: IntMut<u32>,
     /// if set to true, the current Generation will be evolved forcefully
     pub terminate_generation: IntMut<bool>,
-    pub generation_thread_handle: JoinHandle<Vec<SimData>>,
+    pub generation_thread_handle: Option<JoinHandle<Vec<SimData>>>,
     /// status information for all the simulations
     simulation_information: Vec<SimulationStatus>,
 }
@@ -140,17 +140,20 @@ impl Simulating {
                     }
                     data
                 }).collect();
-                // TODO: Maybe make this more efficient
-                let old_nns_and_costs: Vec<(f32, Vec<Network>)> = terminated_sims.iter_mut().map(
-                    | s | (s.simulator.calculate_sim_cost(), s.simulator.remove_all_neural_networks())
-                ).collect();
-                terminated_sims.iter_mut().for_each( | s | {
-                    let parent_a = &old_nns_and_costs.choose_weighted(&mut rng, | (cost, _nns) | 1.0/cost).expect("Empty population").1;
-                    let parent_b = &old_nns_and_costs.choose_weighted(&mut rng, | (cost, _nns) | 1.0/cost).expect("Empty population").1;
-                    let mut crossed = crossover_sim_nns(parent_a, parent_b, &mut rng);
-                    mutate_sim_nns(&mut rng, &mut crossed, mutation_chance, mutation_coeff);
-                    s.simulator.set_neural_networks(crossed);
-                });
+                if !*data.terminate.get() {
+                    // TODO: Maybe make this more efficient
+                    let old_nns_and_costs: Vec<(f32, Vec<Network>)> = terminated_sims.iter_mut().map(
+                        | s | (s.simulator.calculate_sim_cost(), s.simulator.remove_all_neural_networks())
+                    ).collect();
+                    terminated_sims.iter_mut().for_each( | s | {
+                        let parent_a = &old_nns_and_costs.choose_weighted(&mut rng, | (cost, _nns) | 1.0/cost).expect("Empty population").1;
+                        let parent_b = &old_nns_and_costs.choose_weighted(&mut rng, | (cost, _nns) | 1.0/cost).expect("Empty population").1;
+                        let mut crossed = crossover_sim_nns(parent_a, parent_b, &mut rng);
+                        mutate_sim_nns(&mut rng, &mut crossed, mutation_chance, mutation_coeff);
+                        s.simulator.set_neural_networks(crossed);
+                    });
+
+                }
             }
             *terminated_ref.get() = true;
             terminated_sims
@@ -160,7 +163,7 @@ impl Simulating {
             terminate,
             terminated,
             current_generation: IntMut::new(0),
-            generation_thread_handle: handle,
+            generation_thread_handle: Some(handle),
             report_updates,
             terminate_generation,
             simulation_information,
@@ -181,6 +184,19 @@ impl Simulating {
             *do_report.get() = i == j
         });
         Ok(())
+    }
+}
+
+impl Drop for Simulating {
+    /// Terminate all simulation and wait for them to finish
+    fn drop(&mut self) {
+        *self.terminate.get() = true;
+        if let Some(handle) = self.generation_thread_handle.take() {
+            match handle.join() {
+                Ok(_) => info!("Terminated thread handling Simulations"),
+                Err(err) => error!("Unable to join thread managing Simulations {:?}", err),
+            }
+        }
     }
 }
 

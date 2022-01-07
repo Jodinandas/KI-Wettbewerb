@@ -67,6 +67,7 @@ where
 impl<Car: Movable> Simulator<Car> {
     /// Update all nodes moving the cars and people to the next
     /// nodes
+    #[tracing::instrument(skip(self))]
     pub fn update_all_nodes(&mut self, dt: f64) {
         for i in 0..self.nodes.len() {
             let node = &self.nodes[i];
@@ -152,8 +153,9 @@ impl<Car: Movable> Simulator<Car> {
         });
     }
     
-        /// returns the total cost of all the cars in the simulation 
-        /// (including those that have already been destroyed)
+    /// returns the total cost of all the cars in the simulation 
+    /// (including those that have already been destroyed)
+    #[tracing::instrument(skip(self))]
     pub fn calculate_sim_cost(&self) -> f32 {
         self.nodes
             .iter()
@@ -200,6 +202,7 @@ impl<Car: Movable> Simulator<Car> {
     }
 
     /// a single iteration
+    #[tracing::instrument(skip(self))]
     pub fn sim_iter(&mut self) {
         // At the moment all nodes are updated
         // error!("{}", self.delay);
@@ -210,6 +213,7 @@ impl<Car: Movable> Simulator<Car> {
     /// returns status information for all of the cars in the simulation
     ///
     /// the key of the HashMap is the node index
+    #[tracing::instrument(skip(self))]
     pub fn get_car_status(&mut self) -> HashMap<usize, Vec<MovableStatus>> {
         let mut mapped_node = HashMap::new();
         for n in self.nodes.iter_mut() {
@@ -231,6 +235,7 @@ impl<Car: Movable> Simulator<Car> {
     /// **Be very careful!**: If the recording feature is enabled, the IONodes will
     /// fill up a list of cars that have reached the end. These cars will only ever
     /// be deleted if one calls the `get_car_status` method
+    #[tracing::instrument(skip(self))]
     pub fn set_car_recording(&mut self, record: bool) {
         self.nodes.iter_mut().for_each(| n | {
             match &mut *n.get() {
