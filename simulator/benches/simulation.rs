@@ -10,7 +10,7 @@ fn simulation_performance_bench(c: &mut Criterion) {
     let mut size: u32 = 100;
     for _i in 1..5 {
         size *= 2;
-        let mut sim_builder = build_grid_sim(size);
+        let mut sim_builder = build_grid_sim(size, 100.0);
         let mut mv_server = MovableServer::<PathAwareCar>::new();
         mv_server.register_simulator_builder(&sim_builder);
         let mv_server = IntMut::new(mv_server);

@@ -20,7 +20,7 @@ mod tool_systems;
 mod toolbar;
 mod user_interface;
 #[allow(unused_imports)]
-use log::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 use node_bundles::node_render;
 
 use crate::node_bundles::{CrossingBundle, IONodeBundle, StreetBundle};
@@ -113,7 +113,7 @@ pub enum NodeType {
 }
 
 const GRID_NODE_SPACING: usize = 100;
-const GRID_SIDE_LENGTH: usize = 7;
+const GRID_SIDE_LENGTH: usize = 3;
 const STREET_THICKNESS: f32 = 5.0;
 // const STREET_SPACING: usize = 20;
 const CROSSING_SIZE: f32 = 20.0;
@@ -130,7 +130,7 @@ const CAR_SIZE: f32 = 1.5;
 #[wasm_bindgen]
 pub fn run() {
     let mut app = App::build();
-    app.add_plugins(DefaultPlugins)
+    app.add_plugins_with(DefaultPlugins, | group | { group.disable::<bevy::log::LogPlugin>() } )
         .add_plugin(EguiPlugin)
         .add_plugin(ShapePlugin)
         .init_resource::<UIState>()
@@ -412,7 +412,7 @@ fn spawn_node_grid(
     let new_builder = sim_manager
         .modify_sim_builder()
         .expect("Simulation is running while trying to construct grid");
-    *new_builder = build_grid_sim(side_len as u32);
+    *new_builder = build_grid_sim(side_len as u32, GRID_NODE_SPACING as f32);
     new_builder.with_delay(0).with_dt(2.0);
     info!("spawning node grid");
 
@@ -424,7 +424,7 @@ fn spawn_node_grid(
         .iter()
         .enumerate()
         .for_each(|(i, n_builder)| {
-            match &*(*n_builder).get() {
+            match &mut *(*n_builder).get() {
                 // generates the entities displaying the
                 NodeBuilder::Crossing(_crossing) => {
                     let x = calc_x(i);
@@ -460,6 +460,9 @@ fn spawn_node_grid(
                             
                             let pos_j = Vec2::new(calc_x(index_in), calc_y(index_in)) + offset;
                             let pos_i = Vec2::new(calc_x(index_out), calc_y(index_out)) + offset;
+                            // set the length in the backend
+                            let len = (pos_j - pos_i).length();
+                            street.lane_length = len;
                             commands.spawn_bundle(StreetBundle::new(
                                 i,
                                 n_builder,

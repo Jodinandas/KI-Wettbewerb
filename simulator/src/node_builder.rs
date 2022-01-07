@@ -279,6 +279,8 @@ impl NodeBuilderTrait for IONodeBuilder {
             movable_server: None,
             total_cost: 0.0,
             cost_calc_params: CostCalcParameters {},
+            record: false,
+            recorded_cars: Vec::new(),
         })
     }
     fn get_out_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {

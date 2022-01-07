@@ -4,8 +4,9 @@ use crate::pathfinding::PathAwareCar;
 use crate::{SimulatorBuilder, Simulator};
 use art_int::genetics::{crossover_sim_nns, mutate_sim_nns};
 use art_int::{LayerTopology, ActivationFunc, Network};
+use tracing::{info_span, span, Level};
 #[allow(unused_imports)]
-use log::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use std::collections::HashMap;
@@ -111,20 +112,28 @@ impl Simulating {
             }));
             let mut rng = thread_rng();
             let mut terminated_sims: Vec<SimData> = simulation_data;
-            for _generation in 0..generations {
+            for generation in 0..generations {
                 terminated_sims = terminated_sims.into_par_iter()
                  .map( move | mut data | {
+                    let span = span!(Level::TRACE, "simulation", sim_index=generation);
+                    let _enter = span.enter();
                     info!("starting Simulation thread");
                     println!("Starting sim thread");
                     panic::set_hook(Box::new(|e| {
                         error!("Simulation panicked! Backtrace: {}", e);
                     }));
                     let mut _i = 0;
+                    let mut previous_tracking_setting = false;
                     while !*data.terminate_generation.get() &&  !*data.terminate.get() {
                         _i += 1;
                         data.simulator.sim_iter();
+                        let report_updates = *data.report_updates.get();
                         // report car position updates
-                        if *data.report_updates.get() {
+                        if previous_tracking_setting != report_updates {
+                            data.simulator.set_car_recording(report_updates);
+                            previous_tracking_setting = report_updates;
+                        }
+                        if report_updates {
                             let updates = data.simulator.get_car_status();
                             data.channel.send(updates).expect("Unable to send car status updates, even though report_updates is set to true");
                         }
@@ -231,7 +240,7 @@ impl Display for SimulationDoesNotExistError {
 impl SimManager {
     /// creates a new SimManager with an empty SimulationBuilder
     pub fn new() -> SimManager {
-        let mut sim_builder = SimulatorBuilder::<PathAwareCar>::new();
+        let sim_builder = SimulatorBuilder::<PathAwareCar>::new();
         let movable_server = MovableServer::<PathAwareCar>::new();
         SimManager {
             movable_server: IntMut::new(movable_server),
@@ -240,7 +249,7 @@ impl SimManager {
             mutation_chance: 0.01,
             mutation_coeff: 0.3,
             is_simulating: false,
-            population: 10,
+            population: 1,
             generations: 10
         }
     }
@@ -305,7 +314,7 @@ impl SimManager {
     pub fn get_status_updates(&self) -> Option<HashMap<usize, Vec<MovableStatus>>> {
         if let Some(sim) = &self.simulations {
             if let Ok(value) = sim.car_updates.lock().expect("Unable to aquire lock on Car Update Receiver")
-            .recv_timeout(Duration::from_millis(20))
+            .recv_timeout(Duration::from_millis(2))
                 {
                     return Some(value)
                 }

@@ -6,7 +6,7 @@ use crate::pathfinding::PathAwareCar;
 /// Builds a grid with side length `grid_side_len`
 /// The edges are IONodes, the crossings and IONodes
 /// are connected to neighbours with streets
-pub fn build_grid_sim(grid_side_len: u32) -> SimulatorBuilder {
+pub fn build_grid_sim(grid_side_len: u32, street_len: f32) -> SimulatorBuilder {
     // generate a number of streets connected with crossings in a grid
     //    0 1  2  3  4  5  6  7
     // 0    IO IO IO IO IO IO
@@ -54,12 +54,14 @@ pub fn build_grid_sim(grid_side_len: u32) -> SimulatorBuilder {
                         ((i * grid_side_len + j) as usize, Direction::W),
                         ((i * grid_side_len + j - 1) as usize, Direction::E),
                         1,
+                        street_len
                     )
                     .expect("p1");
                     sim.connect_with_street(
                         ((i * grid_side_len + j - 1) as usize, Direction::E),
                         ((i * grid_side_len + j) as usize, Direction::W),
                         1,
+                        street_len
                     )
                     .expect("p2");
                 } else if is_bottom_edge && (j != 0 && j != grid_side_len - 1) {
@@ -67,12 +69,14 @@ pub fn build_grid_sim(grid_side_len: u32) -> SimulatorBuilder {
                         ((i * grid_side_len + j) as usize, Direction::N),
                         (((i - 1) * grid_side_len + j) as usize, Direction::S),
                         1,
+                        street_len
                     )
                     .expect("p3");
                     sim.connect_with_street(
                         (((i - 1) * grid_side_len + j) as usize, Direction::S),
                         ((i * grid_side_len + j) as usize, Direction::N),
                         1,
+                        street_len
                     )
                     .expect("p4");
                 }
@@ -81,24 +85,28 @@ pub fn build_grid_sim(grid_side_len: u32) -> SimulatorBuilder {
                     ((i * grid_side_len + j) as usize, Direction::W),
                     ((i * grid_side_len + j - 1) as usize, Direction::E),
                     1,
+                        street_len
                 )
                 .expect("p5");
                 sim.connect_with_street(
                     ((i * grid_side_len + j) as usize, Direction::N),
                     (((i - 1) * grid_side_len + j) as usize, Direction::S),
                     1,
+                        street_len
                 )
                 .expect("p6");
                 sim.connect_with_street(
                     ((i * grid_side_len + j - 1) as usize, Direction::E),
                     ((i * grid_side_len + j) as usize, Direction::W),
                     1,
+                        street_len
                 )
                 .expect("p7");
                 sim.connect_with_street(
                     (((i - 1) * grid_side_len + j) as usize, Direction::S),
                     ((i * grid_side_len + j) as usize, Direction::N),
                     1,
+                        street_len
                 )
                 .expect("p8");
             }

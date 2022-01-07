@@ -8,7 +8,7 @@ fn simulation_builder_bench(c: &mut Criterion) {
         size *= 2;
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &_size| {
             b.iter(|| {
-                build_grid_sim(size);
+                build_grid_sim(size, 100.0);
             })
         });
     }

@@ -14,7 +14,7 @@ use super::node::Node;
 use super::node_builder::NodeBuilder;
 use super::simulation::NodeDoesntExistError;
 #[allow(unused_imports)]
-use log::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 /// A car with a predefined path.
 #[derive(Debug, Clone)]
@@ -36,7 +36,7 @@ struct PathError {
 
 impl Display for PathError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "PathError: {}", self.msg)
+        write!(f, "PathError: {} | expected {:?} | available {:?}", self.msg, self.expected_node, self.available_nodes)
     }
 }
 
@@ -155,7 +155,6 @@ impl Movable for PathAwareCar {
                 ) {
                     return Ok(Some(next_node.clone()));
                 } else {
-                    warn!("Red Light");
                     return Ok(None);
                 }
             }
@@ -380,7 +379,7 @@ impl<Car: Movable> MovableServer<Car> {
             // Reverse list of nodes to be able to pop off the last element
             path.reverse();
             // IONode is the first element
-            // println!("Path: {:?}", path);
+            info!("Generated new car with Path: {:?}", path);
             path.pop();
             let mut car = Car::new(); // PathAwareCar { speed: 1.0, path, id: self.car_count };
             car.set_speed(1.0);
@@ -402,7 +401,7 @@ mod tests {
         use crate::debug::build_grid_sim;
         use crate::pathfinding::MovableServer;
         use crate::pathfinding::PathAwareCar;
-        let simbuilder = build_grid_sim(4);
+        let simbuilder = build_grid_sim(4, 100.0);
         let mut test = MovableServer::<PathAwareCar>::new();
         test.register_simulator_builder(&simbuilder);
         println!("{:?}", test.generate_movable(4));

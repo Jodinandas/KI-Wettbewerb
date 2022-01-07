@@ -180,6 +180,7 @@ impl<Car: Movable> SimulatorBuilder<Car> {
         node_info1: (usize, Direction),
         node_info2: (usize, Direction),
         lanes: u8,
+        street_length: f32
     ) -> Result<&IntMut<NodeBuilder>, Box<dyn Error>> {
         let (idnode1, dir1) = node_info1;
         let (idnode2, dir2) = node_info2;
@@ -206,6 +207,7 @@ impl<Car: Movable> SimulatorBuilder<Car> {
         let node2 = &self.nodes[inode2];
         // create a new street to connect them
         let mut new_street = StreetBuilder::new().with_lanes(lanes);
+        new_street.lane_length = street_length;
         new_street
             .connect(InOut::IN, node1)
             .connect(InOut::OUT, node2);
@@ -562,10 +564,10 @@ mod tests {
         simulator.add_node(NodeBuilder::IONode(IONodeBuilder::new()));
         simulator.add_node(NodeBuilder::Crossing(CrossingBuilder::new()));
         simulator
-            .connect_with_street((0, Direction::E), (1, Direction::W), 2)
+            .connect_with_street((0, Direction::E), (1, Direction::W), 2, 100.0)
             .unwrap();
         simulator
-            .connect_with_street((1, Direction::S), (0, Direction::N), 3)
+            .connect_with_street((1, Direction::S), (0, Direction::N), 3, 100.0)
             .unwrap();
     }
 }

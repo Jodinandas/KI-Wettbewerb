@@ -114,7 +114,7 @@ pub fn draw_user_interface(
                                     ui.colored_label(theme.text_color,node.id.to_string());
                                 });
                                 ui.add(
-                                    egui::Slider::new(&mut node.spawn_rate, 0.0..=100.0)
+                                    egui::Slider::new(&mut node.spawn_rate, 0.0..=1.0)
                                         .text("spawn rate")
                                         .clamp_to_range(true),
                                 );

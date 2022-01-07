@@ -32,7 +32,7 @@ where
     fn id(&self) -> usize;
     /// returns a vector of [MovableStatus] structs containing information
     /// on cars
-    fn get_car_status(&self) -> Vec<MovableStatus>;
+    fn get_car_status(&mut self) -> Vec<MovableStatus>;
     /// removes a car by reference
     fn rm_car_by_ref(&mut self, car: &Car) -> Car;
     /// removes a car with its index
