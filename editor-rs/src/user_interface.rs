@@ -123,6 +123,7 @@ pub fn draw_user_interface(
 
                                         });
                                         let nn = sim_info.nn;
+                                        info!("Loaded Simulation Builder");
                                     },
                                     Err(err) => {
                                         error!("Unable to load from file. Error: {}", err);

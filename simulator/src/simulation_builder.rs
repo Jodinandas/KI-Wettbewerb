@@ -2,8 +2,6 @@ use crate::node::CostCalcParameters;
 use crate::node_builder::InOut;
 use crate::pathfinding::{MovableServer, PathAwareCar};
 use crate::traits::{Movable, NodeTrait};
-use serde::ser::StdError;
-use tracing::{info, event};
 
 use super::int_mut::IntMut;
 use super::node::Node;
@@ -14,7 +12,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{self};
 
-use serde::{Deserialize, Serialize, Deserializer};
+use serde::{Deserialize, Serialize};
 
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -76,7 +74,7 @@ impl JsonNode {
                     .with_lanes(jstreet.lanes)
                     .with_length(jstreet.length);
                 street.set_id(jstreet.id);
-                println!("Creating STreet with id: {}", street.get_id());
+                // println!("Creating STreet with id: {}", street.get_id());
                 NodeBuilder::Street(street)
             },
         }
@@ -345,7 +343,7 @@ impl<Car: Movable> SimulatorBuilder<Car> {
 
                                     // get direction of input
                                     let direction = crossing_builder.connections.get_direction_for_item(InOut::IN, start_node_arc)
-                                        .expect("Street output is connected to Crossing, but the Crossing input is not connected to street.");
+                                        .expect(&format!("Street(id={}) output is connected to Crossing (id={}), but the Crossing input is not connected to street.", start_id, target.id));
                                     target.connect(direction, InOut::IN, starting_node)
                                         .unwrap();
                                 },
@@ -583,7 +581,7 @@ impl<'de> Deserialize<'de> for SimulatorBuilder {
         builder.next_id = json_representation.next_id;
 
         builder.nodes = nodes;
-        info!("nodes: {:#?}", builder.nodes);
+        // info!("nodes: {:#?}", builder.nodes);
         // connect the crossings with streets
         for (i, node) in json_representation.nodes.iter().enumerate() {
             match node {
@@ -613,7 +611,7 @@ impl<'de> Deserialize<'de> for SimulatorBuilder {
                         } else {panic!()}
                     }
                     for id_out in jio_node.connected_out.iter() {
-                        info!("Parsing info for node with id: {}, conn_id: {}", jio_node.id, id_out);
+                        // info!("Parsing info for node with id: {}, conn_id: {}", jio_node.id, id_out);
                         let target = builder.nodes.iter().find( | n | n.get().get_id() == *id_out).unwrap();
                         if let NodeBuilder::IONode(io_node) = &mut *builder.nodes[i].get() {
                             io_node.connect(InOut::OUT, target);
@@ -627,7 +625,7 @@ impl<'de> Deserialize<'de> for SimulatorBuilder {
                             street.connect(InOut::IN, target);
                         } else {panic!()}
                     }
-                    if let Some(id_out) = jstreet.conn_in {
+                    if let Some(id_out) = jstreet.conn_out {
                         let target = builder.nodes.iter().find( | n | n.get().get_id() == id_out).unwrap();
                         if let NodeBuilder::Street(street) = &mut *builder.nodes[i].get() {
                             street.connect(InOut::OUT, target);
