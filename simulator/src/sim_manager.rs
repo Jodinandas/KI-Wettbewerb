@@ -56,7 +56,7 @@ struct Simulating {
 }
 
 /// used to encapsulate data used when creating a Simulator
-struct SimData {
+pub struct SimData {
     pub simulator: Simulator,
     pub channel: mpsc::Sender<HashMap<usize, Vec<MovableStatus>>>,
     pub report_updates:  IntMut<bool>,
@@ -186,15 +186,18 @@ impl Simulating {
         });
         Ok(())
     }
-    pub fn terminate(&mut self) -> SimulationReport {
+    pub fn terminate(&mut self) -> Result<SimulationReport, String> {
         *self.terminate.get() = true;
         if let Some(handle) = self.generation_thread_handle.take() {
             match handle.join() {
-                Ok(_) => info!("Terminated thread handling Simulations"),
-                Err(err) => error!("Unable to join thread managing Simulations {:?}", err),
+                Ok(sim_data) => {
+                    info!("Terminated thread handling Simulations");
+                    return Ok(SimulationReport::new(sim_data))
+                },
+                Err(err) => return Err(format!("Could not terminate thread handling Simulations: {:?}", err)),
             }
         }
-        SimulationReport
+        Err("No thread to terminate".to_string())
     }
 }
 
@@ -207,7 +210,17 @@ impl Drop for Simulating {
     
 
     
-pub struct SimulationReport;
+pub struct SimulationReport {
+    pub sims: Vec<(f32, SimData)>
+}
+
+impl SimulationReport {
+    pub fn new(mut sims: Vec<SimData>) -> SimulationReport {
+        SimulationReport {
+            sims: sims.drain(..).map( | s | (s.simulator.calculate_sim_cost(), s)).collect(),
+        }
+    }
+}
 
 /// This struct saves a list of currently simulating Simulators
 /// It also provides the ability to get car updates one of the currently
@@ -217,7 +230,7 @@ pub struct SimManager {
     movable_server: IntMut<MovableServer>,
     /// the sim builder generates new simulations and can be used to
     /// configure them (before simulating)
-    sim_builder: SimulatorBuilder, // <PathAwareCar>, TODO: Finally implement generics in the simulator struct
+    sim_builder: SimulatorBuilder, 
     /// A list of currently running Simulators
     simulations: Option<Simulating>,
     /// how likely the nn is to mutate
@@ -337,8 +350,10 @@ impl SimManager {
     /// terminates the simulations and generates a report for it
     pub fn terminate_sims(&mut self) {
         if let Some(sim) = &mut self.simulations {
-            let report = sim.terminate();
-            self.simulation_report = Some(report);
+            match sim.terminate() {
+                Ok(report) => self.simulation_report = Some(report),
+                Err(err) => error!("Could not terminate simulations sucessfully. Error: {}", err)
+            }
             self.simulations = None ;
             self.is_simulating = false;
         }

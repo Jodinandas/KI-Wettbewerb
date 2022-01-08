@@ -63,7 +63,6 @@ pub fn display_cars(
                                     true => commands.entity(entity).despawn(),
                                     false => *transform.translation = *Vec3::new(new_car_position.x, new_car_position.y, CAR_Z)
                                 }
-                                trace!("Generated new car at {}", new_car_position);
                             }
                             None => {
                                 let new_car = render_car(new_car_position, theme.car_color);
