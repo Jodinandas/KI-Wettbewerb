@@ -30,7 +30,7 @@ impl<T: Movable> Traversible<T> {
         }
     }
     /// update all the movables by timestep `t` and return the index of all that have reached the end
-    pub fn update_movables(&mut self, t: f64) -> Vec<usize> {
+    pub fn update_movables(&mut self, t: f32) -> Vec<usize> {
         // let mut out = Vec::<&mut T>::new();
         // for i in 0..self.movables.len() {
         let mut out = Vec::new();
@@ -43,7 +43,10 @@ impl<T: Movable> Traversible<T> {
             if is_at_end {
                 out.push(i)
             }
-            let pos_delta = t as f32 * m.get_speed();
+            m.update(t);
+            let speed = m.get_speed();
+            let pos_delta = t as f32 * (speed[1] - speed[0])*0.3;
+            m.set_current_speed((speed[1] - speed[0])*0.3);
             if is_at_end || (part_of_waiting && (dist_last - (*dist + pos_delta)) <= CAR_SPACING) {
                 part_of_waiting = true;
                 movables_waiting += 1;

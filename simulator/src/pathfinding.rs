@@ -22,6 +22,7 @@ use tracing::{debug, error, info, trace, warn};
 #[derive(Debug, Clone)]
 pub struct PathAwareCar {
     speed: f32,
+    current_speed: f32,
     path: Vec<usize>,
     time_spent: f32,
     dist_traversed: f32,
@@ -45,8 +46,9 @@ impl Display for PathError {
 impl Error for PathError {}
 
 impl Movable for PathAwareCar {
-    fn get_speed(&self) -> f32 {
-        self.speed.clone()
+    /// returns current/max speed for Car
+    fn get_speed(&self) -> [f32;2] {
+        [self.current_speed.clone(), self.speed.clone()]
     }
 
     fn set_speed(&mut self, s: f32) {
@@ -65,6 +67,7 @@ impl Movable for PathAwareCar {
         PathAwareCar {
             time_spent: 0.0,
             speed: 0.0,
+            current_speed: 0.0,
             path: Vec::new(),
             id: 0,
             dist_traversed: 0.0,
@@ -179,6 +182,10 @@ impl Movable for PathAwareCar {
             Some(pos) => {}
             None => warn!("Could not remove last element while advancing to the next node"),
         }
+    }
+
+    fn set_current_speed(&mut self, cs: f32) {
+        self.current_speed = cs
     }
 }
 

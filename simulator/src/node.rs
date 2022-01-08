@@ -46,7 +46,7 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
         match self {
             Node::Street(street) => street.update_movables(t),
             Node::IONode(io_node) => io_node.update_cars(t),
-            Node::Crossing(crossing) => crossing.car_lane.update_movables(t),
+            Node::Crossing(crossing) => crossing.car_lane.update_movables(t as f32),
         }
     }
 
@@ -601,7 +601,7 @@ impl<Car: Movable> Street<Car> {
         let mut offset = 0;
         let mut movables = Vec::new();
         for traversible in self.lanes.iter_mut() {
-            for m in traversible.update_movables(t) {
+            for m in traversible.update_movables(t as f32) {
                 movables.push(m + offset)
             }
             offset += traversible.num_movables();
