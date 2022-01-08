@@ -15,8 +15,9 @@ use std::{cmp, ptr, thread};
 use super::int_mut::{IntMut, WeakIntMut};
 use super::node::Node;
 use art_int::LayerTopology;
+use tracing::event;
 #[allow(unused_imports)]
-use log::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 use rand::thread_rng;
 
 /// Error is thrown when a node that should exist, doesn't exist anymore
@@ -67,6 +68,7 @@ where
 impl<Car: Movable> Simulator<Car> {
     /// Update all nodes moving the cars and people to the next
     /// nodes
+    #[tracing::instrument(skip(self))]
     pub fn update_all_nodes(&mut self, dt: f64) {
         for i in 0..self.nodes.len() {
             let node = &self.nodes[i];
@@ -84,19 +86,18 @@ impl<Car: Movable> Simulator<Car> {
                     .get_car_by_index(cars_at_end[j])
                     .decide_next(&options, node);
                 match next {
-                    Err(_) => {
+                    Err(err) => {
                         warn!(
-                            "Unable to decide next node for car with index {} at node {}",
-                            j, i
+                            "Unable to decide next node for car with index {} at node {}. Error: {}",
+                            j, i, err
                         );
                     }
                     Ok(next_node) => {
                         match next_node {
                             Some(nn) => {
-                                let mut car = node.get().remove_car(j);
+                                let mut car = node.get().remove_car(cars_at_end[j]);
                                 car.advance();
-                                nn.try_upgrade()
-                                    .expect("Referenced connection does not exist")
+                                nn.upgrade()
                                     .get()
                                     .add_car(car);
                                 // println!("{:?}", nn.try_upgrade().expect("asdof").get())
@@ -121,6 +122,24 @@ impl<Car: Movable> Simulator<Car> {
             ),
             _ => {}
         });
+    }
+
+    /// returns a copy of all nns in the simulation
+    pub fn get_all_neural_networks(&self) -> Vec<art_int::Network> {
+        let mut nns = Vec::new();
+        self.nodes.iter().for_each(|n| {
+            match &*n.get() {
+                Node::Crossing(crossing) => {
+                    if let Some(nn) = &crossing.nn {
+                        nns.push(nn.clone());
+                    } else {
+                        warn!("Removing all neural networks but crossing doesn't have a neural network")
+                    }
+                }
+                _ => {}
+            }
+        });
+        nns
     }
 
     /// returns all neural networks in the simulation and removes them from the crossings
@@ -153,8 +172,9 @@ impl<Car: Movable> Simulator<Car> {
         });
     }
     
-        /// returns the total cost of all the cars in the simulation 
-        /// (including those that have already been destroyed)
+    /// returns the total cost of all the cars in the simulation 
+    /// (including those that have already been destroyed)
+    #[tracing::instrument(skip(self))]
     pub fn calculate_sim_cost(&self) -> f32 {
         self.nodes
             .iter()
@@ -201,6 +221,7 @@ impl<Car: Movable> Simulator<Car> {
     }
 
     /// a single iteration
+    #[tracing::instrument(skip(self))]
     pub fn sim_iter(&mut self) {
         // At the moment all nodes are updated
         // error!("{}", self.delay);
@@ -211,16 +232,37 @@ impl<Car: Movable> Simulator<Car> {
     /// returns status information for all of the cars in the simulation
     ///
     /// the key of the HashMap is the node index
-    pub fn get_car_status(&self) -> HashMap<usize, Vec<MovableStatus>> {
+    #[tracing::instrument(skip(self))]
+    pub fn get_car_status(&mut self) -> HashMap<usize, Vec<MovableStatus>> {
         let mut mapped_node = HashMap::new();
-        for n in self.nodes.iter() {
-            let n = n.get();
+        for n in self.nodes.iter_mut() {
+            let mut n = n.get();
             let car_status = n.get_car_status();
             if car_status.len() != 0 {
                 mapped_node.insert(n.id(), car_status);
             }
         }
+        info!("Status: {:#?} ", mapped_node);
         mapped_node
+    }
+    /// sets all IONodes to record the cars that have reached the end to
+    ///  created a correct car status message reporting that the cars at
+    ///  the end should be deleted
+    /// 
+    /// this function should be called once before beginning to report car stati
+    /// and once again with record set to false
+    /// 
+    /// **Be very careful!**: If the recording feature is enabled, the IONodes will
+    /// fill up a list of cars that have reached the end. These cars will only ever
+    /// be deleted if one calls the `get_car_status` method
+    #[tracing::instrument(skip(self))]
+    pub fn set_car_recording(&mut self, record: bool) {
+        self.nodes.iter_mut().for_each(| n | {
+            match &mut *n.get() {
+                Node::IONode(node) => node.set_car_recording(record),
+                _ => {}
+            }
+        });
     }
 }
 
@@ -272,12 +314,12 @@ mod tests {
         use crate::pathfinding::MovableServer;
         use crate::pathfinding::PathAwareCar;
         let json: &str = r#"{"crossings": [{"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]}, {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
-        let mut sim_builder = SimulatorBuilder::<PathAwareCar>::from_json(&json).unwrap();
-        let mut mv_server = MovableServer::<PathAwareCar>::new();
-        mv_server.register_simulator_builder(&sim_builder);
-        let mv_server = IntMut::new(mv_server);
-        sim_builder.with_delay(1).with_max_iter(Some(1000));
-        let mut sim = sim_builder.build(&mv_server);
-        sim.simulation_loop().unwrap();
+        // let mut sim_builder = SimulatorBuilder::<PathAwareCar>::from_json(&json).unwrap();
+        // let mut mv_server = MovableServer::<PathAwareCar>::new();
+        // mv_server.register_simulator_builder(&sim_builder);
+        // let mv_server = IntMut::new(mv_server);
+        // sim_builder.with_delay(1).with_max_iter(Some(1000));
+        // let mut sim = sim_builder.build(&mv_server);
+        // sim.simulation_loop().unwrap();
     }
 }

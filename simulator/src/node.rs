@@ -8,8 +8,9 @@ use crate::simulation::calculate_cost;
 use crate::traits::{CarReport, Movable, NodeTrait};
 use art_int;
 #[allow(unused_imports)]
-use log::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::error::Error;
 use std::ptr;
@@ -44,30 +45,7 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
     fn update_cars(&mut self, t: f64) -> Vec<usize> {
         match self {
             Node::Street(street) => street.update_movables(t),
-            Node::IONode(io_node) => {
-                // create new car
-                io_node.time_since_last_spawn += t;
-                let mut new_cars = Vec::<usize>::new();
-                // TODO: rework spawn rate
-                if io_node.time_since_last_spawn >= 1.0/io_node.spawn_rate {
-                    // TODO: Remove and replace with proper request to
-                    //  the movable server
-                    // new_cars.push(Car::new())
-                    match &mut io_node.movable_server {
-                        Some(server) => {
-                            let car_result = server.get().generate_movable(io_node.id);
-                            info!("Spawned new movable");
-                            if let Ok(mut car) = car_result {
-                                io_node.cached.push(car);
-                                new_cars.push(io_node.cached.len() - 1);
-                            }
-                            io_node.time_since_last_spawn = 0.0;
-                        }
-                        None => warn!("Trying to simulate Node with uninitialised MovableServer"),
-                    }
-                }
-                new_cars
-            }
+            Node::IONode(io_node) => io_node.update_cars(t),
             Node::Crossing(crossing) => crossing.car_lane.update_movables(t),
         }
     }
@@ -95,7 +73,7 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
             Node::Crossing(inner) => inner.id,
         }
     }
-    fn get_car_status(&self) -> Vec<MovableStatus> {
+    fn get_car_status(&mut self) -> Vec<MovableStatus> {
         match self {
             Node::Street(inner) => inner.get_car_status(),
             Node::IONode(inner) => inner.get_car_status(),
@@ -103,36 +81,36 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
         }
     }
 
-    fn rm_car_by_ref(&mut self, car: &Car) -> Car {
-        match self {
-            Node::Street(inner) => {
-                for l in inner.lanes.iter_mut() {
-                    if let Ok(car) = l.rm_movable_by_ref(car) {
-                        return car;
-                    }
-                }
-                panic!("trying to remove car by reference that does not exist")
-            }
-            Node::IONode(inner) => {
-                let index = match inner
-                    .cached
-                    .iter()
-                    .enumerate()
-                    .find(|(i, cached_car)| ptr::eq(*cached_car, car))
-                {
-                    Some((i, _)) => i,
-                    None => panic!("Invalid reference passed to rm_movable_by_ref"),
-                };
-                inner.cached.remove(index)
-            }
-            Node::Crossing(inner) => inner.car_lane.rm_movable_by_ref(car).unwrap(),
-        }
-    }
+    // fn rm_car_by_ref(&mut self, car: &Car) -> Car {
+    //     match self {
+    //         Node::Street(inner) => {
+    //             for l in inner.lanes.iter_mut() {
+    //                 if let Ok(car) = l.rm_movable_by_ref(car) {
+    //                     return car;
+    //                 }
+    //             }
+    //             panic!("trying to remove car by reference that does not exist")
+    //         }
+    //         Node::IONode(inner) => {
+    //             let index = match inner
+    //                 .cached
+    //                 .iter()
+    //                 .enumerate()
+    //                 .find(|(_i, cached_car)| ptr::eq(*cached_car, car))
+    //             {
+    //                 Some((i, _)) => i,
+    //                 None => panic!("Invalid reference passed to rm_movable_by_ref"),
+    //             };
+    //             inner.cached.remove(index)
+    //         }
+    //         Node::Crossing(inner) => inner.car_lane.rm_movable_by_ref(car).unwrap(),
+    //     }
+    // }
 
     fn remove_car(&mut self, i: usize) -> Car {
         match self {
             Node::Street(street) => street.remove_car(i),
-            Node::IONode(io_node) => io_node.cached.remove(i),
+            Node::IONode(io_node) => io_node.cached.remove(&i).unwrap(),
             Node::Crossing(crossing) => crossing.car_lane.remove_movable(i),
         }
     }
@@ -140,7 +118,7 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
     fn get_car_by_index(&mut self, i: usize) -> &Car {
         match self {
             Node::Street(street) => street.get_car_by_index(i),
-            Node::IONode(ionode) => &ionode.cached[i],
+            Node::IONode(ionode) => ionode.cached.get(&i).unwrap(),
             Node::Crossing(crossing) => crossing.car_lane.get_movable_by_index(i),
         }
     }
@@ -451,11 +429,18 @@ where
     /// list of all nodes in the simulation
     pub id: usize,
     /// car cache to be able to return references in the update_cars function
-    pub cached: Vec<Car>,
+    pub cached: HashMap<usize, Car>,
     /// total cost all cars produced
     pub total_cost: f32,
+    /// a list of cars that have reached the end 
     /// The movable server used to spawn new cars
     pub movable_server: Option<IntMut<MovableServer<Car>>>,
+    /// if set to true, the node will record cars that have reached it and only
+    /// delete them if get_car_status is called
+    pub record: bool,
+    pub num_cars_spawned: usize,
+    /// the cars that have been recorded
+    pub recorded_cars: Vec<Car>
 }
 impl<Car> IONode<Car>
 where
@@ -470,9 +455,12 @@ where
             absorbed_cars: 0,
             total_cost: 0.0,
             id: 0,
-            cached: Vec::new(),
+            cached: HashMap::new(),
             movable_server: None,
             cost_calc_params: CostCalcParameters {},
+            record: false,
+            recorded_cars: Vec::new(),
+            num_cars_spawned: 0
         }
     }
     /// Used when constructing a node from a [NodeBuilder](crate::nodes::NodeBuilder)
@@ -489,14 +477,55 @@ where
         self.connections.push(n.downgrade())
     }
     /// get car status (position and lane index)
-    pub fn get_car_status(&self) -> Vec<MovableStatus> {
-        Vec::new()
+    pub fn get_car_status(&mut self) -> Vec<MovableStatus> {
+        self.recorded_cars.drain(..).map(| car | {
+            MovableStatus {
+                position: 0.0,
+                lane_index: 0,
+                movable_id: car.get_id(),
+                delete: true,
+            }
+        }).collect()
     }
 
     /// adds car
     pub fn add_car(&mut self, car: Car) {
         self.absorbed_cars += 1;
         self.total_cost += calculate_cost(car.get_report(), &self.cost_calc_params);
+        if self.record {
+            self.recorded_cars.push(car);
+        }
+    }
+
+    /// sets self.record
+    pub fn set_car_recording(&mut self, record: bool) {
+        self.record = record;
+    }
+
+    /// is responsible for spawning new cars if a time is reached
+    pub fn update_cars(&mut self, dt: f64) -> Vec<usize> {
+        // create new car
+        self.time_since_last_spawn += dt;
+        let mut new_cars = Vec::<usize>::new();
+        // TODO: rework spawn rate
+        if self.spawn_rate != 0.0 && self.time_since_last_spawn >= 1.0/self.spawn_rate {
+            // TODO: Remove and replace with proper request to
+            //  the movable server
+            // new_cars.push(Car::new())
+            match &mut self.movable_server {
+                Some(server) => {
+                    let car_result = server.get().generate_movable(self.id);
+                    if let Ok(car) = car_result {
+                        self.cached.insert(self.num_cars_spawned, car);
+                        new_cars.push(self.num_cars_spawned);
+                        self.num_cars_spawned += 1;
+                    }
+                    self.time_since_last_spawn = 0.0;
+                }
+                None => warn!("Trying to simulate Node with uninitialised MovableServer"),
+            }
+        }
+        new_cars
     }
 }
 

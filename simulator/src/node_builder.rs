@@ -11,6 +11,7 @@ use super::{
 };
 use art_int::{self, Neuron};
 use dyn_clone::DynClone;
+use serde::{Deserialize, Serialize};
 
 /// A struct that is part of the builder pattern and constructs nodes
 #[derive(Debug, Clone)]
@@ -275,10 +276,13 @@ impl NodeBuilderTrait for IONodeBuilder {
             time_since_last_spawn: 0.0,
             absorbed_cars: 0,
             id: self.id,
-            cached: Vec::new(),
+            cached: HashMap::new(),
             movable_server: None,
             total_cost: 0.0,
             cost_calc_params: CostCalcParameters {},
+            record: false,
+            recorded_cars: Vec::new(),
+            num_cars_spawned: 0,
         })
     }
     fn get_out_connections(&self) -> Vec<WeakIntMut<NodeBuilder>> {
@@ -339,7 +343,7 @@ impl IONodeBuilder {
 }
 
 /// North, East, South, West
-#[derive(Hash, PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(Hash, PartialEq, Eq, Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
 pub enum Direction {
     ///
     N,
@@ -479,7 +483,7 @@ pub struct CrossingBuilder {
     pub connections: CrossingConnections,
     /// The length a car has to traverse when traversing
     /// the crossing
-    length: f32,
+    pub length: f32,
     /// the id of a crossing builder in the simulation
     pub id: usize,
 }

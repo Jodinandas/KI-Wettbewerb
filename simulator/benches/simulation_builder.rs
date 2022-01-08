@@ -3,12 +3,12 @@ use simulator::debug::build_grid_sim;
 
 fn simulation_builder_bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("simulation_performance_bench");
-    let mut size: u32 = 100;
+    let mut size: u32 = 10;
     for _i in 1..2 {
         size *= 2;
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &_size| {
             b.iter(|| {
-                build_grid_sim(size);
+                build_grid_sim(size, 100.0);
             })
         });
     }

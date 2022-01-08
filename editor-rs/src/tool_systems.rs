@@ -10,7 +10,7 @@ use bevy::{
 };
 use bevy_prototype_lyon::entity::ShapeBundle;
 #[allow(unused_imports)]
-use log::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 use simulator::{
     nodes::{CrossingBuilder, IONodeBuilder, InOut, NodeBuilder, NodeBuilderTrait},
     SimManager,
@@ -274,6 +274,7 @@ pub fn connector_clicked(
                     (street_info.start_id.0, street_info.out_conn_type.as_dir()),
                     (end_id.0, ctype.as_dir()),
                     1,
+                    100.0
                 ) {
                     Ok(s) => s,
                     Err(e) => panic!("{}", e),

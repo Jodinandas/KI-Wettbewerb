@@ -8,25 +8,86 @@ use super::node::Node;
 use super::node_builder::{CrossingBuilder, IONodeBuilder, NodeBuilder, StreetBuilder};
 use super::node_builder::{Direction, NodeBuilderTrait};
 use super::simulation::Simulator;
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{self};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-/// This is just used to deserialize the JSON File to
+
+#[derive(Debug, Deserialize, Serialize)]
+struct JsonCrossingConnections {
+    pub input: HashMap<Direction, usize>,
+    pub output: HashMap<Direction, usize>
+}
+
+/// This is just used to deserialize the JSON File t    input: HashMap<Direction, u32>o
 /// an object that can be conveniently used in
 /// `StreetData::from_json`
 ///
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct JsonCrossing {
-    traffic_lights: bool,
-    is_io_node: bool,
-    connected: Vec<(usize, u8)>,
+    pub connected: JsonCrossingConnections,
+    pub id: usize,
+    pub length: f32
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+struct JsonIONode {
+    pub connected_in: Vec<usize>,
+    pub connected_out: Vec<usize>,
+    pub spawn_rate: f64,
+    pub id: usize
+}
+#[derive(Debug, Deserialize, Serialize)]
+struct JsonStreet {
+    pub conn_in: Option<usize>,
+    pub conn_out: Option<usize>,
+    pub lanes: u8,
+    pub length: f32,
+    pub id: usize
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+enum JsonNode {
+    Crossing(JsonCrossing),
+    IONode(JsonIONode),
+    Street(JsonStreet),
+}
+
+impl JsonNode {
+    pub fn to_unfinished_builder(&self) -> NodeBuilder {
+        match self {
+            JsonNode::Crossing(crossing) => {
+                let mut builder = CrossingBuilder::new()
+                    .with_length(crossing.length);
+                builder.set_id(crossing.id);
+                NodeBuilder::Crossing(builder)
+            },
+            JsonNode::IONode(ionode) => {
+                let mut ionodeb = IONodeBuilder::new();
+                ionodeb.spawn_rate = ionode.spawn_rate;
+                ionodeb.set_id(ionode.id);
+                NodeBuilder::IONode(ionodeb)
+            },
+            JsonNode::Street(jstreet) => {
+                let mut street = StreetBuilder::new()
+                    .with_lanes(jstreet.lanes)
+                    .with_length(jstreet.length);
+                street.set_id(jstreet.id);
+                // println!("Creating STreet with id: {}", street.get_id());
+                NodeBuilder::Street(street)
+            },
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 /// Just for Deserialisation
 struct JsonRepresentation {
-    crossings: Vec<JsonCrossing>,
+    pub nodes: Vec<JsonNode>,
+    pub next_id: usize,
+    pub dt: f32,
+    pub delay: u64
 }
 /// Is raised when the conversion `JSON` -> `Simulator` fails
 #[derive(Debug, Clone)]
@@ -92,7 +153,7 @@ impl Error for IndexError {}
 ///     {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
 /// let mut simulator = SimulatorBuilder::from_json(json);
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SimulatorBuilder<Car = PathAwareCar>
 where
     Car: Movable,
@@ -101,12 +162,13 @@ where
     pub nodes: Vec<IntMut<NodeBuilder>>,
     max_iter: Option<usize>,
     cache: Option<Vec<IntMut<Node<Car>>>>,
-    delay: u64,
+    /// public so it can be more easily changed in the front end
+    pub delay: u64,
     /// The id of the next node. This is necessary, as the length of the nodes
     /// vector is not always the id. (because nodes can be deleted as well)
     next_id: usize,
     /// how much a simulation is advanced each step
-    dt: f32,
+    pub dt: f32,
 }
 
 impl<Car: Movable> SimulatorBuilder<Car> {
@@ -121,64 +183,17 @@ impl<Car: Movable> SimulatorBuilder<Car> {
             dt: 0.1,
         }
     }
-    /// creates a `Simulator` object from a `&str` formatted in a json-like way
-    ///
-    /// to see how the json must be formatted, look at the fields of
-    /// `JsonCrossing` and `JsonRepresentation`
-    ///
-    /// # NOTE:
-    /// This function is deprecated, as the old python frontend
-    /// is being replaced by a new frontend
-    pub fn from_json(json: &str) -> Result<SimulatorBuilder, Box<dyn Error>> {
-        // Generate object holding all the data, still formatted in json way
-        let json_representation: JsonRepresentation = serde_json::from_str(json)?;
-        let mut crossings: Vec<IntMut<NodeBuilder>> = Vec::new();
-        // generate all crossings
-        for json_crossing in json_representation.crossings.iter() {
-            // create nodes from json object
-            let new_crossing = match json_crossing.is_io_node {
-                true => NodeBuilder::IONode(IONodeBuilder::new()),
-                false => NodeBuilder::Crossing(CrossingBuilder::new()),
-            };
-            crossings.push(IntMut::new(new_crossing));
-        }
-        let mut builder = SimulatorBuilder::<PathAwareCar>::new();
-        builder.nodes = crossings;
-        // save the number of inital nodes to later check if the json points
-        // to existing nodes that are not streets
-        let inital_nodes = builder.nodes.len();
-        // connect the crossings with streets
-        for (i, json_crossing) in json_representation.crossings.iter().enumerate() {
-            // form all the connections defined in `JsonCrossing.connected`
-            for (connection_index, _lanes) in json_crossing.connected.iter() {
-                // check if `Crossing`/`IONode` the street ends in actually exists
-                if *connection_index > inital_nodes {
-                    return Err(Box::new(JsonError(
-                        "Connection points to node that doesn't exist".to_string(),
-                    )));
-                }
-                {
-                    // Make sure the connection doesn't already exist
-                    let node = &builder.nodes[i];
-                    let connected = &builder.nodes[*connection_index];
-                    if node.get().is_connected(&connected) {
-                        return Err(Box::new(JsonError(
-                            "Attempt to create the same connection multiple times".to_string(),
-                        )));
-                    }
-                }
-                todo!("Not implemented (anymore). Why would anyone use the python frontend!?");
-                // builder.connect_with_street((i, InOut), *connection_index, *lanes)?;
-            }
-        }
-        Ok(builder)
-    }
+
+
+
+ 
     /// Connects two nodes, ONE WAY ONLY, adding a street in between
     pub fn connect_with_street(
         &mut self,
         node_info1: (usize, Direction),
         node_info2: (usize, Direction),
         lanes: u8,
+        street_length: f32
     ) -> Result<&IntMut<NodeBuilder>, Box<dyn Error>> {
         let (idnode1, dir1) = node_info1;
         let (idnode2, dir2) = node_info2;
@@ -205,6 +220,7 @@ impl<Car: Movable> SimulatorBuilder<Car> {
         let node2 = &self.nodes[inode2];
         // create a new street to connect them
         let mut new_street = StreetBuilder::new().with_lanes(lanes);
+        new_street.lane_length = street_length;
         new_street
             .connect(InOut::IN, node1)
             .connect(InOut::OUT, node2);
@@ -327,7 +343,7 @@ impl<Car: Movable> SimulatorBuilder<Car> {
 
                                     // get direction of input
                                     let direction = crossing_builder.connections.get_direction_for_item(InOut::IN, start_node_arc)
-                                        .expect("Street output is connected to Crossing, but the Crossing input is not connected to street.");
+                                        .expect(&format!("Street(id={}) output is connected to Crossing (id={}), but the Crossing input is not connected to street.", start_id, target.id));
                                     target.connect(direction, InOut::IN, starting_node)
                                         .unwrap();
                                 },
@@ -412,8 +428,10 @@ impl<Car: Movable> SimulatorBuilder<Car> {
         self.nodes.iter()
     }
     /// returns a reference to the node with id `i`
-    pub fn get_node(&self, i: usize) -> &IntMut<NodeBuilder> {
-        &self.nodes[i]
+    pub fn get_node(&self, i: usize) -> Option<&IntMut<NodeBuilder>> {
+        self.nodes.iter().find( | n | {
+            n.get().get_id() == i
+        })
     }
     /// removes a node by it's id
     ///
@@ -541,15 +559,149 @@ impl<Car: Movable> SimulatorBuilder<Car> {
     }
 }
 
+impl<'de> Deserialize<'de> for SimulatorBuilder {
+    /// creates a `SimulatorBuilder` object from a `&str` formatted in a json-like way
+    ///
+    /// to see how the json must be formatted, look at the fields of
+    /// `JsonCrossing` and `JsonRepresentation`
+    ///
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+        // Generate object holding all the data, still formatted in json way
+        let json_representation: JsonRepresentation = JsonRepresentation::deserialize(deserializer)?;
+        let mut nodes: Vec<IntMut<NodeBuilder>> = Vec::new();
+        // generate all crossings
+        for json_node in json_representation.nodes.iter() {
+            nodes.push(IntMut::new(json_node.to_unfinished_builder()));
+        }
+        let mut builder = SimulatorBuilder::<PathAwareCar>::new();
+        builder.with_delay(json_representation.delay)
+            .with_dt(json_representation.dt);
+        builder.next_id = json_representation.next_id;
+
+        builder.nodes = nodes;
+        // info!("nodes: {:#?}", builder.nodes);
+        // connect the crossings with streets
+        for (i, node) in json_representation.nodes.iter().enumerate() {
+            match node {
+                JsonNode::Crossing(jcrossing) => {
+                        for (dir, n_id) in jcrossing.connected.input.iter() {
+                            let node = builder.nodes.iter().find( | n | {
+                                n.get().get_id() == *n_id
+                            }).unwrap();
+                            if let NodeBuilder::Crossing(crossing) = &mut *builder.nodes[i].get() {
+                                crossing.connect(*dir, InOut::IN, node).unwrap();
+                            } else {panic!()}
+                        }
+                        for (dir, n_id) in jcrossing.connected.output.iter() {
+                            let node = builder.nodes.iter().find( | n | {
+                                n.get().get_id() == *n_id
+                            }).unwrap();
+                            if let NodeBuilder::Crossing(crossing) = &mut *builder.nodes[i].get() {
+                                crossing.connect(*dir, InOut::OUT, node).unwrap();
+                            } else {panic!()}
+                        }
+                },
+                JsonNode::IONode(jio_node) => {
+                    for id_in in jio_node.connected_in.iter() {
+                        let target = builder.get_node(*id_in).unwrap();
+                        if let NodeBuilder::IONode(io_node) = &mut *builder.nodes[i].get() {
+                            io_node.connect(InOut::IN, target);
+                        } else {panic!()}
+                    }
+                    for id_out in jio_node.connected_out.iter() {
+                        // info!("Parsing info for node with id: {}, conn_id: {}", jio_node.id, id_out);
+                        let target = builder.nodes.iter().find( | n | n.get().get_id() == *id_out).unwrap();
+                        if let NodeBuilder::IONode(io_node) = &mut *builder.nodes[i].get() {
+                            io_node.connect(InOut::OUT, target);
+                        } else {panic!()}
+                    }
+                },
+                JsonNode::Street(jstreet) => {
+                    if let Some(id_in) = jstreet.conn_in {
+                        let target = builder.nodes.iter().find( | n | n.get().get_id() == id_in).unwrap();
+                        if let NodeBuilder::Street(street) = &mut *builder.nodes[i].get() {
+                            street.connect(InOut::IN, target);
+                        } else {panic!()}
+                    }
+                    if let Some(id_out) = jstreet.conn_out {
+                        let target = builder.nodes.iter().find( | n | n.get().get_id() == id_out).unwrap();
+                        if let NodeBuilder::Street(street) = &mut *builder.nodes[i].get() {
+                            street.connect(InOut::OUT, target);
+                        } else {panic!()}
+                    }
+                },
+            }
+        }
+        Ok(builder)
+    }
+}
+
+
+impl Serialize for SimulatorBuilder {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+        let nodes = self.nodes.iter().map(  | n| {
+            let node_inner = &*n.get();
+            let id = node_inner.get_id();
+            match node_inner {
+                NodeBuilder::IONode(n) => {
+                    JsonNode::IONode(
+                        JsonIONode {
+                            connected_in: n.connections_in.iter().map( | c | c.upgrade().get().get_id()).collect(),
+                            connected_out: n.connections_out.iter().map( | c | c.upgrade().get().get_id()).collect(),
+                            spawn_rate: n.spawn_rate,
+                            id,
+                        }
+                    )
+                },
+                NodeBuilder::Crossing(n) => {
+                    let json_conns = JsonCrossingConnections {
+                        input: n.connections.input.iter().map( | (dir, c) | (*dir, c.upgrade().get().get_id()) ).collect(),
+                        output : n.connections.output.iter().map( | (dir, c) | (*dir, c.upgrade().get().get_id()) ).collect(),
+                    };
+                    JsonNode::Crossing(
+                        JsonCrossing {
+                            connected: json_conns,
+                            id,
+                            length: n.length,
+                        }
+                    )
+                },
+                NodeBuilder::Street(n) => {
+                    JsonNode::Street(
+                        JsonStreet {
+                            conn_in: n.conn_in.as_ref().map(| c | c.upgrade().get().get_id()),
+                            conn_out: n.conn_out.as_ref().map(| c | c.upgrade().get().get_id()),
+                            lanes: n.lanes,
+                            length: n.lane_length,
+                            id,
+                        }
+                    )
+                },
+            }
+        }).collect::<Vec<JsonNode>>();
+        let json_representation = JsonRepresentation {
+            nodes,
+            next_id: self.next_id,
+            dt: self.dt,
+            delay: self.delay,
+        };
+        json_representation.serialize(serializer)
+    }
+}
+
 mod tests {
 
-    #[test]
-    fn simulation_builder_from_json() {
-        use crate::pathfinding::PathAwareCar;
-        let json: &str = r#"{"crossings": [{"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]}, {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
-        let data = super::SimulatorBuilder::<PathAwareCar>::from_json(json).unwrap();
-        println!("{:?}", &data);
-    }
+    // #[test]
+    // fn simulation_builder_from_json() {
+    //     use crate::pathfinding::PathAwareCar;
+    //     let json: &str = r#"{"crossings": [{"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]}, {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
+    //     let data = super::SimulatorBuilder::<PathAwareCar>::from_json(json).unwrap();
+    //     println!("{:?}", &data);
+    // }
 
     #[test]
     fn connect_with_streets() {
@@ -561,10 +713,10 @@ mod tests {
         simulator.add_node(NodeBuilder::IONode(IONodeBuilder::new()));
         simulator.add_node(NodeBuilder::Crossing(CrossingBuilder::new()));
         simulator
-            .connect_with_street((0, Direction::E), (1, Direction::W), 2)
+            .connect_with_street((0, Direction::E), (1, Direction::W), 2, 100.0)
             .unwrap();
         simulator
-            .connect_with_street((1, Direction::S), (0, Direction::N), 3)
+            .connect_with_street((1, Direction::S), (0, Direction::N), 3, 100.0)
             .unwrap();
     }
 }

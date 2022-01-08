@@ -48,3 +48,6 @@ pub mod datastructs {
 }
 pub use simulation::Simulator;
 pub use simulation_builder::SimulatorBuilder;
+
+/// TODO: Make this unique for different cars
+const CAR_SPACING: f32 = 3.0;

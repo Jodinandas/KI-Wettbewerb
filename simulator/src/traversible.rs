@@ -1,10 +1,10 @@
-use std::ptr;
+use std::{ptr, collections::VecDeque};
 
-use crate::{movable::MovableStatus, node::CostCalcParameters, simulation::calculate_cost};
+use crate::{movable::MovableStatus, node::CostCalcParameters, simulation::calculate_cost, CAR_SPACING};
 
 use super::{movable::RandCar, traits::Movable};
 #[allow(unused_imports)]
-use log::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 /// This structs represents a sidewalk, a street or something else that can be walked on
 #[derive(Debug, Clone)]
@@ -13,7 +13,7 @@ where
     T: Movable,
 {
     /// These are for example people, cars, bycicles etc.
-    movables: Vec<(T, f32)>,
+    movables: VecDeque<(T, f32)>,
     /// The total length of the traversible
     length: f32,
     /// the number of movables that are waiting at the end to go on a crossing
@@ -24,7 +24,7 @@ impl<T: Movable> Traversible<T> {
     /// returns a new traversible with given length
     pub fn new<E: Movable>(length: f32) -> Traversible<E> {
         Traversible {
-            movables: Vec::new(),
+            movables: VecDeque::new(),
             length,
             movables_waiting: 0,
         }
@@ -35,14 +35,33 @@ impl<T: Movable> Traversible<T> {
         // for i in 0..self.movables.len() {
         let mut out = Vec::new();
         let l = self.length;
-        for i in 0..self.movables.len() {
-            let (m, dist) = &mut self.movables[i];
-            *dist += t as f32 * m.get_speed();
-            if *dist >= l {
-                self.movables_waiting += 1;
-                out.push(i);
+        let mut part_of_waiting = false;
+        let mut dist_last = 0.0;
+        let mut movables_waiting = 0;
+        self.movables.iter_mut().enumerate().rev().for_each( | (i, (m, dist)) | {
+            let is_at_end= *dist >= l;
+            if is_at_end {
+                out.push(i)
             }
-        }
+            let pos_delta = t as f32 * m.get_speed();
+            if is_at_end || (part_of_waiting && (dist_last - (*dist + pos_delta)) <= CAR_SPACING) {
+                part_of_waiting = true;
+                movables_waiting += 1;
+            } else {
+                *dist += pos_delta;
+                part_of_waiting = false;
+            }
+            dist_last = *dist;
+        });
+        self.movables_waiting = movables_waiting;
+        // for i in 0..self.movables.len() {
+        //     let (m, dist) = &mut self.movables[i];
+        //     *dist += t as f32 * m.get_speed();
+        //     if *dist >= l {
+        //         self.movables_waiting += 1;
+        //         out.push(i);
+        //     }
+        // }
         out
     }
     /// returns the number of movables that are waiting to go on a crossing
@@ -65,12 +84,12 @@ impl<T: Movable> Traversible<T> {
         if self.movables_waiting > 0 {
             self.movables_waiting -= 1;
         }
-        Ok(self.movables.remove(index).0)
+        Ok(self.movables.remove(index).unwrap().0)
     }
 
     /// puts a movable on the beginning of the road
     pub fn add(&mut self, movable: T) {
-        self.movables.push((movable, 0.0));
+        self.movables.push_front((movable, 0.0));
     }
 
     /// returns the number of movables on the traversible
@@ -86,12 +105,13 @@ impl<T: Movable> Traversible<T> {
                 position: t.min(self.length) / self.length,
                 lane_index: 0,
                 movable_id: m.get_id(),
+                delete: false,
             })
             .collect()
     }
 
     pub fn remove_movable(&mut self, i: usize) -> T {
-        self.movables.remove(i).0
+        self.movables.remove(i).unwrap().0
     }
 
     pub fn get_movable_by_index<'a>(&'a self, i: usize) -> &'a T {

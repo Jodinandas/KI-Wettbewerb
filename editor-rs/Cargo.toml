@@ -21,8 +21,14 @@ bevy_egui = "0.6"
 simulator = { path = "../simulator" }
 enum_dispatch = "0.3"
 bevy_mod_picking = "0.4.0"
-log = "0.4.14"
+tracing = { version="0.1.29" }
+tracing-core = "0.1.21"
+tracing-subscriber = { version="0.3.5", features=["env-filter"] }
 pretty_env_logger = "0.4.0"
+art-int = { path = "../art-int" }
+serde_json="1.0"
+serde={version="1.0", features=["derive"]}
+# env_logger = "0.9.0"
 # bevy_webgl2 = "0.5"
 
 # Dependencies for native only.

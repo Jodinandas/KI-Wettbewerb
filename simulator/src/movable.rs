@@ -95,4 +95,6 @@ pub struct MovableStatus {
     pub lane_index: u8,
     /// each movable has a unique id
     pub movable_id: u32,
+    /// should the node be deleted?
+    pub delete: bool
 }
