@@ -1,6 +1,8 @@
 use art_int::{Layer, LayerTopology, Network, Neuron};
-// Dieser Teil wurde von Patryk Wyochowaniec implementiert und unter der MIT Licence auf github herausgegeben: https://github.com/Patryk27/shorelark
+// This code was orginally developed by Patryk Wyochowaniec and released under the MIT Licence on github: https://github.com/Patryk27/shorelark
 // Copyright (c) 2020-2021, Patryk Wychowaniec pwychowaniec@pm.me
+// It was heavily modified by us (We added Support for different activation functions and implemeted crossover and mutation directly on the
+// NN instead of having seperate files)
 
 fn main() {
     // explaination: weights are the weights of the "incoming" data, not "out"

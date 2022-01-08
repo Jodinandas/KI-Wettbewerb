@@ -1,6 +1,6 @@
 use crate::*;
 
-#[derive(Clone, Debug, Copy, PartialEq)]
+#[derive(Clone, Debug, Copy, PartialEq, Serialize, Deserialize)]
 pub enum ActivationFunc {
     ReLu,
     SoftMax,
@@ -35,7 +35,7 @@ impl ActivationFunc {
         }
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Layer {
     pub neurons: Vec<Neuron>,
     pub activation: ActivationFunc

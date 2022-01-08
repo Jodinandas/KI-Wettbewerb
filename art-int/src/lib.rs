@@ -4,6 +4,7 @@ pub use self::{layer::*, neuron::*};
 use genetics::IndividualComponent;
 use rand::prelude::ThreadRng;
 use rand::{Rng, RngCore};
+use serde::{Serialize, Deserialize};
 use std::iter::once;
 
 pub mod genetics;
@@ -11,7 +12,7 @@ pub mod layer;
 mod layer_topology;
 pub mod neuron;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Network {
     pub layers: Vec<Layer>,
 }
