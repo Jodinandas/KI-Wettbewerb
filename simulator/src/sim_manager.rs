@@ -66,7 +66,7 @@ struct SimData {
    
 impl Simulating {
     /// Creates new simulations and runs them in different threads using the rayon crate
-    pub fn new(
+        pub fn new(
         sim_builder: &mut SimulatorBuilder,
         mv_server: &IntMut<MovableServer>,
         population: usize,
@@ -106,6 +106,7 @@ impl Simulating {
         // Now use this data to simulate in parallel
         let terminated = IntMut::new(false);
         let terminated_ref = terminated.clone();
+        let terminate_thread = terminate.clone();
         let handle = thread::spawn(move || {
             panic::set_hook(Box::new(|e| {
                 error!("Simulation panicked! Backtrace: {}", e);
@@ -140,8 +141,8 @@ impl Simulating {
                     }
                     data
                 }).collect();
-                if !*data.terminate.get() {
-                    // TODO: Maybe make this more efficient
+                    if !*terminate_thread.get() {
+                        // TODO: Maybe make this more efficient
                     let old_nns_and_costs: Vec<(f32, Vec<Network>)> = terminated_sims.iter_mut().map(
                         | s | (s.simulator.calculate_sim_cost(), s.simulator.remove_all_neural_networks())
                     ).collect();
@@ -185,11 +186,7 @@ impl Simulating {
         });
         Ok(())
     }
-}
-
-impl Drop for Simulating {
-    /// Terminate all simulation and wait for them to finish
-    fn drop(&mut self) {
+    pub fn terminate(&mut self) -> SimulationReport {
         *self.terminate.get() = true;
         if let Some(handle) = self.generation_thread_handle.take() {
             match handle.join() {
@@ -197,8 +194,20 @@ impl Drop for Simulating {
                 Err(err) => error!("Unable to join thread managing Simulations {:?}", err),
             }
         }
+        SimulationReport
     }
 }
+
+impl Drop for Simulating {
+    /// Terminate all simulation and wait for them to finish
+    fn drop(&mut self) {
+        self.terminate();
+    }
+}
+    
+
+    
+pub struct SimulationReport;
 
 /// This struct saves a list of currently simulating Simulators
 /// It also provides the ability to get car updates one of the currently
@@ -220,7 +229,9 @@ pub struct SimManager {
     /// the number of generations that should be simulated
     pub generations: usize,
     /// the size of each population in a generation
-    pub population: usize
+    pub population: usize,
+    /// saves the status report of the last simulation
+    pub simulation_report: Option<SimulationReport>
 }
 
 /// This error is returned if one tries to modify the SimulatorBuilder while a Simulation is running
@@ -266,7 +277,8 @@ impl SimManager {
             mutation_coeff: 0.3,
             is_simulating: false,
             population: 1,
-            generations: 10
+            generations: 10,
+            simulation_report: None
         }
     }
     /// Returns a mutable reference to the SimulatorBuilder, if no Simulation
@@ -318,6 +330,17 @@ impl SimManager {
     pub fn terminate_generation(&mut self) {
         if let Some(sim) = &mut self.simulations {
             *sim.terminate_generation.get() = true;
+        }
+    }
+
+
+    /// terminates the simulations and generates a report for it
+    pub fn terminate_sims(&mut self) {
+        if let Some(sim) = &mut self.simulations {
+            let report = sim.terminate();
+            self.simulation_report = Some(report);
+            self.simulations = None ;
+            self.is_simulating = false;
         }
     }
 

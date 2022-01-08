@@ -10,6 +10,7 @@ use art_int;
 #[allow(unused_imports)]
 use tracing::{debug, error, info, trace, warn};
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::error::Error;
 use std::ptr;
@@ -80,36 +81,36 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
         }
     }
 
-    fn rm_car_by_ref(&mut self, car: &Car) -> Car {
-        match self {
-            Node::Street(inner) => {
-                for l in inner.lanes.iter_mut() {
-                    if let Ok(car) = l.rm_movable_by_ref(car) {
-                        return car;
-                    }
-                }
-                panic!("trying to remove car by reference that does not exist")
-            }
-            Node::IONode(inner) => {
-                let index = match inner
-                    .cached
-                    .iter()
-                    .enumerate()
-                    .find(|(_i, cached_car)| ptr::eq(*cached_car, car))
-                {
-                    Some((i, _)) => i,
-                    None => panic!("Invalid reference passed to rm_movable_by_ref"),
-                };
-                inner.cached.remove(index)
-            }
-            Node::Crossing(inner) => inner.car_lane.rm_movable_by_ref(car).unwrap(),
-        }
-    }
+    // fn rm_car_by_ref(&mut self, car: &Car) -> Car {
+    //     match self {
+    //         Node::Street(inner) => {
+    //             for l in inner.lanes.iter_mut() {
+    //                 if let Ok(car) = l.rm_movable_by_ref(car) {
+    //                     return car;
+    //                 }
+    //             }
+    //             panic!("trying to remove car by reference that does not exist")
+    //         }
+    //         Node::IONode(inner) => {
+    //             let index = match inner
+    //                 .cached
+    //                 .iter()
+    //                 .enumerate()
+    //                 .find(|(_i, cached_car)| ptr::eq(*cached_car, car))
+    //             {
+    //                 Some((i, _)) => i,
+    //                 None => panic!("Invalid reference passed to rm_movable_by_ref"),
+    //             };
+    //             inner.cached.remove(index)
+    //         }
+    //         Node::Crossing(inner) => inner.car_lane.rm_movable_by_ref(car).unwrap(),
+    //     }
+    // }
 
     fn remove_car(&mut self, i: usize) -> Car {
         match self {
             Node::Street(street) => street.remove_car(i),
-            Node::IONode(io_node) => io_node.cached.remove(i),
+            Node::IONode(io_node) => io_node.cached.remove(&i).unwrap(),
             Node::Crossing(crossing) => crossing.car_lane.remove_movable(i),
         }
     }
@@ -117,7 +118,7 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
     fn get_car_by_index(&mut self, i: usize) -> &Car {
         match self {
             Node::Street(street) => street.get_car_by_index(i),
-            Node::IONode(ionode) => &ionode.cached[i],
+            Node::IONode(ionode) => ionode.cached.get(&i).unwrap(),
             Node::Crossing(crossing) => crossing.car_lane.get_movable_by_index(i),
         }
     }
@@ -428,7 +429,7 @@ where
     /// list of all nodes in the simulation
     pub id: usize,
     /// car cache to be able to return references in the update_cars function
-    pub cached: Vec<Car>,
+    pub cached: HashMap<usize, Car>,
     /// total cost all cars produced
     pub total_cost: f32,
     /// a list of cars that have reached the end 
@@ -437,6 +438,7 @@ where
     /// if set to true, the node will record cars that have reached it and only
     /// delete them if get_car_status is called
     pub record: bool,
+    pub num_cars_spawned: usize,
     /// the cars that have been recorded
     pub recorded_cars: Vec<Car>
 }
@@ -453,11 +455,12 @@ where
             absorbed_cars: 0,
             total_cost: 0.0,
             id: 0,
-            cached: Vec::new(),
+            cached: HashMap::new(),
             movable_server: None,
             cost_calc_params: CostCalcParameters {},
             record: false,
-            recorded_cars: Vec::new()
+            recorded_cars: Vec::new(),
+            num_cars_spawned: 0
         }
     }
     /// Used when constructing a node from a [NodeBuilder](crate::nodes::NodeBuilder)
@@ -513,8 +516,9 @@ where
                 Some(server) => {
                     let car_result = server.get().generate_movable(self.id);
                     if let Ok(car) = car_result {
-                        self.cached.push(car);
-                        new_cars.push(self.cached.len() - 1);
+                        self.cached.insert(self.num_cars_spawned, car);
+                        new_cars.push(self.num_cars_spawned);
+                        self.num_cars_spawned += 1;
                     }
                     self.time_since_last_spawn = 0.0;
                 }

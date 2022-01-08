@@ -4,6 +4,8 @@ use crate::SimulatorBuilder;
 use pathfinding::directed::dijkstra::dijkstra;
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
+use tracing::{event, Level};
+use tracing::metadata::LevelFilter;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::error::Error;
@@ -80,6 +82,7 @@ impl Movable for PathAwareCar {
         self.path_len = len
     }
 
+    #[tracing::instrument(skip_all)]
     fn decide_next(
         &self,
         connections: &Vec<WeakIntMut<Node<Self>>>,
@@ -108,6 +111,8 @@ impl Movable for PathAwareCar {
             }
         };
 
+        info!("connection_ids {:?}", connection_ids);
+        info!("to_return {:?}", to_return);
         if !connection_ids.contains(to_return) {
             warn!("Requested connection not in connections of node");
             return Err(Box::new(PathError {
@@ -130,7 +135,7 @@ impl Movable for PathAwareCar {
                 // if the next node is a street, we can simply return it
                 return Ok(Some(next_node.clone()));
             }
-            Node::IONode(_) => {
+            Node::IONode(n) => {
                 // if the next node is a IONode, we can simply return it
                 return Ok(Some(next_node.clone()));
             }
@@ -146,6 +151,7 @@ impl Movable for PathAwareCar {
                         false
                     }
                 });
+                info!("Path: {:?}, Overnext: {:?}", self.path, desired_overnext_node.unwrap().upgrade().get().id());
                 // if we can reach the "overnext" node (street), we can return it, else the car will not move
                 if crossing.can_out_node_be_reached(
                     current_node,
@@ -170,7 +176,7 @@ impl Movable for PathAwareCar {
     }
     fn advance(&mut self) {
         match self.path.pop() {
-            Some(_) => {}
+            Some(pos) => {}
             None => warn!("Could not remove last element while advancing to the next node"),
         }
     }

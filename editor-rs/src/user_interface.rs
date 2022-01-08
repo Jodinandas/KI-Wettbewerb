@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::RangeInclusive};
 
 use bevy::prelude::*;
 use bevy_egui::{
-    egui::{self, CollapsingHeader, CtxRef, Ui},
+    egui::{self, CollapsingHeader, CtxRef, Ui, Color32},
     EguiContext,
 };
 use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder, SimManager};
@@ -271,7 +271,17 @@ pub fn draw_user_interface(
                         });
                     },
                     true => {
-                        ui.add(egui::Label::new("Locked").strong());
+                        ui.add(egui::Label::new("Locked").text_color(Color32::from_rgb((theme.highlight.r() * 255.0) as u8, (theme.highlight.g() * 255.0) as u8, (theme.highlight.b() * 255.0) as u8)).strong());
+                        ui.separator();
+                        ui.heading("Commands");
+                        ui.vertical_centered(| ui | {
+                            if ui.button("Abort Simulation").clicked() {
+                                sim_manager.terminate_sims();
+                            }
+                            if ui.button("Pause Simulation").clicked() {
+
+                            }
+                        });
                     },
                 }
             });

@@ -7,7 +7,7 @@ use simulator::{
 
 fn performance_simulation_creation(c: &mut Criterion) {
     let mut group = c.benchmark_group("performance_simulation_creation");
-    let mut size: u32 = 100;
+    let mut size: u32 = 10;
     for _i in 1..4 {
         size *= 2;
         let mut sim_builder = build_grid_sim(size, 100.0);
