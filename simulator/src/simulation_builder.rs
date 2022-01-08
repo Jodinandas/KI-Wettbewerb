@@ -3,6 +3,7 @@ use crate::node_builder::InOut;
 use crate::pathfinding::{MovableServer, PathAwareCar};
 use crate::traits::{Movable, NodeTrait};
 use serde::ser::StdError;
+use tracing::{info, event};
 
 use super::int_mut::IntMut;
 use super::node::Node;
@@ -70,11 +71,12 @@ impl JsonNode {
                 ionodeb.set_id(ionode.id);
                 NodeBuilder::IONode(ionodeb)
             },
-            JsonNode::Street(street) => {
+            JsonNode::Street(jstreet) => {
                 let mut street = StreetBuilder::new()
-                    .with_lanes(street.lanes)
-                    .with_length(street.length);
-                street.set_id(street.id);
+                    .with_lanes(jstreet.lanes)
+                    .with_length(jstreet.length);
+                street.set_id(jstreet.id);
+                println!("Creating STreet with id: {}", street.get_id());
                 NodeBuilder::Street(street)
             },
         }
@@ -153,7 +155,7 @@ impl Error for IndexError {}
 ///     {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
 /// let mut simulator = SimulatorBuilder::from_json(json);
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SimulatorBuilder<Car = PathAwareCar>
 where
     Car: Movable,
@@ -428,8 +430,10 @@ impl<Car: Movable> SimulatorBuilder<Car> {
         self.nodes.iter()
     }
     /// returns a reference to the node with id `i`
-    pub fn get_node(&self, i: usize) -> &IntMut<NodeBuilder> {
-        &self.nodes[i]
+    pub fn get_node(&self, i: usize) -> Option<&IntMut<NodeBuilder>> {
+        self.nodes.iter().find( | n | {
+            n.get().get_id() == i
+        })
     }
     /// removes a node by it's id
     ///
@@ -579,6 +583,7 @@ impl<'de> Deserialize<'de> for SimulatorBuilder {
         builder.next_id = json_representation.next_id;
 
         builder.nodes = nodes;
+        info!("nodes: {:#?}", builder.nodes);
         // connect the crossings with streets
         for (i, node) in json_representation.nodes.iter().enumerate() {
             match node {
@@ -602,12 +607,13 @@ impl<'de> Deserialize<'de> for SimulatorBuilder {
                 },
                 JsonNode::IONode(jio_node) => {
                     for id_in in jio_node.connected_in.iter() {
-                        let target = builder.nodes.iter().find( | n | n.get().get_id() == *id_in).unwrap();
+                        let target = builder.get_node(*id_in).unwrap();
                         if let NodeBuilder::IONode(io_node) = &mut *builder.nodes[i].get() {
                             io_node.connect(InOut::IN, target);
                         } else {panic!()}
                     }
                     for id_out in jio_node.connected_out.iter() {
+                        info!("Parsing info for node with id: {}, conn_id: {}", jio_node.id, id_out);
                         let target = builder.nodes.iter().find( | n | n.get().get_id() == *id_out).unwrap();
                         if let NodeBuilder::IONode(io_node) = &mut *builder.nodes[i].get() {
                             io_node.connect(InOut::OUT, target);

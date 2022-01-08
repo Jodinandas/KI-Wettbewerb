@@ -58,7 +58,7 @@ struct Simulating {
 /// used to encapsulate data used when creating a Simulator
 pub struct SimData {
     pub simulator: Simulator,
-    pub channel: mpsc::Sender<HashMap<usize, Vec<MovableStatus>>>,
+    pub channel: Mutex<mpsc::Sender<HashMap<usize, Vec<MovableStatus>>>>,
     pub report_updates:  IntMut<bool>,
     pub terminate: IntMut<bool>,
     pub terminate_generation: IntMut<bool>,
@@ -95,7 +95,7 @@ impl Simulating {
             simulation_information.push(SimulationStatus::new());
             SimData {
                 simulator: sim,
-                channel: car_tx.clone(),
+                channel: Mutex::new(car_tx.clone()),
                 report_updates: report_updates[i].clone(),
                 terminate: terminate.clone(),
                 terminate_generation: terminate_generation.clone()
@@ -136,7 +136,7 @@ impl Simulating {
                         }
                         if report_updates {
                             let updates = data.simulator.get_car_status();
-                            data.channel.send(updates).expect("Unable to send car status updates, even though report_updates is set to true");
+                            data.channel.lock().unwrap().send(updates).expect("Unable to send car status updates, even though report_updates is set to true");
                         }
                     }
                     data
@@ -216,9 +216,14 @@ pub struct SimulationReport {
 
 impl SimulationReport {
     pub fn new(mut sims: Vec<SimData>) -> SimulationReport {
+        let mut sims: Vec<(f32, SimData)> = sims.drain(..).map( | s | (s.simulator.calculate_sim_cost(), s)).collect();
+        sims.sort_by(| a, b | a.0.partial_cmp(&b.0).unwrap());
         SimulationReport {
-            sims: sims.drain(..).map( | s | (s.simulator.calculate_sim_cost(), s)).collect(),
+            sims: sims,
         }
+    }
+    pub fn get_best_nn(&self) -> Vec<Network> {
+        self.sims[0].1.simulator.get_all_neural_networks()
     }
 }
 

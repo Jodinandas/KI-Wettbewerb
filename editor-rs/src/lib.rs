@@ -218,13 +218,15 @@ fn toggle_theme_on_startup(commands: Commands, egui_context: ResMut<EguiContext>
         *current_theme = new_theme;
         *theme = UITheme::from_enum(&new_theme);
     }
-    repaint_ui(
-        commands,
-        Some(egui_context.ctx()),
-        &mut background,
-        &nodes,
-        theme,
-        );
+    // repaint_ui(
+    //     commands,
+    //     Some(egui_context.ctx()),
+    //     &mut background,
+    //     &nodes,
+    //     theme,
+    //     );
+    background.0 = theme.background;
+    egui_context.ctx().set_visuals(theme.egui_visuals.clone());
     ff.b = false;
     }
 }

@@ -124,6 +124,24 @@ impl<Car: Movable> Simulator<Car> {
         });
     }
 
+    /// returns a copy of all nns in the simulation
+    pub fn get_all_neural_networks(&self) -> Vec<art_int::Network> {
+        let mut nns = Vec::new();
+        self.nodes.iter().for_each(|n| {
+            match &*n.get() {
+                Node::Crossing(crossing) => {
+                    if let Some(nn) = &crossing.nn {
+                        nns.push(nn.clone());
+                    } else {
+                        warn!("Removing all neural networks but crossing doesn't have a neural network")
+                    }
+                }
+                _ => {}
+            }
+        });
+        nns
+    }
+
     /// returns all neural networks in the simulation and removes them from the crossings
     ///
     /// the nns of crossings that are first in the list of nodes are first

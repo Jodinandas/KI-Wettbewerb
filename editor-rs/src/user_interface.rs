@@ -1,22 +1,34 @@
-use std::{collections::HashMap, ops::RangeInclusive};
-
+use std::{collections::HashMap, ops::RangeInclusive, env, fs::File};
+use std::io::{Write, Read};
 use bevy::prelude::*;
 use bevy_egui::{
     egui::{self, CollapsingHeader, CtxRef, Ui, Color32},
     EguiContext,
 };
-use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder, SimManager};
+use simulator::{datastructs::WeakIntMut, nodes::NodeBuilder, SimManager, SimulatorBuilder};
 
+use crate::{StreetLinePosition, SimulationID, node_bundles};
 use crate::{
     tool_systems::SelectedNode, CurrentTheme, NeedsRecolor, NodeBuilderRef, NodeType, UIMode,
     UIState, themes::UITheme,
 };
 
+use art_int::Network;
+use serde::{self, Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize)]
+pub struct FunnyNNBuilderCombi {
+    pub builder: SimulatorBuilder,
+    pub nn: Option<Vec<Network>>,
+    pub builder_graphics: HashMap<usize, Vec<[f32; 2]>>
+}
+
 /// Draws the ui
 ///
 /// Nice reference: [Examples](https://github.com/mvlabat/bevy_egui/blob/main/examples/ui.rs)
+#[tracing::instrument(skip_all)]
 pub fn draw_user_interface(
-    commands: Commands,
+    mut commands: Commands,
     egui_context: ResMut<EguiContext>,
     mut ui_state: ResMut<UIState>,
     mut sim_manager: ResMut<SimManager>,
@@ -25,7 +37,7 @@ pub fn draw_user_interface(
     mut current_theme: ResMut<CurrentTheme>,
     // mut colors: ResMut<Assets<ColorMaterial>>,
     nodes: QuerySet<(
-        Query<Entity, With<NodeType>>,
+        Query<(Entity, &Transform, Option<&StreetLinePosition>, &SimulationID), With<NodeType>>,
         Query<(Entity, &NodeBuilderRef), (With<NodeType>, With<SelectedNode>)>,
     )>, //mut crossings: Query<, With<IONodeMarker>>
 ) {
@@ -34,7 +46,95 @@ pub fn draw_user_interface(
     panel.show(egui_context.ctx(), |ui| {
         ui.horizontal(|ui| {
             egui::menu::menu(ui, "File", |ui| {
-                ui.button("Nothing here yet...");
+                if !sim_manager.is_simulating() {
+                    if ui.button("Save").clicked() {
+                        let report = sim_manager.simulation_report.as_ref().map(| report | report.get_best_nn());
+                        match sim_manager.modify_sim_builder() {
+                            Ok(builder) => {
+                                let sim_wrapper = FunnyNNBuilderCombi {
+                                    builder: builder.clone(),
+                                    nn: report,
+                                    builder_graphics: nodes.q0().iter().map(| (_, transform, street_line_pos, sim_id) | {
+                                        let id = sim_id.0;
+                                        match street_line_pos {
+                                            Some(pos) => {
+                                                let start: [f32; 2] = pos.0.into();
+                                                let end: [f32; 2] = pos.1.into();
+                                                (id, vec![start, end])
+                                            },
+                                            None => {
+                                                let pos = [transform.translation.x, transform.translation.y];
+                                                (id, vec![pos])
+                                            },
+                                        }
+                                    }).collect()
+                                };
+                                let json = serde_json::to_string_pretty(&sim_wrapper);
+                                match json {
+                                    Ok(s) => {
+                                        // Create a temporary file.
+                                        let temp_directory = env::current_dir().unwrap();
+                                        let full_path = temp_directory.as_path();
+                                        let temp_file = temp_directory.join("StreetSimulation.json");
+                                        let mut file = File::create(temp_file).unwrap();
+                                        write!(&mut file, "{}", s).unwrap();
+                                        info!("Saved simulation and street network to {}", full_path.display());
+                                    },
+                                    Err(_) => todo!(),
+                                }
+                            },
+                            Err(_) => todo!(),
+                        }
+                    }
+                    if ui.button("Load").clicked() {
+                        let directory = env::current_dir().unwrap();
+                        let path = directory.join("StreetSimulation.json");
+                        let mut file = File::open(path).unwrap();
+                        let mut json = String::new();
+                        file.read_to_string(&mut json).unwrap();
+                        let sim_wrapper = serde_json::from_str::<FunnyNNBuilderCombi>(&json);
+                        match sim_manager.modify_sim_builder() {
+                            Ok(builder) => {
+                                match sim_wrapper {
+                                    Ok(sim_info) => {
+                                        let new_builder = sim_info.builder;
+                                        *builder = new_builder; 
+                                        // despawn old nodes
+                                        nodes.q0().iter().for_each(| (entity, _, _, _) | {
+                                            commands.entity(entity).despawn_recursive();
+                                        });
+                                        let ui_info = sim_info.builder_graphics;
+                                        ui_info.iter().for_each(| (id, position) | {
+                                            let node = builder.get_node(*id).unwrap();
+                                            match &*node.get() {
+                                                NodeBuilder::IONode(_) => {
+                                                    let bundle = node_bundles::IONodeBundle::new(*id, &node, position[0].into(), theme.io_node);
+                                                    commands.spawn_bundle(bundle);
+                                                },
+                                                NodeBuilder::Crossing(_) => {
+                                                    let bundle = node_bundles::CrossingBundle::new(*id, &node, position[0].into(), theme.crossing);
+                                                    commands.spawn_bundle(bundle);
+                                                },
+                                                NodeBuilder::Street(_) => {
+                                                    let bundle = node_bundles::StreetBundle::new(*id, &node, position[0].into(), position[1].into(), theme.street);
+                                                    commands.spawn_bundle(bundle);
+                                                },
+                                            }
+
+                                        });
+                                        let nn = sim_info.nn;
+                                    },
+                                    Err(err) => {
+                                        error!("Unable to load from file. Error: {}", err);
+                                    },
+                                }
+                            },
+                            Err(err) => {
+                                error!("Cannot load file because SimBuilder can not be modified: {}", err)
+                            },
+                        }
+                    }
+                }
             });
             ui.separator();
             ui.horizontal( | ui | {
@@ -349,14 +449,14 @@ pub fn repaint_ui(
     mut commands: Commands,
     egui_ui: Option<&CtxRef>,
     background: &mut ResMut<ClearColor>,
-    nodes: &Query<Entity, With<NodeType>>,
+    nodes: &Query<(Entity, &Transform, Option<&StreetLinePosition>, &SimulationID), With<NodeType>>,
     theme: ResMut<UITheme>,
 ) {
     background.0 = theme.background;
     if let Some(ui) = egui_ui {
         ui.set_visuals(theme.egui_visuals.clone());
     }
-    nodes.for_each(|entity| {
+    nodes.for_each(| (entity, _, _, _)| {
         commands.entity(entity).insert(NeedsRecolor);
     });
 }
