@@ -224,6 +224,7 @@ impl<Car: Movable> Simulator<Car> {
                 mapped_node.insert(n.id(), car_status);
             }
         }
+        info!("Status: {:#?} ", mapped_node);
         mapped_node
     }
     /// sets all IONodes to record the cars that have reached the end to

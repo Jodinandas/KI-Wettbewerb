@@ -43,11 +43,12 @@ impl<T: Movable> Traversible<T> {
             if is_at_end {
                 out.push(i)
             }
-            if is_at_end || (part_of_waiting && (*dist - dist_last) <= CAR_SPACING) {
+            let pos_delta = t as f32 * m.get_speed();
+            if is_at_end || (part_of_waiting && (dist_last - (*dist + pos_delta)) <= CAR_SPACING) {
                 part_of_waiting = true;
                 movables_waiting += 1;
             } else {
-                *dist += t as f32 * m.get_speed();
+                *dist += pos_delta;
                 part_of_waiting = false;
             }
             dist_last = *dist;

@@ -50,4 +50,4 @@ pub use simulation::Simulator;
 pub use simulation_builder::SimulatorBuilder;
 
 /// TODO: Make this unique for different cars
-const CAR_SPACING: f32 = 8.0;
+const CAR_SPACING: f32 = 3.0;
