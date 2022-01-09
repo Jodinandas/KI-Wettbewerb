@@ -24,8 +24,6 @@ cargo run --release
 An example of optimizing a simple street network.
 
 # The editor
-TODO: Add image
-
 The editor has two modes: the Street Editor mode and the simulation mode.
 
 ## Street editor mode
