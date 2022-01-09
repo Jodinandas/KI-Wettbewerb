@@ -1,5 +1,9 @@
 This project is licensed under the GPL Version 3 License and was created by Ferdinand Pamberger, Jonas Kriegl & Elias Mutzl. It can be found on [GitHub](https://github.com/Jodinandas/KI-Wettbewerb)
 
+https://youtu.be/KkNeJpYtoYw
+
+[![Video](https://i9.ytimg.com/vi/KkNeJpYtoYw/mq2.jpg?sqp=CLjv7I4G&rs=AOn4CLAGH5vntL_w_7F1ysWVbXSxbzlKKg)](https://www.youtube.com/watch?v=KkNeJpYtoYw)
+
 # AICO²
 Submission to the Austrian competition "Bundeswettbewerb Künstliche Intelligenz" by Team Rusted.
 
