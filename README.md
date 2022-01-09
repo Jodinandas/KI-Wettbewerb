@@ -220,7 +220,10 @@ This is one of the reasons, why the frontend is rather simple and some functions
 are not quite working.
 E.g.: Unfortunatly, when advancing to a new generation, there are still graphical bugs in the frontend (lingering cars).
 
-
+Sometimes (especially with bigger simulations), the genetic algorithm will fail. This is
+something we are aware of, but haven't found the time yet to deal with. It could probably be ironed out
+by investing more time into formulating a better cost function. (Fortunatly, the simulation itself
+is fast even for bigger simulations)
 
 
 
