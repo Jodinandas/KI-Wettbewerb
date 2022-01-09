@@ -267,6 +267,8 @@ pub struct IONodeBuilder {
     pub spawn_rate: f64,
     /// the unique id of a IONode
     pub id: usize,
+    ///
+    pub speed_to_co2: f32
 }
 impl NodeBuilderTrait for IONodeBuilder {
     fn build<Car: Movable>(&self) -> Node<Car> {
@@ -276,8 +278,10 @@ impl NodeBuilderTrait for IONodeBuilder {
             absorbed_cars: 0,
             id: self.id,
             cached: HashMap::new(),
-            total_cost: 0.0,
-            cost_calc_params: CostCalcParameters {},
+            total_cost: [0.0; 2],
+            cost_calc_params: CostCalcParameters {
+                speed_to_co2: self.speed_to_co2,
+            },
             record: false,
             recorded_cars: Vec::new(),
             num_cars_spawned: 0,
@@ -322,8 +326,9 @@ impl IONodeBuilder {
         IONodeBuilder {
             connections_out: Vec::new(),
             connections_in: Vec::new(),
-            spawn_rate: 0.1,
+            spawn_rate: 0.001,
             id: 0,
+            speed_to_co2: 0.5,
         }
     }
     /// set spawn rate in cars / second

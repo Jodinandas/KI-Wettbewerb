@@ -31,9 +31,44 @@ impl Display for NodeDoesntExistError {
     }
 }
 
+/// source: https://www.econologie.de/Emissions-co2-Liter-Kraftstoff-Benzin-oder-Diesel-gpl/
+pub fn fuel_to_tonnesco2(liters: f32) -> f32 {
+    2.6 * liters / 1000.0
+}
+
+/// source of function : https://theconversation.com/climate-explained-does-your-driving-speed-make-any-difference-to-your-cars-emissions-140246
+/// 
+/// We modelled the function displayed in the graph using geogebra 
+/// 
+/// speed is given in km/h
+/// 
+/// the result is in litres
+pub fn average_speed_to_fuel(speed: f64) -> f64 {
+    - 0.000000000138841 * speed.powf(6.0)
+    + 0.000000049189085 * speed.powf(5.0)
+    - 0.000006513465616 * speed.powf(4.0)
+    + 0.000375629640659 * speed.powf(3.0)
+    - 0.005677092214215 * speed.powf(2.0)
+    - 0.300161202539628 * speed.powf(1.0)
+    + 15.954046194749404
+}
+
 /// calculates the cost of a car
-pub fn calculate_cost(report: CarReport, _params: &CostCalcParameters) -> f32 {
-    report.total_dist / report.distance_traversed * report.time_taken
+pub fn calculate_cost(report: CarReport, params: &CostCalcParameters) -> [f64; 2] {
+    // is in m/s
+    let average_speed = report.distance_traversed / report.time_taken;
+    // distance that the car has yet to traverse
+    let dist_remaining = report.total_dist - report.distance_traversed;
+    let dist_penalty = dist_remaining.powf(2.0);
+    // to km/h
+    let average_speed = average_speed * 3.6;
+    let fuel_consumption = average_speed_to_fuel(average_speed.into());
+    let tonnes_co2 = fuel_to_tonnesco2(fuel_consumption as f32);
+    // lerp
+    [
+        average_speed as f64 * (1.0 - params.speed_to_co2) as f64 + tonnes_co2 as f64* params.speed_to_co2 as f64+ dist_penalty as f64,
+        tonnes_co2 as f64
+    ]
 }
 
 /// A struct representing the street network
@@ -184,7 +219,7 @@ impl<Car: Movable> Simulator<Car> {
     /// returns the total cost of all the cars in the simulation 
     /// (including those that have already been destroyed)
     #[tracing::instrument(skip(self))]
-    pub fn calculate_sim_cost(&self) -> f32 {
+    pub fn calculate_sim_cost(&self) -> [f64; 2] {
         self.nodes
             .iter()
             .map(|n| match &*n.get() {
@@ -192,11 +227,21 @@ impl<Car: Movable> Simulator<Car> {
                     .lanes
                     .iter()
                     .map(|l| l.calculate_cost_of_movables(&self.calc_params))
-                    .sum(),
+                    .fold([0.0, 0.0], | [sumcost, sumco2], [cost, co2] | {
+                        [
+                            sumcost + cost,
+                            sumco2 + co2
+                        ]
+                    }),
                 Node::IONode(n) => n.total_cost,
                 Node::Crossing(c) => c.car_lane.calculate_cost_of_movables(&self.calc_params),
             })
-            .sum()
+            .fold([0.0, 0.0], | [sumcost, sumco2], [cost, co2] | {
+                [
+                    sumcost + cost,
+                    sumco2 + co2
+                ]
+            })
     }
 
     /// Simulates until a stop condition is met

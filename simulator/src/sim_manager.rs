@@ -4,6 +4,7 @@ use crate::pathfinding::PathAwareCar;
 use crate::{SimulatorBuilder, Simulator};
 use art_int::genetics::{crossover_sim_nns, mutate_sim_nns};
 use art_int::{LayerTopology, ActivationFunc, Network};
+use pathfinding::num_traits::Pow;
 use tracing::{info_span, span, Level};
 #[allow(unused_imports)]
 use tracing::{debug, error, info, trace, warn};
@@ -32,8 +33,8 @@ impl SimulationStatus {
 }
 
 pub struct GenerationReport {
-    pub cost: f32,
-    pub tonnes_co2: f32
+    pub cost: f64,
+    pub tonnes_co2: f64
 }
 
 
@@ -164,17 +165,22 @@ impl Simulating {
                 }).collect();
                 if !*terminate_thread.get() {
                         // TODO: Maybe make this more efficient
-                    let old_nns_and_costs: Vec<(f32, Vec<Network>)> = terminated_sims.iter_mut().map(
+                    let old_nns_and_costs: Vec<([f64; 2], Vec<Network>)> = terminated_sims.iter_mut().map(
                         | s | (s.simulator.calculate_sim_cost(), s.simulator.remove_all_neural_networks())
                     ).collect();
-                    let min_cost = old_nns_and_costs.iter().fold(f32::INFINITY, | a, b | a.min(b.0));
+                    let min_cost = old_nns_and_costs.iter().fold( [f64::INFINITY; 2], | [a1, a2], ([b1, b2], _) | if a1 < *b1 {[a1, a2]} else {[*b1, *b2]});
                     report_tx.send(GenerationReport {
-                        cost: min_cost,
-                        tonnes_co2: 0.0,
+                        cost: min_cost[0],
+                        tonnes_co2: min_cost[1],
                     }).unwrap();
+                    old_nns_and_costs.iter().for_each(| ([c, _], _) | {
+                        if *c == f64::INFINITY || (1.0_f64 / *c).is_nan()  {
+                            println!("Oh Shit!")
+                        }
+                    });
                     terminated_sims.iter_mut().for_each( | s | {
-                        let parent_a = &old_nns_and_costs.choose_weighted(&mut rng, | (cost, _nns) | 1.0/cost).expect("Empty population").1;
-                        let parent_b = &old_nns_and_costs.choose_weighted(&mut rng, | (cost, _nns) | 1.0/cost).expect("Empty population").1;
+                        let parent_a = &old_nns_and_costs.choose_weighted(&mut rng, | (cost, _nns) | (1.0/(cost[0]) as f64).pow(2)).expect("Empty population").1;
+                        let parent_b = &old_nns_and_costs.choose_weighted(&mut rng, | (cost, _nns) | (1.0/(cost[0])as f64).pow(2)).expect("Empty population").1;
                         let mut crossed = crossover_sim_nns(parent_a, parent_b, &mut rng);
                         mutate_sim_nns(&mut rng, &mut crossed, mutation_chance, mutation_coeff);
                         s.simulator.set_neural_networks(crossed);
@@ -239,12 +245,12 @@ impl Drop for Simulating {
 
     
 pub struct SimulationReport {
-    pub sims: Vec<(f32, SimData)>
+    pub sims: Vec<(f64, SimData)>
 }
 
 impl SimulationReport {
     pub fn new(mut sims: Vec<SimData>) -> SimulationReport {
-        let mut sims: Vec<(f32, SimData)> = sims.drain(..).map( | s | (s.simulator.calculate_sim_cost(), s)).collect();
+        let mut sims: Vec<(f64, SimData)> = sims.drain(..).map( | s | (s.simulator.calculate_sim_cost()[0], s)).collect();
         sims.sort_by(| a, b | a.0.partial_cmp(&b.0).unwrap());
         SimulationReport {
             sims: sims,
