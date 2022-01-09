@@ -426,7 +426,8 @@ fn spawn_node_grid(
         .nodes
         .iter()
         .enumerate()
-        .for_each(|(i, n_builder)| {
+        .for_each(|(_i, n_builder)| {
+            let i = n_builder.get().get_id();
             match &mut *(*n_builder).get() {
                 // generates the entities displaying the
                 NodeBuilder::Crossing(_crossing) => {

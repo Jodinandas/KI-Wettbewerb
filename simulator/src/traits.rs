@@ -46,6 +46,8 @@ where
     fn reset_cars(&mut self);
     /// 
     fn get_overnext_node_ids(&self) -> HashMap<usize, u32>;
+    /// 
+    fn get_target_id_of_car_at_end(&self) -> Option<usize>;
 }
 
 // make it possible to derive Clone for structs with Box<dyn NodeTrait>

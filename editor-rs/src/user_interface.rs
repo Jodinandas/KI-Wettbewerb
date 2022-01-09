@@ -391,6 +391,7 @@ pub fn draw_user_interface(
                                 .clamp_to_range(true)
                             );
                             ui.separator();
+                            ui.separator();
                             ui.heading("Commands");
                             ui.horizontal_wrapped(|  ui | {
                                 if ui.button("Start Simulation").clicked() {

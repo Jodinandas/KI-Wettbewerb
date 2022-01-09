@@ -145,6 +145,14 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
             Node::Crossing(cross) => cross.car_lane.get_overnext_node_ids(),
         }
     }
+
+    fn get_target_id_of_car_at_end(&self) -> Option<usize> {
+        match self {
+            Node::Street(street) => street.lanes[0].get_target_id_of_movable_at_end(),
+            Node::IONode(node) => None,
+            Node::Crossing(crossing) => crossing.car_lane.get_target_id_of_movable_at_end(),
+        }
+    }
 }
 
 /// The state of a traffic light (ampelstatus)
@@ -201,7 +209,7 @@ impl<Car: Movable> Crossing<Car> {
     /// calculates the inputs for the neural network controlling the traffic light state
     /// # What are the inputs?
     ///
-    /// 1. For each direction, how many cars are waiting to go over the crossing?
+    /// // 1. For each direction, how many cars are waiting to go over the crossing?
     /// 3. What direction do the cars want to go to?
     ///
     /// If there is no street, the time and number of cars is set to 0.0
@@ -214,8 +222,8 @@ impl<Car: Movable> Crossing<Car> {
         }).collect();
         for dir in [Direction::N, Direction::E, Direction::S, Direction::W] {
             if let Some(conn) = self.connections.input.get(&dir) {
-                let node_ids = conn.upgrade().get().get_overnext_node_ids();
-                for (id, count) in node_ids {
+                let node_id = conn.upgrade().get().get_target_id_of_car_at_end();
+                if let Some(id) = node_id {
                     let dir_out = map_output_id_to_dir_index[&id];
                     let offset = match dir_out {
                         Direction::N => 0,
@@ -223,8 +231,11 @@ impl<Car: Movable> Crossing<Car> {
                         Direction::S => 2,
                         Direction::W => 3,
                     };
-                    cars_at_end[i + offset] = count as f32;
+                    cars_at_end[i + offset] = 1.0;
                 }
+                // for (id, count) in node_ids {
+                //     cars_at_end[i + offset] = count as f32;
+                // }
             } 
             i += 4;
         }
@@ -645,26 +656,22 @@ impl<Car: Movable> Street<Car> {
     }
 
     /// Adds a movable to the street
-    ///
-    /// The movable is put on the lane with the leas amount of cars
-    /// This should pretty closely resemble how people drive in real life
-    /// as you won't drive to the lane that has the most cars in it
     pub fn add_movable(&mut self, movable: Car) {
         info!("Adding movable to dstreet");
         // get the index of the lane with the least movables on it
-        let trav_most_movables = self
-            .lanes
-            .iter()
-            .enumerate()
-            .min_by_key(|(_i, traversible)| traversible.num_movables());
-        let i = match trav_most_movables {
-            Some((i, _)) => i,
-            None => {
-                warn!("Can not determine lane with minimum number of cars.");
-                return;
-            }
-        };
-        self.lanes[i].add(movable)
+        // let trav_most_movables = self
+        //     .lanes
+        //     .iter()
+        //     .enumerate()
+        //     .min_by_key(|(_i, traversible)| traversible.num_movables());
+        // let i = match trav_most_movables {
+        //     Some((i, _)) => i,
+        //     None => {
+        //         warn!("Can not determine lane with minimum number of cars.");
+        //         return;
+        //     }
+        // };
+        self.lanes[0].add(movable)
     }
     /// gets car status
     pub fn get_car_status(&self) -> Vec<MovableStatus> {

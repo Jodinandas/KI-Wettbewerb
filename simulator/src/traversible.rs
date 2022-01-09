@@ -120,6 +120,16 @@ impl<T: Movable> Traversible<T> {
             })
             .collect()
     }
+    ///
+    pub fn get_target_id_of_movable_at_end(&self) -> Option<usize> {
+        if let Some(movable) = self.movables.back() {
+            if self.movables_waiting == 0 {
+                return None
+            }
+            return movable.0.overnext_node_id()
+        }
+        None
+    }
 
     pub fn remove_movable(&mut self, i: usize) -> T {
         self.movables.remove(i).unwrap().0
