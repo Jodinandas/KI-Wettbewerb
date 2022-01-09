@@ -7,6 +7,8 @@ use crate::pathfinding::MovableServer;
 use crate::simulation::calculate_cost;
 use crate::traits::{CarReport, Movable, NodeTrait};
 use art_int;
+use rand::Rng;
+use rand::prelude::ThreadRng;
 #[allow(unused_imports)]
 use tracing::{debug, error, info, trace, warn};
 use std::cmp::Ordering;
@@ -42,13 +44,18 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
             .find(|n| *n == other)
             .is_some()
     }
-    fn update_cars(&mut self, t: f64) -> Vec<usize> {
+    fn update_cars(&mut self, t: f64, mv_server: &mut MovableServer<Car>, rng: &mut ThreadRng) -> Vec<usize> {
         match self {
             Node::Street(street) => street.update_movables(t),
-            Node::IONode(io_node) => io_node.update_cars(t),
-            Node::Crossing(crossing) => crossing.car_lane.update_movables(t),
+            Node::IONode(io_node) => io_node.update_cars(t, mv_server, rng),
+            Node::Crossing(crossing) => {
+                crossing.traffic_light_state = crossing.determine_traffic_light_state().expect("Error when determining traffic light state");
+                crossing.car_lane.update_movables(t)
+            },
         }
     }
+
+
 
     fn get_out_connections(&self) -> Vec<WeakIntMut<Node<Car>>> {
         match self {
@@ -122,6 +129,22 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
             Node::Crossing(crossing) => crossing.car_lane.get_movable_by_index(i),
         }
     }
+
+    fn reset_cars(&mut self) {
+        match self {
+            Node::Street(s) => s.lanes.iter_mut().for_each(| l | l.reset()),
+            Node::IONode(node) => {node.cached = HashMap::new(); node.recorded_cars = Vec::new(); node.num_cars_spawned = 0; node.total_cost = 0.0;},
+            Node::Crossing(node) => {node.car_lane.reset()},
+        }
+    }
+
+    fn get_overnext_node_ids(&self) -> HashMap<usize, u32> {
+        match self {
+            Node::Street(street) => street.lanes.iter().flat_map(| l | l.get_overnext_node_ids()).collect(),
+            Node::IONode(node) => HashMap::new(),
+            Node::Crossing(cross) => cross.car_lane.get_overnext_node_ids(),
+        }
+    }
 }
 
 /// The state of a traffic light (ampelstatus)
@@ -179,42 +202,38 @@ impl<Car: Movable> Crossing<Car> {
     /// # What are the inputs?
     ///
     /// 1. For each direction, how many cars are waiting to go over the crossing?
-    /// 2. For each direction, when was the last time, cars were able to go over the crossing?
+    /// 3. What direction do the cars want to go to?
     ///
     /// If there is no street, the time and number of cars is set to 0.0
-    pub fn calculate_nn_inputs(&self) -> [f32; 8] {
-        let mut cars_at_end = [0.0f32; 4];
-        self.connections.input.iter().for_each(|(dir, conn)| {
-            let index = match dir {
-                Direction::N => 0,
-                Direction::E => 1,
-                Direction::S => 2,
-                Direction::W => 3,
-            };
-            let cars = match &*conn.upgrade().get() {
-                Node::Street(street) => street.get_num_cars_at_end(),
-                _ => {
-                    error!("Crossing connected with crossing or IONode");
-                    return;
+    pub fn calculate_nn_inputs(&self) -> [f32; 16] {
+        let mut cars_at_end = [0.0f32; 16];
+
+        let mut i = 0;
+        let map_output_id_to_dir_index: HashMap<usize, Direction> = self.connections.output.iter().map(| (dir, conn) | {
+            (conn.upgrade().get().id(), *dir)
+        }).collect();
+        for dir in [Direction::N, Direction::E, Direction::S, Direction::W] {
+            if let Some(conn) = self.connections.input.get(&dir) {
+                let node_ids = conn.upgrade().get().get_overnext_node_ids();
+                for (id, count) in node_ids {
+                    let dir_out = map_output_id_to_dir_index[&id];
+                    let offset = match dir_out {
+                        Direction::N => 0,
+                        Direction::E => 1,
+                        Direction::S => 2,
+                        Direction::W => 3,
+                    };
+                    cars_at_end[i + offset] = count as f32;
                 }
-            };
-            cars_at_end[index] = cars as f32;
-        });
-        [
-            cars_at_end[0],
-            cars_at_end[1],
-            cars_at_end[2],
-            cars_at_end[3],
-            self.time_since_input_passable[0],
-            self.time_since_input_passable[1],
-            self.time_since_input_passable[2],
-            self.time_since_input_passable[3],
-        ]
+            } 
+            i += 4;
+        }
+        cars_at_end
     }
     /// Is used to set the NN given by the genetic algorithm
     pub fn set_neural_network(&mut self, nn: art_int::Network) {
         // make sure the input has the right size
-        assert_eq!(nn.layers[0].neurons[0].weights.len(), 8);
+        assert_eq!(nn.layers[0].neurons[0].weights.len(), 16);
         self.nn = Some(nn);
     }
     /// computes the traffic light state using the neural network
@@ -324,11 +343,11 @@ impl<Car: Movable> Crossing<Car> {
         let input_node_dir = self
             .connections
             .get_direction_for_item(InOut::IN, in_node)
-            .expect("Crossing seems not to be connected with street (input)");
+            .expect("Crossing doesn't seem to be connected with street (input)");
         let output_node_dir = self
             .connections
             .get_direction_for_item(InOut::OUT, out_node)
-            .expect("Crossing seems not to be connected with street (output)");
+            .expect("Crossing doesn't seem to be connected with street (output)");
         // funky stuff here
         match self.traffic_light_state {
             TrafficLightState::S0 => {
@@ -421,8 +440,6 @@ where
     pub spawn_rate: f64,
     /// parameters for calculating the cost
     pub cost_calc_params: CostCalcParameters,
-    /// time since last spawn in seconds
-    pub time_since_last_spawn: f64,
     /// Tracks how many cars have reached their destination in this node
     pub absorbed_cars: usize,
     /// To differentiate different nodes. Should be set to the positions in the
@@ -432,9 +449,6 @@ where
     pub cached: HashMap<usize, Car>,
     /// total cost all cars produced
     pub total_cost: f32,
-    /// a list of cars that have reached the end 
-    /// The movable server used to spawn new cars
-    pub movable_server: Option<IntMut<MovableServer<Car>>>,
     /// if set to true, the node will record cars that have reached it and only
     /// delete them if get_car_status is called
     pub record: bool,
@@ -450,26 +464,16 @@ where
     pub fn new() -> Self {
         Self {
             connections: Vec::new(),
-            spawn_rate: 1.0,
-            time_since_last_spawn: 0.0,
+            spawn_rate: 0.01,
             absorbed_cars: 0,
             total_cost: 0.0,
             id: 0,
             cached: HashMap::new(),
-            movable_server: None,
             cost_calc_params: CostCalcParameters {},
             record: false,
             recorded_cars: Vec::new(),
             num_cars_spawned: 0
         }
-    }
-    /// Used when constructing a node from a [NodeBuilder](crate::nodes::NodeBuilder)
-    ///  The Movable server is added so that the node can spawn new cars
-    ///
-    ///  This functionality is not in the `new` function to keep the function signature
-    ///  the same across all node types
-    pub fn register_movable_server(&mut self, mv_server: &IntMut<MovableServer<Car>>) {
-        self.movable_server = Some(mv_server.clone())
     }
 
     /// adds a connections
@@ -503,26 +507,24 @@ where
     }
 
     /// is responsible for spawning new cars if a time is reached
-    pub fn update_cars(&mut self, dt: f64) -> Vec<usize> {
+    pub fn update_cars(&mut self, dt: f64, mv_server: &mut MovableServer<Car>, rng: &mut ThreadRng) -> Vec<usize> {
         // create new car
-        self.time_since_last_spawn += dt;
         let mut new_cars = Vec::<usize>::new();
         // TODO: rework spawn rate
-        if self.spawn_rate != 0.0 && self.time_since_last_spawn >= 1.0/self.spawn_rate {
+        if rng.gen_bool(self.spawn_rate*dt) {
             // TODO: Remove and replace with proper request to
             //  the movable server
             // new_cars.push(Car::new())
-            match &mut self.movable_server {
-                Some(server) => {
-                    let car_result = server.get().generate_movable(self.id);
-                    if let Ok(car) = car_result {
-                        self.cached.insert(self.num_cars_spawned, car);
-                        new_cars.push(self.num_cars_spawned);
-                        self.num_cars_spawned += 1;
-                    }
-                    self.time_since_last_spawn = 0.0;
-                }
-                None => warn!("Trying to simulate Node with uninitialised MovableServer"),
+            let car_result = mv_server.generate_movable(self.id);
+            match car_result {
+                Ok(car) => {
+                    self.cached.insert(self.num_cars_spawned, car);
+                    new_cars.push(self.num_cars_spawned);
+                    self.num_cars_spawned += 1;
+                },
+                Err(err) => {
+                    warn!("Unable to generate new car: {}", err);
+                },
             }
         }
         new_cars

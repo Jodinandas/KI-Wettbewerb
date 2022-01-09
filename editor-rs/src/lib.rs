@@ -10,7 +10,7 @@ use simulator::nodes::{NodeBuilder, NodeBuilderTrait, InOut};
 use simulator::{self, SimManager};
 use themes::*;
 use tool_systems::SelectedNode;
-use user_interface::repaint_ui;
+use user_interface::{repaint_ui, update_sim_reports};
 use wasm_bindgen::prelude::*;
 mod input;
 mod node_bundles;
@@ -152,6 +152,7 @@ pub fn run() {
         // .add_system(color_under_cursor.system())
         //.add_system(rotation_test.system())
         .add_system(input::keyboard_movement.system())
+        .add_system(update_sim_reports.system())
         .add_system(input::mouse_panning.system())
         .add_system(recolor_nodes.system())
         .add_system(debug_status_updates.system())

@@ -13,7 +13,6 @@ fn simulation_performance_bench(c: &mut Criterion) {
         let mut sim_builder = build_grid_sim(size, 100.0);
         let mut mv_server = MovableServer::<PathAwareCar>::new();
         mv_server.register_simulator_builder(&sim_builder);
-        let mv_server = IntMut::new(mv_server);
         // make sure it works when using the cached value
         let mut sim = sim_builder.build(&mv_server);
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &_size| {

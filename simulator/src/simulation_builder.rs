@@ -272,7 +272,7 @@ impl<Car: Movable> SimulatorBuilder<Car> {
     }
 
     /// Creates a new simulator from the templates
-    pub fn build(&mut self, mv_server: &IntMut<MovableServer<Car>>) -> Simulator<Car> {
+    pub fn build(&mut self, mv_server: &MovableServer<Car>) -> Simulator<Car> {
         if let Some(cache) = &self.cache {
             return Simulator {
                 nodes: cache.iter().map(|n| n.deep_copy()).collect(),
@@ -280,6 +280,7 @@ impl<Car: Movable> SimulatorBuilder<Car> {
                 delay: self.delay,
                 dt: self.dt,
                 calc_params: CostCalcParameters,
+                mv_server: mv_server.clone()
             };
         }
         // create the nodes
@@ -288,9 +289,6 @@ impl<Car: Movable> SimulatorBuilder<Car> {
             .iter()
             .map(|n| {
                 let mut new_node = n.get().build();
-                if let Node::IONode(node) = &mut new_node {
-                    node.register_movable_server(mv_server);
-                }
                 IntMut::new(new_node)
             })
             .collect();
@@ -382,13 +380,14 @@ impl<Car: Movable> SimulatorBuilder<Car> {
                     }
                 });
         });
-        self.cache = Some(sim_nodes.clone());
+        // self.cache = Some(sim_nodes.iter().map(|n| n.deep_copy()).collect());
         Simulator {
             nodes: sim_nodes,
             max_iter: self.max_iter,
             delay: self.delay,
             dt: self.dt,
             calc_params: CostCalcParameters {},
+            mv_server: mv_server.clone(),
         }
     }
     /// Drops the internal node cache

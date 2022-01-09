@@ -15,6 +15,7 @@ use std::{cmp, ptr, thread};
 use super::int_mut::{IntMut, WeakIntMut};
 use super::node::Node;
 use art_int::LayerTopology;
+use rand::prelude::ThreadRng;
 use tracing::event;
 #[allow(unused_imports)]
 use tracing::{debug, error, info, trace, warn};
@@ -62,6 +63,8 @@ where
     pub dt: f32,
     /// The parameters used for cost calculation
     pub calc_params: CostCalcParameters,
+    /// Movables servlsaöe
+    pub mv_server: MovableServer<Car>
 }
 
 /// The simulator, the top level struct that is instaniated to simulate traffic
@@ -70,11 +73,11 @@ impl<Car: Movable> Simulator<Car> {
     /// nodes
     #[tracing::instrument(skip(self))]
     pub fn update_all_nodes(&mut self, dt: f64) {
+        let mut rng = ThreadRng::default();
         for i in 0..self.nodes.len() {
             let node = &self.nodes[i];
-
             let options = node.get().get_out_connections();
-            let mut cars_at_end = node.get().update_cars(dt);
+            let mut cars_at_end = node.get().update_cars(dt, &mut self.mv_server, &mut rng);
             // make sure that the rightmost elements get removed first to avoid
             // the indices becoming invalid
             cars_at_end.sort();
@@ -111,6 +114,12 @@ impl<Car: Movable> Simulator<Car> {
                 }
             }
         }
+    }
+    /// resets all cars
+    pub fn reset_cars(&mut self) {
+        self.nodes.iter().for_each(| n| {
+            n.get().reset_cars();
+        });
     }
     /// used the output from the genetic algorithm to set the neural networks
     pub fn set_neural_networks(&mut self, mut nns: Vec<art_int::Network>) {
@@ -218,6 +227,16 @@ impl<Car: Movable> Simulator<Car> {
             // thread::sleep(Duration::from_millis(self.delay));
         }
         Ok(())
+    }
+    /// counts all cars in the simulation
+    pub fn count_cars(&mut self) -> usize {
+        self.nodes.iter().map( | n | {
+            match &*n.get() {
+                Node::Street(street) => street.lanes.iter().map(| l | l.num_movables()).sum(),
+                Node::IONode(node) => 0,
+                Node::Crossing(cross) => cross.car_lane.num_movables(),
+            }
+        }).sum()
     }
 
     /// a single iteration

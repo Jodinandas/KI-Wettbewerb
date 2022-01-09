@@ -23,6 +23,14 @@ pub struct FunnyNNBuilderCombi {
     pub builder_graphics: HashMap<usize, Vec<[f32; 2]>>
 }
 
+
+
+pub fn update_sim_reports(
+    mut sim_manager: ResMut<SimManager>
+) {
+    sim_manager.update_reports();
+}
+
 /// Draws the ui
 ///
 /// Nice reference: [Examples](https://github.com/mvlabat/bevy_egui/blob/main/examples/ui.rs)
@@ -45,98 +53,100 @@ pub fn draw_user_interface(
     let panel = egui::TopBottomPanel::top("menu_top_panel");
     panel.show(egui_context.ctx(), |ui| {
         ui.horizontal(|ui| {
-            egui::menu::menu(ui, "File", |ui| {
-                if !sim_manager.is_simulating() {
-                    if ui.button("Save").clicked() {
-                        let report = sim_manager.simulation_report.as_ref().map(| report | report.get_best_nn());
-                        match sim_manager.modify_sim_builder() {
-                            Ok(builder) => {
-                                let sim_wrapper = FunnyNNBuilderCombi {
-                                    builder: builder.clone(),
-                                    nn: report,
-                                    builder_graphics: nodes.q0().iter().map(| (_, transform, street_line_pos, sim_id) | {
-                                        let id = sim_id.0;
-                                        match street_line_pos {
-                                            Some(pos) => {
-                                                let start: [f32; 2] = pos.0.into();
-                                                let end: [f32; 2] = pos.1.into();
-                                                (id, vec![start, end])
-                                            },
-                                            None => {
-                                                let pos = [transform.translation.x, transform.translation.y];
-                                                (id, vec![pos])
-                                            },
-                                        }
-                                    }).collect()
-                                };
-                                let json = serde_json::to_string_pretty(&sim_wrapper);
-                                match json {
-                                    Ok(s) => {
-                                        // Create a temporary file.
-                                        let temp_directory = env::current_dir().unwrap();
-                                        let full_path = temp_directory.as_path();
-                                        let temp_file = temp_directory.join("StreetSimulation.json");
-                                        let mut file = File::create(temp_file).unwrap();
-                                        write!(&mut file, "{}", s).unwrap();
-                                        info!("Saved simulation and street network to {}", full_path.display());
-                                    },
-                                    Err(_) => todo!(),
-                                }
-                            },
-                            Err(_) => todo!(),
-                        }
-                    }
-                    if ui.button("Load").clicked() {
-                        let directory = env::current_dir().unwrap();
-                        let path = directory.join("StreetSimulation.json");
-                        let mut file = File::open(path).unwrap();
-                        let mut json = String::new();
-                        file.read_to_string(&mut json).unwrap();
-                        let sim_wrapper = serde_json::from_str::<FunnyNNBuilderCombi>(&json);
-                        match sim_manager.modify_sim_builder() {
-                            Ok(builder) => {
-                                match sim_wrapper {
-                                    Ok(sim_info) => {
-                                        let new_builder = sim_info.builder;
-                                        *builder = new_builder; 
-                                        // despawn old nodes
-                                        nodes.q0().iter().for_each(| (entity, _, _, _) | {
-                                            commands.entity(entity).despawn_recursive();
-                                        });
-                                        let ui_info = sim_info.builder_graphics;
-                                        ui_info.iter().for_each(| (id, position) | {
-                                            let node = builder.get_node(*id).unwrap();
-                                            match &*node.get() {
-                                                NodeBuilder::IONode(_) => {
-                                                    let bundle = node_bundles::IONodeBundle::new(*id, &node, position[0].into(), theme.io_node);
-                                                    commands.spawn_bundle(bundle);
+            egui::menu::bar(ui, |ui| {
+                ui.menu_button("File", |ui| {
+
+                    if !sim_manager.is_simulating() {
+                        if ui.button("Save").clicked() {
+                            let report = sim_manager.simulation_report.as_ref().map(| report | report.get_best_nn());
+                            match sim_manager.modify_sim_builder() {
+                                Ok(builder) => {
+                                    let sim_wrapper = FunnyNNBuilderCombi {
+                                        builder: builder.clone(),
+                                        nn: report,
+                                        builder_graphics: nodes.q0().iter().map(| (_, transform, street_line_pos, sim_id) | {
+                                            let id = sim_id.0;
+                                            match street_line_pos {
+                                                Some(pos) => {
+                                                    let start: [f32; 2] = pos.0.into();
+                                                    let end: [f32; 2] = pos.1.into();
+                                                    (id, vec![start, end])
                                                 },
-                                                NodeBuilder::Crossing(_) => {
-                                                    let bundle = node_bundles::CrossingBundle::new(*id, &node, position[0].into(), theme.crossing);
-                                                    commands.spawn_bundle(bundle);
-                                                },
-                                                NodeBuilder::Street(_) => {
-                                                    let bundle = node_bundles::StreetBundle::new(*id, &node, position[0].into(), position[1].into(), theme.street);
-                                                    commands.spawn_bundle(bundle);
+                                                None => {
+                                                    let pos = [transform.translation.x, transform.translation.y];
+                                                    (id, vec![pos])
                                                 },
                                             }
+                                        }).collect()
+                                    };
+                                    let json = serde_json::to_string_pretty(&sim_wrapper);
+                                    match json {
+                                        Ok(s) => {
+                                            // Create a temporary file.
+                                            let temp_directory = env::current_dir().unwrap();
+                                            let full_path = temp_directory.as_path();
+                                            let temp_file = temp_directory.join("StreetSimulation.json");
+                                            let mut file = File::create(temp_file).unwrap();
+                                            write!(&mut file, "{}", s).unwrap();
+                                            info!("Saved simulation and street network to {}", full_path.display());
+                                        },
+                                        Err(_) => todo!(),
+                                    }
+                                },
+                                Err(_) => todo!(),
+                            }
+                        }
+                        if ui.button("Load").clicked() {
+                            let directory = env::current_dir().unwrap();
+                            let path = directory.join("StreetSimulation.json");
+                            let mut file = File::open(path).unwrap();
+                            let mut json = String::new();
+                            file.read_to_string(&mut json).unwrap();
+                            let sim_wrapper = serde_json::from_str::<FunnyNNBuilderCombi>(&json);
+                            match sim_manager.modify_sim_builder() {
+                                Ok(builder) => {
+                                    match sim_wrapper {
+                                        Ok(sim_info) => {
+                                            let new_builder = sim_info.builder;
+                                            *builder = new_builder; 
+                                            // despawn old nodes
+                                            nodes.q0().iter().for_each(| (entity, _, _, _) | {
+                                                commands.entity(entity).despawn_recursive();
+                                            });
+                                            let ui_info = sim_info.builder_graphics;
+                                            ui_info.iter().for_each(| (id, position) | {
+                                                let node = builder.get_node(*id).unwrap();
+                                                match &*node.get() {
+                                                    NodeBuilder::IONode(_) => {
+                                                        let bundle = node_bundles::IONodeBundle::new(*id, &node, position[0].into(), theme.io_node);
+                                                        commands.spawn_bundle(bundle);
+                                                    },
+                                                    NodeBuilder::Crossing(_) => {
+                                                        let bundle = node_bundles::CrossingBundle::new(*id, &node, position[0].into(), theme.crossing);
+                                                        commands.spawn_bundle(bundle);
+                                                    },
+                                                    NodeBuilder::Street(_) => {
+                                                        let bundle = node_bundles::StreetBundle::new(*id, &node, position[0].into(), position[1].into(), theme.street);
+                                                        commands.spawn_bundle(bundle);
+                                                    },
+                                                }
 
-                                        });
-                                        let nn = sim_info.nn;
-                                        info!("Loaded Simulation Builder");
-                                    },
-                                    Err(err) => {
-                                        error!("Unable to load from file. Error: {}", err);
-                                    },
-                                }
-                            },
-                            Err(err) => {
-                                error!("Cannot load file because SimBuilder can not be modified: {}", err)
-                            },
+                                            });
+                                            let nn = sim_info.nn;
+                                            info!("Loaded Simulation Builder");
+                                        },
+                                        Err(err) => {
+                                            error!("Unable to load from file. Error: {}", err);
+                                        },
+                                    }
+                                },
+                                Err(err) => {
+                                    error!("Cannot load file because SimBuilder can not be modified: {}", err)
+                                },
+                            }
                         }
                     }
-                }
-            });
+                });
             ui.separator();
             ui.horizontal( | ui | {
                 if ui.button("Street Editor").clicked() {
@@ -146,6 +156,7 @@ pub fn draw_user_interface(
                 } else if ui.button("Preferences").clicked() {
                     ui_state.new_mode(UIMode::Preferences);
                 }
+            });
             });
         });
     });
@@ -339,7 +350,7 @@ pub fn draw_user_interface(
                             ui.add(
                                 egui::Slider::new(
                                     &mut sim_manager.generations,
-                                    1..=100
+                                    1..=10000
                                 )
                                 .text("Number of generations to simulate")
                                 .clamp_to_range(true)
@@ -348,9 +359,35 @@ pub fn draw_user_interface(
                             ui.add(
                                 egui::Slider::new(
                                     &mut sim_manager.population,
-                                    1..=1000
+                                    1..=10000
                                 )
                                 .text("Population size")
+                                .clamp_to_range(true)
+                            );
+                            ui.separator();
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut sim_manager.stop_iterations,
+                                    1..=10000
+                                )
+                                .text("Iterations to stop")
+                                .clamp_to_range(true)
+                            );
+                            ui.separator();
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut sim_manager.mutation_chance,
+                                    0.0..=1.0
+                                )
+                                .text("Mutation Chance")
+                                .clamp_to_range(true)
+                            );
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut sim_manager.mutation_coeff,
+                                    0.0..=1.0
+                                )
+                                .text("Mutation Coefficent")
                                 .clamp_to_range(true)
                             );
                             ui.separator();
@@ -360,7 +397,7 @@ pub fn draw_user_interface(
                                     match sim_manager.simulate() {
                                         Err(err) => error!("Error when trying to start simulation: {}", err),
                                         Ok(_) => {
-                                            match sim_manager.track_simulation(0) {
+                                            match sim_manager.track_simulation(2) {
                                                 Ok(_) => info!("Tracking Simulation index=0"),
                                                 Err(_) => warn!("Unable to track Simulation with index=0"),
                                             };
@@ -376,14 +413,29 @@ pub fn draw_user_interface(
                         ui.separator();
                         ui.heading("Commands");
                         ui.vertical_centered(| ui | {
-                            if ui.button("Abort Simulation").clicked() {
+                            if ui.button("Stop Simulation").clicked() {
                                 sim_manager.terminate_sims();
                             }
-                            if ui.button("Pause Simulation").clicked() {
-
-                            }
+                            // if ui.button("Pause Simulation").clicked() {
+                            // }
                         });
                     },
+                }
+
+            });
+            egui::TopBottomPanel::bottom("Generation Report").default_height(100.0).resizable(true).show(egui_context.ctx(), | ui | {
+                ui.heading("Generation Report");
+                if let Some(sims) = &sim_manager.simulations {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        for (i, report) in sims.generation_reports.iter().enumerate() {
+                            ui.horizontal(| ui | {
+                                ui.label(format!("Generation #{}", i) );
+                                ui.separator();
+                                ui.label(format!("Cost: {}", report.cost) );
+                                ui.label(format!("CO2: {} tonnes", report.tonnes_co2) );
+                            });
+                        }
+                    });
                 }
             });
             // Toolbar
@@ -394,7 +446,7 @@ pub fn draw_user_interface(
                     ui.horizontal(| ui | {
                         ui.heading("Simulation Overview");
                     });
-                    ui.vertical_centered(|ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
                         if let Ok(stati) = sim_manager.get_sim_status() {
                             stati.iter_mut().enumerate().for_each( | (i, sim_info) | {
                                 if ui.button(format!("Simulation {}", i)).clicked()  {

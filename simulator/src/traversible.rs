@@ -1,6 +1,6 @@
-use std::{ptr, collections::VecDeque};
+use std::{ptr, collections::{VecDeque, HashMap}};
 
-use crate::{movable::MovableStatus, node::CostCalcParameters, simulation::calculate_cost, CAR_SPACING};
+use crate::{movable::MovableStatus, node::CostCalcParameters, simulation::calculate_cost, CAR_SPACING, node_builder::Direction};
 
 use super::{movable::RandCar, traits::Movable};
 #[allow(unused_imports)]
@@ -43,7 +43,9 @@ impl<T: Movable> Traversible<T> {
             if is_at_end {
                 out.push(i)
             }
+            m.update(t as f32);
             let pos_delta = t as f32 * m.get_speed();
+            m.add_to_dist(pos_delta);
             if is_at_end || (part_of_waiting && (dist_last - (*dist + pos_delta)) <= CAR_SPACING) {
                 part_of_waiting = true;
                 movables_waiting += 1;
@@ -67,6 +69,15 @@ impl<T: Movable> Traversible<T> {
     /// returns the number of movables that are waiting to go on a crossing
     pub fn num_movables_waiting(&self) -> u32 {
         self.movables_waiting
+    }
+    /// 
+    pub fn get_overnext_node_ids(&self) -> HashMap<usize, u32> {
+        let mut map = HashMap::new();
+        self.movables.iter().rev().take(self.movables_waiting as usize).for_each(| (car, _pos ) | {
+            let id = car.overnext_node_id().unwrap();
+            *map.entry(id).or_insert(0) += 1;
+        });
+        map
     }
     /// removes a movable using a reference to it. This can be useful for
     /// removing cars lazily and checking conditions outside the traversible
@@ -123,5 +134,10 @@ impl<T: Movable> Traversible<T> {
             .iter()
             .map(|(m, _)| calculate_cost(m.get_report(), params))
             .sum()
+    }
+
+    pub fn reset(&mut self) {
+        self.movables = VecDeque::new();
+        self.movables_waiting = 0;
     }
 }

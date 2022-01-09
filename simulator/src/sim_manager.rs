@@ -31,10 +31,15 @@ impl SimulationStatus {
     }
 }
 
+pub struct GenerationReport {
+    pub cost: f32,
+    pub tonnes_co2: f32
+}
+
 
 /// saves a handle to the thread performing the simulation
 /// and provides ways of communication
-struct Simulating {
+pub struct Simulating {
     /// Car updates are received from this part of the channel if the simulators are 
     /// set to report updates with `report_updates`
     ///
@@ -53,6 +58,8 @@ struct Simulating {
     pub generation_thread_handle: Option<JoinHandle<Vec<SimData>>>,
     /// status information for all the simulations
     simulation_information: Vec<SimulationStatus>,
+    pub generation_reports: Vec<GenerationReport>,
+    pub reports_channel: Mutex<mpsc::Receiver<GenerationReport>>
 }
 
 /// used to encapsulate data used when creating a Simulator
@@ -62,17 +69,19 @@ pub struct SimData {
     pub report_updates:  IntMut<bool>,
     pub terminate: IntMut<bool>,
     pub terminate_generation: IntMut<bool>,
+    pub id: usize,
 }
    
 impl Simulating {
     /// Creates new simulations and runs them in different threads using the rayon crate
-        pub fn new(
+    pub fn new(
         sim_builder: &mut SimulatorBuilder,
-        mv_server: &IntMut<MovableServer>,
+        mv_server: &MovableServer,
         population: usize,
         generations: usize,
         mutation_chance: f32,
-        mutation_coeff: f32
+        mutation_coeff: f32,
+        stop_iterations: u32
     ) -> Simulating {
         debug!("creating new Simulating");
         // create all the necessary variables for the simulation thread to later use them in a
@@ -80,14 +89,16 @@ impl Simulating {
         let terminate_generation = IntMut::new(false);
         let report_updates = (0..population).map( | _ | IntMut::new(false)).collect::<Vec<IntMut<bool>>>();
         let (car_tx, car_rx) = mpsc::channel();
+        let (report_tx, report_rx) = mpsc::channel();
         let terminate = IntMut::new(false);
         let mut simulation_information = Vec::with_capacity(population);
         let simulation_data: Vec<SimData> =  (0..population).map( | i | {
             let mut sim = sim_builder.build(mv_server);
             sim.init_neural_networks_random(
             &[
+                    LayerTopology::new(16),
+                    LayerTopology::new(14),
                     LayerTopology::new(8),
-                    LayerTopology::new(6),
                     LayerTopology::new(4),
                     LayerTopology::new(0).with_activation(ActivationFunc::SoftMax),
                 ]
@@ -98,7 +109,8 @@ impl Simulating {
                 channel: Mutex::new(car_tx.clone()),
                 report_updates: report_updates[i].clone(),
                 terminate: terminate.clone(),
-                terminate_generation: terminate_generation.clone()
+                terminate_generation: terminate_generation.clone(),
+                id: i,
             }
         }).collect();
         // drop the inital transmitter to prevent having a transmitter that does nothing
@@ -113,20 +125,28 @@ impl Simulating {
             }));
             let mut rng = thread_rng();
             let mut terminated_sims: Vec<SimData> = simulation_data;
+            let cpus = num_cpus::get();
+            let min_num = (population as f32 / cpus as f32).ceil() as usize;
             for generation in 0..generations {
+                terminated_sims.iter_mut().for_each(| sim | {
+                    sim.simulator.reset_cars();
+                });
                 terminated_sims = terminated_sims.into_par_iter()
+                // .with_min_len(min_num)
                  .map( move | mut data | {
                     let span = span!(Level::TRACE, "simulation", sim_index=generation);
                     let _enter = span.enter();
                     info!("starting Simulation thread");
-                    println!("Starting sim thread");
                     panic::set_hook(Box::new(|e| {
                         error!("Simulation panicked! Backtrace: {}", e);
                     }));
-                    let mut _i = 0;
+                    let mut i = 0;
                     let mut previous_tracking_setting = false;
                     while !*data.terminate_generation.get() &&  !*data.terminate.get() {
-                        _i += 1;
+                        i += 1;
+                        if i > stop_iterations {
+                            break
+                        }
                         data.simulator.sim_iter();
                         let report_updates = *data.report_updates.get();
                         // report car position updates
@@ -139,13 +159,19 @@ impl Simulating {
                             data.channel.lock().unwrap().send(updates).expect("Unable to send car status updates, even though report_updates is set to true");
                         }
                     }
+                    // println!("Number of cars in Simulation {}: {} ({})", data.id, data.simulator.count_cars(), i);
                     data
                 }).collect();
-                    if !*terminate_thread.get() {
+                if !*terminate_thread.get() {
                         // TODO: Maybe make this more efficient
                     let old_nns_and_costs: Vec<(f32, Vec<Network>)> = terminated_sims.iter_mut().map(
                         | s | (s.simulator.calculate_sim_cost(), s.simulator.remove_all_neural_networks())
                     ).collect();
+                    let min_cost = old_nns_and_costs.iter().fold(f32::INFINITY, | a, b | a.min(b.0));
+                    report_tx.send(GenerationReport {
+                        cost: min_cost,
+                        tonnes_co2: 0.0,
+                    }).unwrap();
                     terminated_sims.iter_mut().for_each( | s | {
                         let parent_a = &old_nns_and_costs.choose_weighted(&mut rng, | (cost, _nns) | 1.0/cost).expect("Empty population").1;
                         let parent_b = &old_nns_and_costs.choose_weighted(&mut rng, | (cost, _nns) | 1.0/cost).expect("Empty population").1;
@@ -168,6 +194,8 @@ impl Simulating {
             report_updates,
             terminate_generation,
             simulation_information,
+            generation_reports: Vec::new(),
+            reports_channel: Mutex::new(report_rx),
         }
     }
     /// True, if the simulation has terminated
@@ -232,18 +260,20 @@ impl SimulationReport {
 /// simulating Simulations
 pub struct SimManager {
     /// The movable server provides cars to the simulators
-    movable_server: IntMut<MovableServer>,
+    movable_server: MovableServer,
     /// the sim builder generates new simulations and can be used to
     /// configure them (before simulating)
     sim_builder: SimulatorBuilder, 
     /// A list of currently running Simulators
-    simulations: Option<Simulating>,
+    pub simulations: Option<Simulating>,
     /// how likely the nn is to mutate
-    mutation_chance: f32,
+    pub mutation_chance: f32,
     /// how strongly it mutates if it mutates
-    mutation_coeff: f32,
+    pub mutation_coeff: f32,
     /// 
     is_simulating: bool,
+    ///
+    pub stop_iterations: u32,
     /// the number of generations that should be simulated
     pub generations: usize,
     /// the size of each population in a generation
@@ -288,7 +318,7 @@ impl SimManager {
         let sim_builder = SimulatorBuilder::<PathAwareCar>::new();
         let movable_server = MovableServer::<PathAwareCar>::new();
         SimManager {
-            movable_server: IntMut::new(movable_server),
+            movable_server,
             sim_builder: sim_builder,
             simulations: None,
             mutation_chance: 0.01,
@@ -296,7 +326,8 @@ impl SimManager {
             is_simulating: false,
             population: 1,
             generations: 10,
-            simulation_report: None
+            simulation_report: None,
+            stop_iterations: 100,
         }
     }
     /// Returns a mutable reference to the SimulatorBuilder, if no Simulation
@@ -322,7 +353,6 @@ impl SimManager {
         }
         // index nodes
         self.movable_server
-            .get()
             .register_simulator_builder(&self.sim_builder);
         self.simulations = Some(
             Simulating::new(
@@ -331,7 +361,8 @@ impl SimManager {
                 self.population, 
                 self.generations,
                 self.mutation_chance,
-                self.mutation_coeff
+                self.mutation_coeff,
+                self.stop_iterations
             )
         );
         self.is_simulating = true;
@@ -342,7 +373,13 @@ impl SimManager {
     pub fn is_simulating(&self) -> bool {
         self.is_simulating
     }
-
+    pub fn update_reports(&mut self) {
+        if let Some(sim) = &mut self.simulations {
+            for report in sim.reports_channel.lock().unwrap().try_iter() {
+                sim.generation_reports.push(report);
+            }
+        }
+    }
 
     /// Terminates the current generation and performs Crossover
     pub fn terminate_generation(&mut self) {
@@ -389,6 +426,9 @@ impl SimManager {
             None => Err("Can not track simulation if no simulations are running".to_string()),
         }
     }
+
+    ///
+
     /// returns the simulation information of the current simulating
     pub fn get_sim_status(&mut self) -> Result<&mut Vec<SimulationStatus>, String> {
         match &mut self.simulations {
