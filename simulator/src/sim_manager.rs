@@ -327,13 +327,13 @@ impl SimManager {
             movable_server,
             sim_builder: sim_builder,
             simulations: None,
-            mutation_chance: 0.01,
-            mutation_coeff: 0.3,
+            mutation_chance: 0.0001,
+            mutation_coeff: 0.01,
             is_simulating: false,
-            population: 1,
-            generations: 10,
+            population: 1000,
+            generations: 100,
             simulation_report: None,
-            stop_iterations: 100,
+            stop_iterations: 3000,
             disable_tracking: true,
         }
     }

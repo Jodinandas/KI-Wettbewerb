@@ -51,7 +51,8 @@ Simply click the "add Crossing" tool on the right hand side and click on the can
 ### Adding I/O nodes
 The same procedure as with Crossings
 ### Adding streets
-When having selected the "add street" tool, they can be added by hovering over a Crossing or I/O Node and selecting the direction by clicking on the corresponding circle.
+When having selected the "add street" tool, they can be added by hovering over a Crossing or I/O Node and selecting the direction by clicking on the corresponding dot.
+
 
 The output of the street is then determined in a similar manner.
 
