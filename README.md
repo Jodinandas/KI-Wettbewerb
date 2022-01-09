@@ -1,5 +1,7 @@
+This project is licensed under the GPL Version 3 License and was created by Ferdinand Pamberger, Jonas Kriegl & Elias Mutzl. It can be found on [GitHub](https://github.com/Jodinandas/KI-Wettbewerb)
+
 # AICO²
-Submission to the Austrian competition "Ki-Wettbewerb" by Team Rusted.
+Submission to the Austrian competition "Bundeswettbewerb Künstliche Intelligenz" by Team Rusted.
 
 A Street simulation that uses Neural Networks and a Genetic Algorithm to optimize the Traffic lights. It is possible to optimize the Street simulation either to be more economically friendly or to allow for maximum car speed. This can be changed in an intuitive-to-use Editor that is completely separate from the Backend to allow for maximum efficiency.
 
@@ -16,6 +18,10 @@ If rust and its dependencies were installed properly (you may need to add it to 
 cargo run --release
 ```
 (you need to be in the top-level  of the repository).
+
+<img src="./pictures/training.png" width="400"/>
+
+An example of optimizing a simple street network.
 
 # The editor
 TODO: Add image
