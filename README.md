@@ -205,7 +205,7 @@ We modelled it after the graph [this article](https://theconversation.com/climat
 
 
 ## Performance
-To simulate a grid of 80 by 80, the simulator (without the frontend) takes about 9ms per iteration step (depending on the setting a ~2-10 second advancement in the simulation time). The realistic time should be even better as this is the performance
+To simulate a grid of 80 by 80, the simulator (without the frontend) takes about 9ms per iteration step (depending on the setting a ~2-10 second advancement in the simulation time). In practise, the time should be even better as this is the performance
 of one simulation. When simulating on a multicore processor, you can simulate one Simulator per thread. (For the
 test, a Ryzen 7 2700X was used. OS: Arch Linux)
 
