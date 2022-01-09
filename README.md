@@ -26,11 +26,16 @@ The editor has two modes: the Street Editor mode and the simulation mode.
 
 Here, the user can create a custom Street network fitting their needs. Theoretically, the network can be indefinetly large. However, we do not recommend very big sizes, because the optimization gets exponentially more difficult as the AI has to understand the coherence of all nodes. There are 3 NodeTypes available by default: 
 * Crossings (standard: 4 Inputs and 4 Outputs)
-<img src="./pictures/Crossing.png" width="300"/>
+
+<img src="./pictures/Crossing.png" width="400"/>
+
 * Streets (going only in one direction)
-<img src="./pictures/Street.png" width="300"/>
+
+<img src="./pictures/Street.png" width="400"/>
+
 * I/O Nodes (the points where cars can enter or leave the Simulation)
-<img src="./pictures/IO-Node.png" width="300"/>
+
+<img src="./pictures/IO-Node.png" width="400"/>
 
 ### Moving around
 Use the "pan" tool are navigate using W,A,S,D or the arrow keys. You can zoom in & out using Q, E or the scroll wheel.
