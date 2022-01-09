@@ -273,11 +273,9 @@ impl NodeBuilderTrait for IONodeBuilder {
         Node::IONode(IONode {
             connections: Vec::new(),
             spawn_rate: self.spawn_rate,
-            time_since_last_spawn: 0.0,
             absorbed_cars: 0,
             id: self.id,
             cached: HashMap::new(),
-            movable_server: None,
             total_cost: 0.0,
             cost_calc_params: CostCalcParameters {},
             record: false,
@@ -324,7 +322,7 @@ impl IONodeBuilder {
         IONodeBuilder {
             connections_out: Vec::new(),
             connections_in: Vec::new(),
-            spawn_rate: 0.05,
+            spawn_rate: 0.1,
             id: 0,
         }
     }

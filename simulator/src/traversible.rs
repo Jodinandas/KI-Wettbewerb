@@ -1,6 +1,6 @@
-use std::{ptr, collections::VecDeque};
+use std::{ptr, collections::{VecDeque, HashMap}};
 
-use crate::{movable::MovableStatus, node::CostCalcParameters, simulation::calculate_cost, CAR_SPACING};
+use crate::{movable::MovableStatus, node::CostCalcParameters, simulation::calculate_cost, CAR_SPACING, node_builder::Direction};
 
 use super::{movable::RandCar, traits::Movable};
 #[allow(unused_imports)]
@@ -47,6 +47,7 @@ impl<T: Movable> Traversible<T> {
             let speed = m.get_speed();
             let pos_delta = t as f32 * (speed[1] - speed[0])*0.3;
             m.set_current_speed((speed[1] - speed[0])*0.3);
+            m.add_to_dist(pos_delta);
             if is_at_end || (part_of_waiting && (dist_last - (*dist + pos_delta)) <= CAR_SPACING) {
                 part_of_waiting = true;
                 movables_waiting += 1;
@@ -70,6 +71,15 @@ impl<T: Movable> Traversible<T> {
     /// returns the number of movables that are waiting to go on a crossing
     pub fn num_movables_waiting(&self) -> u32 {
         self.movables_waiting
+    }
+    /// 
+    pub fn get_overnext_node_ids(&self) -> HashMap<usize, u32> {
+        let mut map = HashMap::new();
+        self.movables.iter().rev().take(self.movables_waiting as usize).for_each(| (car, _pos ) | {
+            let id = car.overnext_node_id().unwrap();
+            *map.entry(id).or_insert(0) += 1;
+        });
+        map
     }
     /// removes a movable using a reference to it. This can be useful for
     /// removing cars lazily and checking conditions outside the traversible
@@ -112,6 +122,16 @@ impl<T: Movable> Traversible<T> {
             })
             .collect()
     }
+    ///
+    pub fn get_target_id_of_movable_at_end(&self) -> Option<usize> {
+        if let Some(movable) = self.movables.back() {
+            if self.movables_waiting == 0 {
+                return None
+            }
+            return movable.0.overnext_node_id()
+        }
+        None
+    }
 
     pub fn remove_movable(&mut self, i: usize) -> T {
         self.movables.remove(i).unwrap().0
@@ -126,5 +146,10 @@ impl<T: Movable> Traversible<T> {
             .iter()
             .map(|(m, _)| calculate_cost(m.get_report(), params))
             .sum()
+    }
+
+    pub fn reset(&mut self) {
+        self.movables = VecDeque::new();
+        self.movables_waiting = 0;
     }
 }

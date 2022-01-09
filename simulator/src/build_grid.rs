@@ -1,6 +1,6 @@
 use super::node_builder::{CrossingBuilder, IONodeBuilder};
 use super::simulation_builder::SimulatorBuilder;
-use crate::node_builder::{Direction, NodeBuilder};
+use crate::node_builder::{Direction, NodeBuilder, NodeBuilderTrait};
 use crate::pathfinding::PathAwareCar;
 
 /// Builds a grid with side length `grid_side_len`
@@ -19,6 +19,8 @@ pub fn build_grid_sim(grid_side_len: u32, street_len: f32) -> SimulatorBuilder {
     // 7    IO IO IO IO IO IO
     let mut sim = SimulatorBuilder::<PathAwareCar>::new();
     sim.with_delay(0).with_max_iter(Some(10000));
+    let mut corner_ids: [usize; 4] = [0; 4];
+    let mut corner_index = 0;
     for i in 0..grid_side_len {
         for j in 0..grid_side_len {
             let is_corner =
@@ -27,7 +29,9 @@ pub fn build_grid_sim(grid_side_len: u32, street_len: f32) -> SimulatorBuilder {
             let is_higher_edge = i == grid_side_len - 1 || j == grid_side_len - 1;
             let is_edge = is_lower_edge || is_higher_edge;
             if is_corner {
-                sim.add_node(NodeBuilder::IONode(IONodeBuilder::new()));
+                let id = sim.add_node(NodeBuilder::IONode(IONodeBuilder::new())).get().get_id();
+                corner_ids[corner_index] = id;
+                corner_index += 1;
                 continue;
             }
             match is_edge {
@@ -111,6 +115,9 @@ pub fn build_grid_sim(grid_side_len: u32, street_len: f32) -> SimulatorBuilder {
                 .expect("p8");
             }
         }
+    }
+    for id in corner_ids {
+        sim.remove_node_and_connected_by_id(id).unwrap();
     }
     sim
 }

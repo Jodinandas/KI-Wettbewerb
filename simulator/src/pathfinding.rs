@@ -81,8 +81,19 @@ impl Movable for PathAwareCar {
     fn set_path(&mut self, p: Vec<usize>) {
         self.path = p;
     }
+    fn add_to_dist(&mut self, dist: f32) {
+        self.dist_traversed += dist;
+    }
     fn set_path_len(&mut self, len: f32) {
         self.path_len = len
+    }
+
+    fn overnext_node_id(&self) -> Option<usize> {
+        if self.path.len() >= 2 {
+            Some(self.path[self.path.len() - 2])
+        } else {
+            None
+        }
     }
 
     #[tracing::instrument(skip_all)]
@@ -148,7 +159,7 @@ impl Movable for PathAwareCar {
                 let dn = crossing.get_out_connections();
                 // the "overnext" node onto which the car wants to drive
                 let desired_overnext_node = dn.iter().find(|out_node| {
-                    if out_node.upgrade().get().id() == overnext_node_id(&self.path) {
+                    if out_node.upgrade().get().id() == self.overnext_node_id().unwrap() {
                         true
                     } else {
                         false
@@ -189,14 +200,6 @@ impl Movable for PathAwareCar {
     }
 }
 
-fn overnext_node_id(path: &Vec<usize>) -> usize {
-    if path.len() >= 2 {
-        return path[path.len() - 2];
-    } else {
-        panic!("tried to get ;overnext; node, but it does not exist for this path")
-    }
-}
-
 /// this struct saved data of a connection that is important for caching / path finding
 #[derive(Debug, Clone)]
 struct IndexedConnection {
@@ -206,7 +209,7 @@ struct IndexedConnection {
 
 /// A Data Structure representing the connections with indices to make
 /// using path finding algorithms easier
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct IndexedNodeNetwork {
     /// connections acvvvvvvvvvvvvvvvn bbbbbbbbbbbbbbbbbbbbbbbbbbbb (my cat)
     ///
@@ -309,7 +312,7 @@ impl Error for NoPathError {}
 /// It provides a way for multiple Simulations to request new cars
 /// without paths having to generate a new path each time. It caches
 /// paths.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MovableServer<Car = PathAwareCar>
 where
     Car: Movable,
