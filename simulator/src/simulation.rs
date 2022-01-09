@@ -151,10 +151,11 @@ impl<Car: Movable> Simulator<Car> {
         }
     }
     /// resets all cars
-    pub fn reset_cars(&mut self) {
-        self.nodes.iter().for_each(| n| {
-            n.get().reset_cars();
-        });
+    pub fn reset_cars(&mut self) -> HashMap<usize, Vec<MovableStatus>> {
+        self.nodes.iter().map(| n| {
+            let inner_node = &mut *n.get();
+            (inner_node.id(), inner_node.reset_cars())
+        }).collect()
     }
     /// used the output from the genetic algorithm to set the neural networks
     pub fn set_neural_networks(&mut self, mut nns: Vec<art_int::Network>) {

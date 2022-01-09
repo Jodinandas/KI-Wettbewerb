@@ -129,12 +129,14 @@ impl Simulating {
             let cpus = num_cpus::get();
             let min_num = (population as f32 / cpus as f32).ceil() as usize;
             for generation in 0..generations {
-                terminated_sims.iter_mut().for_each(| sim | {
-                    sim.simulator.reset_cars();
-                });
                 terminated_sims = terminated_sims.into_par_iter()
                 // .with_min_len(min_num)
                  .map( move | mut data | {
+                    // delete old cars
+                    let status_updates = data.simulator.reset_cars();
+                    if *data.report_updates.get() {
+                        data.channel.lock().unwrap().send(status_updates).expect("Unable to send car status updates, even though report_updates is set to true");
+                    }
                     let span = span!(Level::TRACE, "simulation", sim_index=generation);
                     let _enter = span.enter();
                     info!("starting Simulation thread");
@@ -150,11 +152,7 @@ impl Simulating {
                         }
                         data.simulator.sim_iter();
                         let report_updates = *data.report_updates.get();
-                        // report car position updates
-                        if previous_tracking_setting != report_updates {
-                            data.simulator.set_car_recording(report_updates);
-                            previous_tracking_setting = report_updates;
-                        }
+                        data.simulator.set_car_recording(report_updates);
                         if report_updates {
                             let updates = data.simulator.get_car_status();
                             data.channel.lock().unwrap().send(updates).expect("Unable to send car status updates, even though report_updates is set to true");
@@ -285,7 +283,9 @@ pub struct SimManager {
     /// the size of each population in a generation
     pub population: usize,
     /// saves the status report of the last simulation
-    pub simulation_report: Option<SimulationReport>
+    pub simulation_report: Option<SimulationReport>,
+    /// 
+    pub disable_tracking: bool
 }
 
 /// This error is returned if one tries to modify the SimulatorBuilder while a Simulation is running
@@ -334,6 +334,7 @@ impl SimManager {
             generations: 10,
             simulation_report: None,
             stop_iterations: 100,
+            disable_tracking: true,
         }
     }
     /// Returns a mutable reference to the SimulatorBuilder, if no Simulation

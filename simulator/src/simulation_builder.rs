@@ -136,23 +136,6 @@ impl Error for IndexError {}
 /// A struct for creating simulators
 ///
 /// To seperate simulation creation from actual simulation logic,
-/// the builder pattern is used. This enables additional optimisations,
-/// as things like nodes can be cached
-///
-/// # Examples
-/// ## From JSON file
-/// ```
-/// use simulator::simple::simulation_builder::SimulatorBuilder;
-/// let json: &str = r#"
-/// {"crossings": [
-///     {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]},
-///     {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]},
-///     {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]},
-///     {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]},
-///     {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]},
-///     {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
-/// let mut simulator = SimulatorBuilder::from_json(json);
-/// ```
 #[derive(Debug, Clone)]
 pub struct SimulatorBuilder<Car = PathAwareCar>
 where
@@ -700,15 +683,6 @@ impl Serialize for SimulatorBuilder {
 }
 
 mod tests {
-
-    // #[test]
-    // fn simulation_builder_from_json() {
-    //     use crate::pathfinding::PathAwareCar;
-    //     let json: &str = r#"{"crossings": [{"traffic_lights": false, "is_io_node": false, "connected": [[1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[0, 1], [2, 1], [3, 1], [4, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [3, 1], [4, 1], [5, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[2, 1], [1, 1]]}, {"traffic_lights": false, "is_io_node": false, "connected": [[1, 1], [2, 1]]}, {"traffic_lights": false, "is_io_node": true, "connected": [[2, 1]]}]}"#;
-    //     let data = super::SimulatorBuilder::<PathAwareCar>::from_json(json).unwrap();
-    //     println!("{:?}", &data);
-    // }
-
     #[test]
     fn connect_with_streets() {
         use crate::node_builder::Direction;

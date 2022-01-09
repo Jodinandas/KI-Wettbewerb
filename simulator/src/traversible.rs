@@ -153,8 +153,17 @@ impl<T: Movable> Traversible<T> {
             })
     }
 
-    pub fn reset(&mut self) {
+    pub fn reset(&mut self) -> Vec<MovableStatus> {
+        let to_return = self.movables.iter().map(| (m, _dist) | {
+            MovableStatus {
+                position: 0.0,
+                lane_index: 0,
+                movable_id: m.get_id(),
+                delete: true,
+            }
+        }).collect();
         self.movables = VecDeque::new();
         self.movables_waiting = 0;
+        to_return
     }
 }

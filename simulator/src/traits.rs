@@ -43,7 +43,7 @@ where
     /// car_ref from id
     fn get_car_by_index(&mut self, i: usize) -> &Car;
     /// resets all cars (removes them from the simulation)
-    fn reset_cars(&mut self);
+    fn reset_cars(&mut self) -> Vec<MovableStatus> {Vec::new()}
     /// 
     fn get_overnext_node_ids(&self) -> HashMap<usize, u32>;
     /// 

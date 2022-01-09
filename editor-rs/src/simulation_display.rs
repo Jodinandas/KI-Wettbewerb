@@ -1,7 +1,7 @@
 use bevy::{
     ecs::schedule::ShouldRun,
     math::{Vec2, Vec3},
-    prelude::{Color, Commands, Query, Res, ResMut, Transform, Entity},
+    prelude::{Color, Commands, Query, Res, ResMut, Transform, Entity, DespawnRecursiveExt},
 };
 use bevy_egui::egui::Color32;
 use bevy_prototype_lyon::{
@@ -60,7 +60,7 @@ pub fn display_cars(
                         match cars.iter_mut().find(|(_e, id, _)| id.0 == status.movable_id) {
                             Some((entity, _, mut transform)) => {
                                 match status.delete {
-                                    true => commands.entity(entity).despawn(),
+                                    true => {info!("Deleted Car"); commands.entity(entity).despawn_recursive()},
                                     false => *transform.translation = *Vec3::new(new_car_position.x, new_car_position.y, CAR_Z)
                                 }
                             }

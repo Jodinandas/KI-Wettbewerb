@@ -130,10 +130,17 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
         }
     }
 
-    fn reset_cars(&mut self) {
+    fn reset_cars(&mut self) -> Vec<MovableStatus> {
         match self {
-            Node::Street(s) => s.lanes.iter_mut().for_each(| l | l.reset()),
-            Node::IONode(node) => {node.cached = HashMap::new(); node.recorded_cars = Vec::new(); node.num_cars_spawned = 0; node.total_cost = [0.0; 2];},
+            Node::Street(s) => s.lanes.iter_mut().flat_map(| l | l.reset()).collect(),
+            Node::IONode(node) => {node.cached = HashMap::new(); node.num_cars_spawned = 0; node.total_cost = [0.0; 2]; node.recorded_cars.drain(..).map( | c | {
+                MovableStatus {
+                    position: 0.0,
+                    lane_index: 0,
+                    movable_id: c.get_id(),
+                    delete: true,
+                }
+            }).collect()},
             Node::Crossing(node) => {node.car_lane.reset()},
         }
     }

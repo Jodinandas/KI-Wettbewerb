@@ -399,17 +399,21 @@ pub fn draw_user_interface(
                                 .text("Mutation Coefficent")
                                 .clamp_to_range(true)
                             );
+                            ui.checkbox(&mut sim_manager.disable_tracking, "Disable tracking in frontend (recommended when not using delay)");
                             ui.separator();
                             ui.heading("Commands");
                             ui.horizontal_wrapped(|  ui | {
                                 if ui.button("Start Simulation").clicked() {
+
                                     match sim_manager.simulate() {
                                         Err(err) => error!("Error when trying to start simulation: {}", err),
                                         Ok(_) => {
-                                            match sim_manager.track_simulation(0) {
-                                                Ok(_) => info!("Tracking Simulation index=0"),
-                                                Err(_) => warn!("Unable to track Simulation with index=0"),
-                                            };
+                                            if !sim_manager.disable_tracking {
+                                                match sim_manager.track_simulation(0) {
+                                                    Ok(_) => info!("Tracking Simulation index=0"),
+                                                    Err(_) => warn!("Unable to track Simulation with index=0"),
+                                                };
+                                            }
                                             info!("Started simulation")
                                         }
                                     }
