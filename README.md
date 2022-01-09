@@ -77,7 +77,7 @@ Here, the created node network can be simulated. You can change the following pa
 After clicking the "Start Simulation" button, the different generational reports can be watched in the "Generation Report" window in the lower part of the window. You will need to resize it first (hover over the edge over "Generation Report" and drag it upwards).
 
 ## Preferences
-For those of you who like to destroy their eyes, there is also a light mode available. You can change it in the simulation tab
+For those of you who like to destroy their eyes, there is also a light mode available. You can change it in the preferences tab
 
 ## File dialog
 Currently, you can not change the output dir. Files that are loaded or saved are located in the repository root under the name `StreetSimulation.json`.
