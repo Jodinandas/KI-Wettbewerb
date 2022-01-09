@@ -79,6 +79,12 @@ Because we already knew how to use Python, we decided to complement our knowledg
 a strongly-typed language. Rust provides a great package manager and an ingenious way
 to install packages and document dependencies (They are listed along with their versions
 in the file `Cargo.toml` )
+## The top level structuring
+The frontend and backend are completely separated. You could compile the backend
+without having the frontend crate. This is partly because we want to maximise
+performance. This means, the backend doesn't need (and shouldn't know) where
+nodes are situated on the screen etc.
+
 ## About the `editor` folder
 The folder called "editor" is a deprecated version of the frontend, written in python.
 
@@ -122,18 +128,87 @@ The UI is drawn using [egui](https://github.com/emilk/egui).
 As both frameworks theoratically support WASM, our project could probably be compiled
 for Browsers. 
 
-# The Backend
-## SimManager
+## The Backend
+### SimManager
 The top level struct that interfaces with the frontend is called `SimManager`. Its purpose
 $-$ as the name suggests $-$ is to provide a convenient way to generate simulations. 
 Its main purposes is to collect updates from the simulations running in parallel. Because
-the Simulations are running in a different thread, it is not possible to acces the underlying
+the Simulations are running in a different thread, it is not possible to access the underlying
 data directly. Instead [`std::sync::mpsc::Channel`](https://doc.rust-lang.org/book/ch16-02-message-passing.html) is used to send updates about a marked simulation to the 
 Sim Manager. The frontend can then access the Receiver to get an idea of where cars are.
 
-## SimulatorBuilder
+### SimulatorBuilder & Simulator
 The main task of the simulator builder is to seperate the task of building a street
-network into a different
+network into a different struct to keep the `Simulator` struct clean. It
+can do things like connecting crossings etc.
+The Simulator only knows how to perform the Simulation and not how to build one.
+
+### $\rightarrow$ NodeBuilder & Node
+The NodeBuilder is responsible for generating new nodes. Like in the relation
+(Simulatorbuilder $-$ Simulator), it separates setting options from the core
+functionality.
+
+A Node is an enum that records the different variants of interactable objects in the scene.
+```rust
+pub enum Node<Car = RandCar>
+where
+    Car: Movable,
+{
+    /// Wrapper
+    Street(Street<Car>),
+    /// Wrapper
+    IONode(IONode<Car>),
+    /// Wrapper
+    Crossing(Crossing<Car>),
+}
+```
+
+The `IONode` is responsible for spawning new cars to the simulation and for destroying
+old cars, when they reach their destination.
+
+![How the IONode is represented in the frontend](pictures/IO-Node.png)
+ 
+-------
+
+The `Street` connects `Crossings` 
+
+![How a Street looks is represented in the frontend](pictures/Street.png)
+
+------
+
+A `Crossing` is responsible for controlling the traffic light state. For this reason, it
+is the component that uses a neural network internally. 
+
+![How a Crossing is represented in the frontend](pictures/Crossing.png)
+
+------
+
+### $\rightarrow$ MovableServer
+The Movable server is a part of the `Simulator` is responsible for creating new cars and generating a path for
+them. In addition, it is able to cache the generated cars to avoid having to compute
+a new path for every single car. This means that after a few generations at maximum,
+the computation of new cars becomes only a matter of copying an old car and
+giving it a new id.
+
+### The genetic algorithm
+A unique neural network is generated for each simulation to ensure it trains
+on the exact situation it would otherwise encounter in real life.
+
+### The cost function
+To estimate the amount fuel a car consumes, we use the polynomial
+$$ \text{Fuel}_{liters}(x) = -0.000000000138841 x^6 + 0.000000049189085x^5 \\ - 0.000006513465616x^4 + 0.000375629640659x^3 \\ - 0.005677092214215x^2 - 0.300161202539628x \\ + 15.954046194749404$$
+where $x$ is the average speed of the car.
+
+We modelled it after the graph [this article](https://theconversation.com/climate-explained-does-your-driving-speed-make-any-difference-to-your-cars-emissions-140246) using Geogebra.
+
+
+## Performance
+To simulate a grid of 80 by 80
+
+# Challenges
+
+
+
 
 
 
