@@ -169,20 +169,14 @@ where
 The `IONode` is responsible for spawning new cars to the simulation and for destroying
 old cars, when they reach their destination.
 
-![How the IONode is represented in the frontend](pictures/IO-Node.png)
- 
 -------
 
 The `Street` connects `Crossings` 
-
-![How a Street looks is represented in the frontend](pictures/Street.png)
 
 ------
 
 A `Crossing` is responsible for controlling the traffic light state. For this reason, it
 is the component that uses a neural network internally. 
-
-![How a Crossing is represented in the frontend](pictures/Crossing.png)
 
 ------
 
@@ -206,9 +200,20 @@ We modelled it after the graph [this article](https://theconversation.com/climat
 
 
 ## Performance
-To simulate a grid of 80 by 80
+To simulate a grid of 80 by 80, the simulator (without the frontend) takes about 9ms per iteration step (depending on the setting a ~2-10 second advancement in the simulation time). The realistic time should be even better as this is the performance
+of one simulation. When simulating on a multicore processor, you can simulate one Simulator per thread. (For the
+test, a Ryzen 7 2700X was used. OS: Arch Linux)
+
+<img src="./pictures/pdf.svg" width="500"/>
+
+<img src="./pictures/80by80.png" width="500"/>
 
 # Challenges
+While some Rust crates like rayon (for parallel iterators) and tracing (for logging)
+are great, crates like bevy and egui are extremely cumbersome to use. 
+This is one of the reasons, why the frontend is rather simple and some functions
+are not quite working.
+E.g.: Unfortunatly, when advancing to a new generation, there are still graphical bugs in the frontend (lingering cars).
 
 
 
