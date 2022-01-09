@@ -8,12 +8,13 @@ use std::{error::Error, sync::MutexGuard};
 #[derive(Debug, Clone)]
 pub struct RandPerson {
     speed: f32,
+    current_speed: f32,
     id: u32,
 }
 
 impl Movable for RandPerson {
-    fn get_speed(&self) -> f32 {
-        self.speed
+    fn get_speed(&self) -> [f32;2] {
+        [self.current_speed.clone(), self.speed.clone()]
     }
     fn set_speed(&mut self, s: f32) {
         self.speed = s
@@ -37,13 +38,18 @@ impl Movable for RandPerson {
     }
 
     fn new() -> Self {
-        RandPerson { speed: 0.0, id: 0 }
+        RandPerson { speed: 0.0, id: 0, current_speed:0.0 }
+    }
+
+    fn set_current_speed(&mut self, cs: f32) {
+        self.current_speed = cs
     }
 }
 
 /// A car that takes turn at random
 #[derive(Debug, Clone)]
 pub struct RandCar {
+    current_speed: f32,
     speed: f32,
     id: u32,
 }
@@ -51,13 +57,13 @@ pub struct RandCar {
 impl RandCar {
     /// returns a car with default speed
     pub fn new() -> RandCar {
-        RandCar { id: 0, speed: 2.0 }
+        RandCar { id: 0, speed: 2.0, current_speed: 0.0}
     }
 }
 
 impl Movable for RandCar {
-    fn get_speed(&self) -> f32 {
-        self.speed
+    fn get_speed(&self) -> [f32;2] {
+        [self.current_speed.clone(), self.speed.clone()]
     }
     fn set_speed(&mut self, s: f32) {
         self.speed = s
@@ -81,7 +87,11 @@ impl Movable for RandCar {
     }
 
     fn new() -> Self {
-        RandCar { speed: 0.0, id: 0 }
+        RandCar { speed: 0.0, id: 0, current_speed: 0.0}
+    }
+
+    fn set_current_speed(&mut self, cs: f32) {
+        self.current_speed = cs
     }
 }
 
