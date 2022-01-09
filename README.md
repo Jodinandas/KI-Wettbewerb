@@ -2,7 +2,7 @@ This project is licensed under the GPL Version 3 License and was created by Ferd
 
 https://youtu.be/KkNeJpYtoYw
 
-[![Video](https://i9.ytimg.com/vi_webp/KkNeJpYtoYw/mqdefault.webp?v=61db58f4&sqp=CIix7Y4G&rs=AOn4CLAg8VuAu1JJKL5v1fn25NGokBM9HQ](https://www.youtube.com/watch?v=KkNeJpYtoYw)
+[![Video](https://i9.ytimg.com/vi_webp/KkNeJpYtoYw/mqdefault.webp?v=61db58f4&sqp=CIix7Y4G&rs=AOn4CLAg8VuAu1JJKL5v1fn25NGokBM9HQ)](https://www.youtube.com/watch?v=KkNeJpYtoYw)
 
 # AICO²
 Submission to the Austrian competition "Bundeswettbewerb Künstliche Intelligenz" by Team Rusted.
