@@ -169,6 +169,8 @@ where
     next_id: usize,
     /// how much a simulation is advanced each step
     pub dt: f32,
+    ///
+    pub speed_to_co2: f32
 }
 
 impl<Car: Movable> SimulatorBuilder<Car> {
@@ -181,6 +183,7 @@ impl<Car: Movable> SimulatorBuilder<Car> {
             cache: None,
             next_id: 0,
             dt: 0.1,
+            speed_to_co2: 0.5,
         }
     }
 
@@ -279,7 +282,9 @@ impl<Car: Movable> SimulatorBuilder<Car> {
                 max_iter: self.max_iter,
                 delay: self.delay,
                 dt: self.dt,
-                calc_params: CostCalcParameters,
+                calc_params: CostCalcParameters {
+                    speed_to_co2: self.speed_to_co2
+                },
                 mv_server: mv_server.clone()
             };
         }
@@ -386,7 +391,9 @@ impl<Car: Movable> SimulatorBuilder<Car> {
             max_iter: self.max_iter,
             delay: self.delay,
             dt: self.dt,
-            calc_params: CostCalcParameters {},
+            calc_params: CostCalcParameters {
+                speed_to_co2: self.speed_to_co2,
+            },
             mv_server: mv_server.clone(),
         }
     }

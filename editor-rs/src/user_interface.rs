@@ -340,6 +340,15 @@ pub fn draw_user_interface(
                             ui.separator();
                             ui.add(
                                 egui::Slider::new(
+                                    &mut builder.speed_to_co2,
+                                    0.0..=1.0
+                                )
+                                .text("Optimisation Target: (Left: Speed, Right: Co2)")
+                                .clamp_to_range(true)
+                            );
+                            ui.separator();
+                            ui.add(
+                                egui::Slider::new(
                                     &mut builder.dt,
                                     0.01..=10.0
                                 )
@@ -391,14 +400,13 @@ pub fn draw_user_interface(
                                 .clamp_to_range(true)
                             );
                             ui.separator();
-                            ui.separator();
                             ui.heading("Commands");
                             ui.horizontal_wrapped(|  ui | {
                                 if ui.button("Start Simulation").clicked() {
                                     match sim_manager.simulate() {
                                         Err(err) => error!("Error when trying to start simulation: {}", err),
                                         Ok(_) => {
-                                            match sim_manager.track_simulation(2) {
+                                            match sim_manager.track_simulation(0) {
                                                 Ok(_) => info!("Tracking Simulation index=0"),
                                                 Err(_) => warn!("Unable to track Simulation with index=0"),
                                             };

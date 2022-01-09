@@ -133,7 +133,7 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
     fn reset_cars(&mut self) {
         match self {
             Node::Street(s) => s.lanes.iter_mut().for_each(| l | l.reset()),
-            Node::IONode(node) => {node.cached = HashMap::new(); node.recorded_cars = Vec::new(); node.num_cars_spawned = 0; node.total_cost = 0.0;},
+            Node::IONode(node) => {node.cached = HashMap::new(); node.recorded_cars = Vec::new(); node.num_cars_spawned = 0; node.total_cost = [0.0; 2];},
             Node::Crossing(node) => {node.car_lane.reset()},
         }
     }
@@ -435,7 +435,10 @@ impl<Car: Movable> Crossing<Car> {
 
 /// information important for calculating the Cost
 #[derive(Clone, Debug)]
-pub struct CostCalcParameters;
+pub struct CostCalcParameters {
+    /// float between 0 and 1
+    pub(crate) speed_to_co2: f32
+}
 
 /// A Node that represents either the start of the simulation or the end of it
 ///
@@ -459,7 +462,7 @@ where
     /// car cache to be able to return references in the update_cars function
     pub cached: HashMap<usize, Car>,
     /// total cost all cars produced
-    pub total_cost: f32,
+    pub total_cost: [f32; 2],
     /// if set to true, the node will record cars that have reached it and only
     /// delete them if get_car_status is called
     pub record: bool,
@@ -477,10 +480,12 @@ where
             connections: Vec::new(),
             spawn_rate: 0.01,
             absorbed_cars: 0,
-            total_cost: 0.0,
+            total_cost: [0.0, 0.0],
             id: 0,
             cached: HashMap::new(),
-            cost_calc_params: CostCalcParameters {},
+            cost_calc_params: CostCalcParameters {
+                speed_to_co2: 0.5,
+            },
             record: false,
             recorded_cars: Vec::new(),
             num_cars_spawned: 0
@@ -506,7 +511,9 @@ where
     /// adds car
     pub fn add_car(&mut self, car: Car) {
         self.absorbed_cars += 1;
-        self.total_cost += calculate_cost(car.get_report(), &self.cost_calc_params);
+        let [cost, co2] = calculate_cost(car.get_report(), &self.cost_calc_params);
+        self.total_cost[0] += cost;
+        self.total_cost[1] += co2;
         if self.record {
             self.recorded_cars.push(car);
         }
