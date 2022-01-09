@@ -67,8 +67,10 @@ pub struct CarReport {
 /// come action taking place internally. Example: Going into a shop
 /// for 10 min or maybe someone tripping
 pub trait Movable: Debug + Clone + Send + Sync + DynClone {
-    /// used 
-    fn get_speed(&self) -> f32;
+    /// get current/max speed for car
+    fn get_speed(&self) -> [f32;2];
+    /// set current speed
+    fn set_current_speed(&mut self, cs: f32);
     /// unused
     fn set_speed(&mut self, s: f32);
     /// returns new Movable

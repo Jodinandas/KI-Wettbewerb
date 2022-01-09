@@ -50,7 +50,7 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
             Node::IONode(io_node) => io_node.update_cars(t, mv_server, rng),
             Node::Crossing(crossing) => {
                 crossing.traffic_light_state = crossing.determine_traffic_light_state().expect("Error when determining traffic light state");
-                crossing.car_lane.update_movables(t)
+                crossing.car_lane.update_movables(t as f32)
             },
         }
     }
@@ -614,7 +614,7 @@ impl<Car: Movable> Street<Car> {
         let mut offset = 0;
         let mut movables = Vec::new();
         for traversible in self.lanes.iter_mut() {
-            for m in traversible.update_movables(t) {
+            for m in traversible.update_movables(t as f32) {
                 movables.push(m + offset)
             }
             offset += traversible.num_movables();
