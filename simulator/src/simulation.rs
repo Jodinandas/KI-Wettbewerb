@@ -54,7 +54,7 @@ pub fn average_speed_to_fuel(speed: f64) -> f64 {
 }
 
 /// calculates the cost of a car
-pub fn calculate_cost(report: CarReport, params: &CostCalcParameters) -> [f32; 2] {
+pub fn calculate_cost(report: CarReport, params: &CostCalcParameters) -> [f64; 2] {
     // is in m/s
     let average_speed = report.distance_traversed / report.time_taken;
     // distance that the car has yet to traverse
@@ -66,8 +66,8 @@ pub fn calculate_cost(report: CarReport, params: &CostCalcParameters) -> [f32; 2
     let tonnes_co2 = fuel_to_tonnesco2(fuel_consumption as f32);
     // lerp
     [
-        average_speed * (1.0 - params.speed_to_co2) + tonnes_co2 * params.speed_to_co2 + dist_penalty,
-        tonnes_co2
+        average_speed as f64 * (1.0 - params.speed_to_co2) as f64 + tonnes_co2 as f64* params.speed_to_co2 as f64+ dist_penalty as f64,
+        tonnes_co2 as f64
     ]
 }
 
@@ -219,7 +219,7 @@ impl<Car: Movable> Simulator<Car> {
     /// returns the total cost of all the cars in the simulation 
     /// (including those that have already been destroyed)
     #[tracing::instrument(skip(self))]
-    pub fn calculate_sim_cost(&self) -> [f32; 2] {
+    pub fn calculate_sim_cost(&self) -> [f64; 2] {
         self.nodes
             .iter()
             .map(|n| match &*n.get() {

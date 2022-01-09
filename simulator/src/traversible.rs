@@ -141,7 +141,7 @@ impl<T: Movable> Traversible<T> {
         &self.movables[i].0
     }
 
-    pub fn calculate_cost_of_movables(&self, params: &CostCalcParameters) -> [f32; 2] {
+    pub fn calculate_cost_of_movables(&self, params: &CostCalcParameters) -> [f64; 2] {
         self.movables
             .iter()
             .fold([0.0, 0.0], | [cost, co2], (mr, _) | {

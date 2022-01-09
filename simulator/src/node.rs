@@ -462,7 +462,7 @@ where
     /// car cache to be able to return references in the update_cars function
     pub cached: HashMap<usize, Car>,
     /// total cost all cars produced
-    pub total_cost: [f32; 2],
+    pub total_cost: [f64; 2],
     /// if set to true, the node will record cars that have reached it and only
     /// delete them if get_car_status is called
     pub record: bool,
