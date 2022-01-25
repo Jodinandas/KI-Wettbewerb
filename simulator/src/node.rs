@@ -141,7 +141,7 @@ impl<Car: Movable> NodeTrait<Car> for Node<Car> {
                     delete: true,
                 }
             }).collect()},
-            Node::Crossing(node) => {node.car_lane.reset()},
+            Node::Crossing(node) => node.car_lane.reset(),
         }
     }
 

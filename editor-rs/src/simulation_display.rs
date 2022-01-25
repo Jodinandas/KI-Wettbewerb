@@ -48,6 +48,7 @@ pub fn display_cars(
     theme: Res<UITheme>,
 ) {
     if let Some(updates) = sim_manager.get_status_updates() {
+        cars.iter_mut().for_each(| (entity, _, _) | commands.entity(entity).despawn());
         nodes.for_each(|(sim_id, line)| {
             let id = sim_id.0;
             let start = line.0;
@@ -57,21 +58,11 @@ pub fn display_cars(
                 Some(stati) => {
                     stati.iter().for_each(|status| {
                         let new_car_position = start + (end - start) * status.position;
-                        match cars.iter_mut().find(|(_e, id, _)| id.0 == status.movable_id) {
-                            Some((entity, _, mut transform)) => {
-                                match status.delete {
-                                    true => {info!("Deleted Car"); commands.entity(entity).despawn_recursive()},
-                                    false => *transform.translation = *Vec3::new(new_car_position.x, new_car_position.y, CAR_Z)
-                                }
-                            }
-                            None => {
-                                let new_car = render_car(new_car_position, theme.car_color);
-                                commands
-                                    .spawn_bundle(new_car)
-                                    .insert(CarID(status.movable_id));
-                                trace!("Generated new car at {}", new_car_position);
-                            }
-                        };
+                        let new_car = render_car(new_car_position, theme.car_color);
+                        commands
+                            .spawn_bundle(new_car)
+                            .insert(CarID(status.movable_id));
+                        trace!("Generated new car at {}", new_car_position);
                     });
                 }
                 None => {
